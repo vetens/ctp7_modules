@@ -7,21 +7,31 @@ void mblockread(const RPCMsg *request, RPCMsg *response) {
   uint32_t count = request->get_word("count");
   uint32_t addr = request->get_word("address");
   uint32_t data[count];
-  uint32_t* tmp;
 
   for (unsigned int i=0; i<count; i++){
-    if (memsvc_read(memsvc, addr, 1, tmp) == 0) {
-      data[i] = *tmp;
-    }
-    else {
+    if (memsvc_read(memsvc, addr, 1, &data[i]) != 0) {
       response->set_string("error", memsvc_get_last_error(memsvc));
       LOGGER->log_message(LogManager::INFO, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
-      break;
+      return;
     }
   }
 	response->set_word_array("data", data, count);
 }
+void mlistread(const RPCMsg *request, RPCMsg *response) {
+  uint32_t count = request->get_word("count");
+  uint32_t addr[count];
+  request->get_word_array("addresses", addr);
+  uint32_t data[count];
 
+  for (unsigned int i=0; i<count; i++){
+    if (memsvc_read(memsvc, addr[i], 1, &data[i]) != 0) {
+      response->set_string("error", memsvc_get_last_error(memsvc));
+      LOGGER->log_message(LogManager::INFO, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
+      return;
+    }
+  }
+	response->set_word_array("data", data, count);
+}
 extern "C" {
 	const char *module_version_key = "extras v1.0.1";
 	int module_activity_color = 4;
@@ -32,5 +42,6 @@ extern "C" {
 			return; // Do not register our functions, we depend on memsvc.
 		}
 		modmgr->register_method("extras", "blockread", mblockread);
+		modmgr->register_method("extras", "listread", mlistread);
 	}
 }
