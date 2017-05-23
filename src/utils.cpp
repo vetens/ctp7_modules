@@ -75,9 +75,9 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response) {
     t_value = std::string(value.data());
     t_value = t_value.substr(0,value.size());
     temp = split(t_value,'|');
-    reg_address = stoi(temp[0]);
+    reg_address = stoll(temp[0]);
     permissions = temp[1];
-    reg_mask = stoi(temp[2]);
+    reg_mask = stoll(temp[2]);
     response->set_string("permissions", permissions);
     response->set_word("address", reg_address);
     response->set_word("mask", reg_mask);

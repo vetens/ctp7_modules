@@ -14,6 +14,7 @@ IncludeDirs += ${XHAL_ROOT}/include
 IncludeDirs += ${XHAL_ROOT}/xcompile/xerces-c-3.1.4/src
 IncludeDirs += ${XHAL_ROOT}/xcompile/log4cplus-1.1.2/include
 IncludeDirs += ${XHAL_ROOT}/xcompile/lmdb-LMDB_0.9.19/include
+IncludeDirs += /opt/cactus/include
 INC=$(IncludeDirs:%=-I%)
 
 
