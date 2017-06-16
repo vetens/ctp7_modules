@@ -32,7 +32,7 @@ lib/optical.so: src/optical.cpp
 
 #$(TARGET_LIBS): $(SRCS)
 lib/%.so:src/%.cpp
-	$(CXX) $(CFLAGS) -std=c++1y $(INC) $(LDFLAGS) -fPIC -shared -o $@ $^ -lwisci2c -lxhal_ctp7 -llmdb
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -o $@ $^ -lwisci2c -lxhal_ctp7 -llmdb
 
 clean:
 	-rm -rf lib/*.so

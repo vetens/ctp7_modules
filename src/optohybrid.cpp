@@ -152,6 +152,48 @@ void configureVFATs(const RPCMsg *request, RPCMsg *response) {
   rtxn.abort();
 }
 
+/*
+ *     Configure the firmware scan controller
+*      mode: 0 Threshold scan
+*            1 Threshold scan per channel
+*            2 Latency scan
+*            3 s-curve scan
+*            4 Threshold scan with tracking data
+*      vfat: for single VFAT scan, specify the VFAT number
+*            for ULTRA scan, specify the VFAT mask
+ */
+void configureScanModule(lmdb::txn & rtxn, lmdb::dbi & dbi, const RPCMsg *request, RPCMsg *response)
+{
+  std::string oh_number = request->get_string("oh_number");
+  uint32_t mode = request->get_word("mode");
+  uint32_t vfat_mask = request->get_key_exists("vfat_mask")?request->get_word("vfatN"):0xFFFFFFFF;
+  bool ultra = request->get_key_exists("ultra")?true:false;
+  uint32_t scanmin = request->get_word("scanmin");
+  uint32_t scanmax = request->get_word("scanmax");
+  uint32_t stepsize = request->get_word("stepsize");
+  uint32_t numtrigs = request->get_word("numtrigs");
+  uint32_t channel = request->get_word("channel");
+  std::string scanBase = "GEM_AMC.OH.OH" + oh_number + ".ScanController";
+  (ultra)?scanBase += ".ULTRA":scanBase += ".THLAT";
+  // check if another scan is running
+  if (readRawReg(rtxn, dbi, scanBase + ".MONITOR.STATUS", response) > 0) {
+    LOGGER->log_message(LogManager::WARN, stdsprintf("%s: Scan is already running, not starting a new scan", scanBase));
+    response->set_string("error", "Scan is already running, not starting a new scan");
+    return;
+  }
+  // reset scan module
+  writeRawReg(rtxn, dbi, scanBase + ".RESET", 0x1, response);
+  // write scan parameters
+  writeReg(rtxn, dbi, scanBase + ".MODE", mode, response);
+  writeReg(rtxn, dbi, scanBase + ".MIN", scanmin, response);
+  writeReg(rtxn, dbi, scanBase + ".MAX", scanmax, response);
+  writeReg(rtxn, dbi, scanBase + ".CHAN", channel, response);
+  writeReg(rtxn, dbi, scanBase + ".STEP", stepsize, response);
+  writeReg(rtxn, dbi, scanBase + ".NTRIGS", numtrigs, response);
+  (ultra)?writeReg(rtxn, dbi, scanBase + ".MASK", vfat_mask, response):writeReg(rtxn, dbi, scanBase + ".CHIP", vfat_mask, response);
+  return;
+}
+
 extern "C" {
 	const char *module_version_key = "optohybrid v1.0.1";
 	int module_activity_color = 4;
