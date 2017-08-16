@@ -10,6 +10,7 @@ endif
 include apps.common.mk
 
 IncludeDirs = ${CTP7_MOD_ROOT}/include
+IncludeDirs += ${CTP7_MOD_ROOT}/src
 IncludeDirs += ${XHAL_ROOT}/include
 IncludeDirs += ${XHAL_ROOT}/xcompile/xerces-c-3.1.4/src
 IncludeDirs += ${XHAL_ROOT}/xcompile/log4cplus-1.1.2/include

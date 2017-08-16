@@ -152,13 +152,13 @@ void writeReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, ui
     t_db_res = t_db_res.substr(0,db_res.size());
     tmp = split(t_db_res,'|');
     uint32_t mask = stoll(tmp[2]);
-    if (mask=0xFFFFFFFF) {
+    if (mask==0xFFFFFFFF) {
       writeAddress(db_res, value, response);
     } else {
       uint32_t current_value = readAddress(db_res, response);
       if (current_value == 0xdeaddead) {
   	    response->set_string("error", std::string("Writing masked reg failed due to reading problem"));
-  	    LOGGER->log_message(LogManager::ERROR, stdsprintf("Writing masked reg failed due to reading problem: %s", regName));
+  	    LOGGER->log_message(LogManager::ERROR, stdsprintf("Writing masked reg failed due to reading problem: %s", regName.c_str()));
         return;
       }
       int shift_amount = 0; 
@@ -174,8 +174,8 @@ void writeReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, ui
         }
       }
       uint32_t val_to_write = value << shift_amount;
-      val_to_write = (val_to_write & mask_copy) | (current_val & ~mask_copy);
-      writeAddress(db_res, value, response);
+      val_to_write = (val_to_write & mask_copy) | (current_value & ~mask_copy);
+      writeAddress(db_res, val_to_write, response);
     }
   } else {
   	LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
