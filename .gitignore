@@ -2,3 +2,4 @@
 ./src/*.*~
 ./include/*.*~
 ./src/*.o
+./lib/*.so
