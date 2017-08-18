@@ -1,5 +1,9 @@
-*.*~
-./src/*.*~
-./include/*.*~
-./src/*.o
-./lib/*.so
+*
+!setup.sh
+!Makefile
+!apps.common.mk
+!README.md
+!./src/*.cpp
+!./include/*.h
+!./doc
+!./lib
