@@ -1,4 +1,11 @@
-*.*~
-./src/*.*~
-./include/*.*~
-./src/*.o
+*
+!setup.sh
+!Makefile
+!apps.common.mk
+!README.md
+!./src/*.cpp
+!./include/*.h
+!./doc
+!./lib
+!.gitignore
+!.github
