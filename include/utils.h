@@ -1,3 +1,6 @@
+#ifndef UTILS_H
+#define UTILS_H
+
 #include "moduleapi.h"
 #include <libmemsvc.h>
 #include "lmdb_cpp_wrapper.h"
@@ -12,6 +15,13 @@
 #include <cstdio>
 
 memsvc_handle_t memsvc;
+
+struct localArgs {
+    lmdb::txn & rtxn;
+    lmdb::dbi & dbi;
+    RPCMsg *response;
+};
+
 
 template<typename Out>
 void split(const std::string &s, char delim, Out result) {
@@ -182,3 +192,5 @@ void writeReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, ui
     response->set_string("error", "Register not found");
   }
 }
+
+#endif
