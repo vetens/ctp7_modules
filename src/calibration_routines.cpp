@@ -89,7 +89,7 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
 
 void thresholdScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,uint32_t ch, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, RPCMsg *response)
 {
-    
+
     writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
     writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
     dacMonConfLocal(la, ohN, ch);
@@ -130,7 +130,11 @@ void thresholdScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t
         }
 
     }
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x0, la->response);
+    for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
+    { 
+        sprintf(regName,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN); 
+        writeReg(la->rtxn, la->dbi, regName, 0x0, la->response);
+    }
 }
 
 void thresholdScan(const RPCMsg *request, RPCMsg *response)
