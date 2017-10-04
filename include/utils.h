@@ -42,6 +42,45 @@ std::string serialize(xhal::utils::Node n) {
   return std::to_string((uint32_t)n.real_address)+"|"+n.permission+"|"+std::to_string((uint32_t)n.mask);
 }
 
+void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response){
+  uint32_t data[1]; 
+  data[0] = value;
+  if (memsvc_write(memsvc, address, 1, data) != 0) {
+  	response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
+  	LOGGER->log_message(LogManager::INFO, stdsprintf("write memsvc error: %s", memsvc_get_last_error(memsvc)));
+  }
+}
+
+uint32_t readRawAddress(uint32_t address, RPCMsg* response){
+  uint32_t data[1];
+  if (memsvc_read(memsvc, address, 1, data) != 0) {
+  	response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
+  	LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
+    return 0xdeaddead;
+  }
+  return data[0];
+}
+
+uint32_t getAddress(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, RPCMsg *response){
+  lmdb::val key, db_res;
+  bool found;
+  key.assign(regName.c_str());
+  found = dbi.get(rtxn,key,db_res);
+  uint32_t address;
+  if (found){
+    std::vector<std::string> tmp;
+    std::string t_db_res = std::string(db_res.data());
+    t_db_res = t_db_res.substr(0,db_res.size());
+    tmp = split(t_db_res,'|');
+    address = stoi(tmp[0]);
+  } else {
+    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
+    response->set_string("error", "Register not found");
+    return 0xdeaddead;
+  }
+  return address;
+}
+
 void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response) {
   std::vector<std::string> tmp;
   std::string t_db_res = std::string(db_res.data());
@@ -114,7 +153,6 @@ uint32_t applyMask(uint32_t data, uint32_t mask) {
 }
 
 uint32_t readReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName) {
-  LOGGER->log_message(LogManager::INFO, stdsprintf("readReg called for %s", regName.c_str()));
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
