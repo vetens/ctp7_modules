@@ -114,7 +114,7 @@ uint32_t applyMask(uint32_t data, uint32_t mask) {
 }
 
 uint32_t readReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName) {
-  LOGGER->log_message(LogManager::INFO, stdsprintf("readReg called for %s", regName.c_str()));
+  //LOGGER->log_message(LogManager::INFO, stdsprintf("readReg called for %s", regName.c_str()));
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());

@@ -54,7 +54,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
     writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
     writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
     writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
-    dacMonConfLocal(la, ohN, 0);
+    dacMonConfLocal(la, ohN, ch);
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
     uint32_t notmask = ~mask & 0xFFFFFF;
     char regBuf[200];
@@ -69,7 +69,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
     {
         if(enCal)
         {
-            la->response->set_string("error","Brian, it doesn't make sense to calpulse all channels"); 
+            la->response->set_string("error","It doesn't make sense to calpulse all channels"); 
             return;
         }
     }
@@ -85,11 +85,20 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         }
     }
 
+    uint32_t scanDacAddr[24];
+    uint32_t daqMonAddr[24];
+    uint32_t daqMonResetAddr;
+    uint32_t ttcGenStartAddr;
+    uint32_t ttcGenRunAddr;
+
     for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
     { 
         sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN); 
         writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+        sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str()); 
+        //scanDacAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response)
     }
+
 
     for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep)
     {
@@ -145,12 +154,31 @@ void genScan(const RPCMsg *request, RPCMsg *response)
 
 }
 
-void scurveScanLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, RPCMsg *response)
+void genChannelScan(const RPCMsg *request, RPCMsg *response)
 {
-}
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
-void scurveScan(const RPCMsg *request, RPCMsg *response)
-{
+    uint32_t nevts = request->get_word("nevts");
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t mask = request->get_word("mask");
+    uint32_t dacMin = request->get_word("dacMin");
+    uint32_t dacMax = request->get_word("dacMax");
+    uint32_t dacStep = request->get_word("dacStep");
+    uint32_t enCal = request->get_word("enCal");
+    std::string scanReg = request->get_string("scanReg");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    uint32_t outData[128*24*(dacMax-dacMin+1)/dacStep];
+    for(uint32_t ch = 0; ch < 128; ch++)
+    {
+        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, enCal, nevts, dacMin, dacMax, dacStep, scanReg);
+    }
+    response->set_word_array("data",outData,24*128*(dacMax-dacMin+1)/dacStep);
+
 }
 
 extern "C" {
@@ -163,7 +191,7 @@ extern "C" {
             return; // Do not register our functions, we depend on memsvc.
         }
         modmgr->register_method("calibration_routines", "genScan", genScan);
-        modmgr->register_method("calibration_routines", "scurveScan", scurveScan);
+        modmgr->register_method("calibration_routines", "genChannelScan", genScan);
         modmgr->register_method("calibration_routines", "ttcGenConf", ttcGenConf);
     }
 }
