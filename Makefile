@@ -20,7 +20,8 @@ INC=$(IncludeDirs:%=-I%)
 
 
 
-LDFLAGS+= -L$(XHAL_ROOT)/lib
+LDFLAGS+= -L$(XHAL_ROOT)/lib/x86_64
+LDFLAGS+= -L$(XHAL_ROOT)/lib/arm
 LDFLAGS+= -L$(XHAL_ROOT)/xcompile/lmdb-LMDB_0.9.19/lib
 
 SRCS= $(shell echo ${CTP7_MOD_ROOT}/src/*.cpp)

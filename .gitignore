@@ -9,3 +9,4 @@
 !./lib
 !.gitignore
 !.github
+!./conf/conf.txt
