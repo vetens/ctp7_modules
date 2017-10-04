@@ -91,12 +91,18 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
     uint32_t ttcGenStartAddr;
     uint32_t ttcGenRunAddr;
 
-    for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
+    for(int vfatN = 0; vfatN < 24; vfatN++)
     { 
-        sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN); 
-        writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
         sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str()); 
-        //scanDacAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response)
+        scanDacAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+        sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
+        daqMonAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+
+        if((notmask >> vfatN) & 0x1)
+        {
+            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN); 
+            writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+        }
     }
 
 
@@ -104,8 +110,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
     {
         for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
         { 
-            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str()); 
-            writeReg(la->rtxn, la->dbi, regBuf, dacVal, la->response);
+            writeRawAddress(scanDacAddr[vfatN], dacVal, la->response);
         }
         writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1, la->response);
@@ -114,8 +119,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         for(int vfatN = 0; vfatN < 24; vfatN++)
         { 
             int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
-            sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
-            outData[idx] = readRawReg(la->rtxn, la->dbi, regBuf, la->response);
+            outData[idx] = readRawAddress(daqMonAddr[vfatN], la->response);
         }
 
     }
