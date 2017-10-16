@@ -10,6 +10,7 @@ extern "C" {
 			return; // Do not register our functions, we depend on memsvc.
 		}
 		modmgr->register_method("optohybrid", "broadcastWrite", broadcastWrite);
+		modmgr->register_method("optohybrid", "broadcastRead", broadcastRead);
 		modmgr->register_method("optohybrid", "loadVT1", loadVT1);
 		modmgr->register_method("optohybrid", "loadTRIMDAC", loadTRIMDAC);
 		modmgr->register_method("optohybrid", "configureVFATs", configureVFATs);

@@ -51,7 +51,7 @@ void broadcastWrite(const RPCMsg *request, RPCMsg *response) {
   std::string reg_to_write = request->get_string("reg_name");
   uint32_t val_to_write = request->get_word("value");
   uint32_t mask = request->get_key_exists("mask")?request->get_word("mask"):0xFF000000;
-  std::string oh_number = request->get_string("oh_number");
+  std::string oh_number = std::to_string(request->get_word("oh_number"));
   broadcastWriteLocal(rtxn, dbi, oh_number, reg_to_write, val_to_write, response, mask);
   rtxn.abort();
 }
@@ -89,7 +89,7 @@ void broadcastRead(const RPCMsg *request, RPCMsg *response) {
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   std::string reg_to_read = request->get_string("reg_name");
   uint32_t mask = request->get_key_exists("mask")?request->get_word("mask"):0xFF000000;
-  std::string oh_number = request->get_string("oh_number");
+  std::string oh_number = std::to_string(request->get_word("oh_number"));
   broadcastReadLocal(rtxn, dbi, oh_number, reg_to_read, response, mask);
   rtxn.abort();
 }
