@@ -48,8 +48,7 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
 
 }
 
-void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, uint32_t enCal, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg)
-{
+void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, uint32_t enCal, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra){
     //Get firmware version
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
@@ -164,9 +163,10 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         configureScanModuleLocal(&la, ohN, vfatN, scanmode, useUltra, mask, ch, nevts, dacMin, dacMax, dacStep);
 
         //Print scan configuration
-        printScanConfigurationLocal(&la, ohN, seUltra)
+        printScanConfigurationLocal(&la, ohN, useUltra)
 
         //Start scan configuration
+        startScanModuleLocal(&la, ohN, useUltra);
 
         //Get scan results
 
@@ -191,11 +191,17 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     uint32_t enCal = request->get_word("enCal");
     std::string scanReg = request->get_string("scanReg");
 
+    bool useUltra = false;
+    if (request->get_key_exists("useUltra")){
+        useUltra = true;
+    }
+
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[24*(dacMax-dacMin+1)/dacStep];
-    genScanLocal(&la, outData, ohN, mask, ch, enCal, nevts, dacMin, dacMax, dacStep, scanReg);
+    genScanLocal(&la, outData, ohN, mask, ch, enCal, nevts, dacMin, dacMax, dacStep, scanReg, useUltra);
     response->set_word_array("data",outData,24*(dacMax-dacMin+1)/dacStep);
 
+    return;
 }
 
 void genChannelScan(const RPCMsg *request, RPCMsg *response)
@@ -215,14 +221,20 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     uint32_t enCal = request->get_word("enCal");
     std::string scanReg = request->get_string("scanReg");
 
+    bool useUltra = false;
+    if (request->get_key_exists("useUltra")){
+        useUltra = true;
+    }
+
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[128*24*(dacMax-dacMin+1)/dacStep];
     for(uint32_t ch = 0; ch < 128; ch++)
     {
-        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, enCal, nevts, dacMin, dacMax, dacStep, scanReg);
+        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, enCal, nevts, dacMin, dacMax, dacStep, scanReg, useUltra);
     }
     response->set_word_array("data",outData,24*128*(dacMax-dacMin+1)/dacStep);
 
+    return;
 }
 
 extern "C" {

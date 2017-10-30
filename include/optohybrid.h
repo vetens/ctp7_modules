@@ -228,6 +228,7 @@ void configureScanModuleLocal(localArgs * la, uint32_t ohN, uint32_t vfatN, uint
       la->response->set_string("error", "Scan is already running, not starting a new scan");
       return;
     }
+
     // reset scan module
     writeRawReg(la->rtxn, la->dbi, scanBase + ".RESET", 0x1, la->response);
 
@@ -299,8 +300,8 @@ void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
     std::string scanBase = "GEM_AMC.OH.OH" + std::stoi(ohN) + ".ScanController";
     (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
-    char regBuf[200];
-    sprintf(regBuf,scanBase);
+    //char regBuf[200];
+    //sprintf(regBuf,scanBase);
 
     std::map<std::string, uint32_t> map_regValues;
 
@@ -320,6 +321,7 @@ void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
         map_regValues[scanBase + ".CHIP"] = 0;
     }
 
+    stdsprintf(scanBase);
     for(auto regIter = map_regValues.begin(); regIter != map_regValues.end(); ++regIter){
         (*regIter).second = readReg(la->rtxn, la->dbi, (*regIter).first);
         stdsprintf("FW %s   : %d"%((*regIter).first, (*regIter).second));
@@ -336,7 +338,7 @@ void printScanConfiguration(const RPCMsg *request, RPCMsg *response){
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
-    std::string ohN = request->get_string("ohN");
+    uint32_t ohN = request->get_word("ohN");
 
     bool useUltra = false;
     if (request->get_key_exists("useUltra")){
@@ -349,6 +351,52 @@ void printScanConfiguration(const RPCMsg *request, RPCMsg *response){
     return;
 } //End printScanConfiguration(...)
 
-void startScanModule(lmdb::txn & rtxn, lmdb::dbi & dbi, RPCMsg *response){
+void startScanModuleLocal(localArgs * la, uint32_t ohN, bool useUltra){
+    //Set Scan Base
+    std::string scanBase = "GEM_AMC.OH.OH" + std::stoi(ohN) + ".ScanController";
+    (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
+    // check if another scan is running
+    if (readRawReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS", la->response) > 0) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("%s: Scan is already running, not starting a new scan", scanBase.c_str()));
+      la->response->set_string("error", "Scan is already running, not starting a new scan");
+      return;
+    }
+
+    //Check if there was an error in the config
+    if (readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR") > 0 ){
+        LOGGER->log_message(LogManager::WARNING, stdsprintf("OH %i: Error in scan configuration, not starting a new scans"%(ohN)));
+        la->response->set_string("error","Error in scan configuration");
+        return;
+    }
+
+    //Start the scan
+    writeReg(la->rtxn, la->dbi, scanBase + "START", 0x1, la->response);
+    if (readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR") || !(readRawReg(la->rtxn, la->dbi,  scanBase + ".MONITOR.STATUS"))){
+        LOGGER->log_message(LogManager::WARNING stdsprintf("OH %i: Scan failed to start"%(ohN)));
+        LOGGER->log_message(LogManager::WARNING stdsprintf("\tERROR\t%d"%(readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR"))));
+        LOGGER->log_message(LogManager::WARNING stdsprintf("\tSTATUS\t%d"%(readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.STATUS"))));
+    }
+
+    return;
+} //End startScanModuleLocal(...)
+
+void startScanModule(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+
+    bool useUltra = false;
+    if (request->get_key_exists("useUltra")){
+        useUltra = true;
+    }
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    startScanModuleLocal(&la, ohN, useUltra);
+
+    return;
 } //End startScanModule(...)
