@@ -3,26 +3,42 @@
 #include <unistd.h>
 
 void broadcastWriteLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std::string reg_to_write, uint32_t val_to_write, RPCMsg * response, uint32_t mask = 0xFF000000) {
-  std::string reg_basename = "GEM_AMC.OH.OH";
-  reg_basename += oh_number;
-  reg_basename += ".GEB.Broadcast";
-  std::string regName;
+  uint32_t fw_maj = readReg(rtxn, dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+  if (fw_maj == 2) {
+    std::string reg_basename = "GEM_AMC.OH.OH";
+    reg_basename += oh_number;
+    reg_basename += ".GEB.Broadcast";
+    std::string regName;
 
-  //Reset broadcast module
-  regName = reg_basename + ".Reset";
-  writeRawReg(rtxn, dbi, regName, 0, response);
-  //Set broadcast mask
-  regName = reg_basename + ".Mask";
-  writeRawReg(rtxn, dbi, regName, mask, response);
-  //Issue broadcast write request
-  regName = reg_basename + ".Request." + reg_to_write;
-  writeRawReg(rtxn, dbi, regName, val_to_write, response);
-  //Wait until broadcast write finishes
-  regName = reg_basename + ".Running";
-  while (unsigned int t_res = readRawReg(rtxn, dbi, regName, response))
-  {
-    if (t_res == 0xdeaddead) break;
-    usleep(1000);
+    //Reset broadcast module
+    regName = reg_basename + ".Reset";
+    writeRawReg(rtxn, dbi, regName, 0, response);
+    //Set broadcast mask
+    regName = reg_basename + ".Mask";
+    writeRawReg(rtxn, dbi, regName, mask, response);
+    //Issue broadcast write request
+    regName = reg_basename + ".Request." + reg_to_write;
+    writeRawReg(rtxn, dbi, regName, val_to_write, response);
+    //Wait until broadcast write finishes
+    regName = reg_basename + ".Running";
+    while (unsigned int t_res = readRawReg(rtxn, dbi, regName, response))
+    {
+      if (t_res == 0xdeaddead) break;
+      usleep(1000);
+    }
+  } else if (fw_maj == 3) {
+    std::string reg_basename = "GEM_AMC.OH.OH";
+    reg_basename += oh_number;
+    reg_basename += ".GEB.VFAT";
+    std::string regName;
+    for (int i=0; i<24; i++){
+      if (!((mask >> i)&0x1)) {
+        regName = reg_basename + std::to_string(i)+"."+reg_to_write;
+        writeReg(rtxn, dbi, regName, val_to_write, response);
+      }
+    }
+  } else {
+    LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
   }
 }
 
@@ -35,8 +51,46 @@ void broadcastWrite(const RPCMsg *request, RPCMsg *response) {
   std::string reg_to_write = request->get_string("reg_name");
   uint32_t val_to_write = request->get_word("value");
   uint32_t mask = request->get_key_exists("mask")?request->get_word("mask"):0xFF000000;
-  std::string oh_number = request->get_string("oh_number");
+  std::string oh_number = std::to_string(request->get_word("oh_number"));
   broadcastWriteLocal(rtxn, dbi, oh_number, reg_to_write, val_to_write, response, mask);
+  rtxn.abort();
+}
+
+void broadcastReadLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std::string reg_to_read, RPCMsg * response, uint32_t mask = 0xFF000000) {
+  uint32_t fw_maj = readReg(rtxn, dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+  std::string reg_basename = "GEM_AMC.OH.OH";
+  reg_basename += oh_number;
+  if (fw_maj == 2) {
+    reg_basename += ".GEB.VFATS.VFAT";
+  } else if (fw_maj == 3) {
+    reg_basename += ".GEB.VFAT";
+   } else {
+    LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+    response->set_string("error", "Unexpected value for system release major!");
+  }
+  std::string regName;
+  uint32_t data[24];
+  for (int i=0; i<24; i++){
+    if ((mask >> i)&0x1) data[i] = 0;
+    else {
+      regName = reg_basename + std::to_string(i)+"."+reg_to_read;
+      data[i] = readReg(rtxn, dbi, regName);
+      if (data[i] == 0xdeaddead) response->set_string("error",stdsprintf("Error reading register %s",regName.c_str()));
+    }
+  }
+  response->set_word_array("data", data, 24);
+}
+
+void broadcastRead(const RPCMsg *request, RPCMsg *response) {
+  auto env = lmdb::env::create();
+  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  std::string reg_to_read = request->get_string("reg_name");
+  uint32_t mask = request->get_key_exists("mask")?request->get_word("mask"):0xFF000000;
+  std::string oh_number = std::to_string(request->get_word("oh_number"));
+  broadcastReadLocal(rtxn, dbi, oh_number, reg_to_read, response, mask);
   rtxn.abort();
 }
 
