@@ -219,7 +219,7 @@ void configureScanModuleLocal(localArgs * la, uint32_t ohN, uint32_t vfatN, uint
      */
 
     //Set Scan Base
-    std::string scanBase = "GEM_AMC.OH.OH" + ohN + ".ScanController";
+    std::string scanBase = "GEM_AMC.OH.OH" + std::stoi(ohN) + ".ScanController";
     (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
     // check if another scan is running
@@ -245,7 +245,7 @@ void configureScanModuleLocal(localArgs * la, uint32_t ohN, uint32_t vfatN, uint
     writeReg(la->rtxn, la->dbi, scanBase + ".STEP", dacStep, la->response);
 
     return;
-} //End configureScanModuleLocal()
+} //End configureScanModuleLocal(...)
 
 void configureScanModule(const RPCMsg *request, RPCMsg *response){
     /*
@@ -266,7 +266,7 @@ void configureScanModule(const RPCMsg *request, RPCMsg *response){
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
     //Get OH and scanmode
-    std::string ohN = request->get_string("ohN");
+    uint32_t ohN = request->get_word("ohN");
     uint32_t scanmode = request->get_word("scanmode");
 
     //Setup ultra mode, mask, and/or vfat number
@@ -292,8 +292,63 @@ void configureScanModule(const RPCMsg *request, RPCMsg *response){
     configureScanModuleLocal(&la, ohN, vfatN, scanmode, useUltra, mask, ch, nevts, dacMin, dacMax, dacStep);
 
     return;
-}
+} //End configureScanModule(...)
 
-void startScanModule(lmdb::txn & rtxn, lmdb::dbi & dbi, RPCMsg *response)
-{
-}
+void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
+    //Set Scan Base
+    std::string scanBase = "GEM_AMC.OH.OH" + std::stoi(ohN) + ".ScanController";
+    (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
+
+    char regBuf[200];
+    sprintf(regBuf,scanBase);
+
+    std::map<std::string, uint32_t> map_regValues;
+
+    //Set reg names
+    map_regValues[scanBase + ".MODE"] = 0;
+    map_regValues[scanBase + ".MIN"] = 0;
+    map_regValues[scanBase + ".MAX"] = 0;
+    map_regValues[scanBase + ".STEP"] = 0;
+    map_regValues[scanBase + ".CHAN"] = 0;
+    map_regValues[scanBase + ".NTRIGS"] = 0;
+    map_regValues[scanBase + ".MONITOR"] = 0;
+
+    if (useUltra){
+        map_regValues[scanBase + ".MASK"] = 0;
+    }
+    else{
+        map_regValues[scanBase + ".CHIP"] = 0;
+    }
+
+    for(auto regIter = map_regValues.begin(); regIter != map_regValues.end(); ++regIter){
+        (*regIter).second = readReg(la->rtxn, la->dbi, (*regIter).first);
+        stdsprintf("FW %s   : %d"%((*regIter).first, (*regIter).second));
+        if ( (*regIter).second == 0xdeaddead) response->set_string("error",stdsprintf("Error reading register %s", (*regIter).first.C_str()));
+    }
+
+    return
+} //End printScanConfigurationLocal(...)
+
+void printScanConfiguration(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    std::string ohN = request->get_string("ohN");
+
+    bool useUltra = false;
+    if (request->get_key_exists("useUltra")){
+        useUltra = true;
+    }
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    printScanConfigurationLocal(&la, ohN, useUltra);
+
+    return;
+} //End printScanConfiguration(...)
+
+void startScanModule(lmdb::txn & rtxn, lmdb::dbi & dbi, RPCMsg *response){
+
+} //End startScanModule(...)

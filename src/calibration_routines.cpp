@@ -7,12 +7,12 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch)
     writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1, la->response);
     writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x1, la->response);
     writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.OH_SELECT", ohN, la->response);
-    if(ch==128) 
+    if(ch==128)
     {
         writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_SELECT", 0, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x1, la->response);
     }
-    else 
+    else
     {
         writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_SELECT", ch, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x0, la->response);
@@ -50,88 +50,128 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
 
 void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, uint32_t enCal, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg)
 {
+    //Get firmware version
+    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
-    dacMonConfLocal(la, ohN, ch);
-    uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-    uint32_t notmask = ~mask & 0xFFFFFF;
-    char regBuf[200];
-    if( (notmask & goodVFATs) != notmask) 
-    { 
-        sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
-        la->response->set_string("error",regBuf); 
-        return;
-    }
-
-    if(ch >= 128)
-    {
-        if(enCal)
+    if (iFWVersion > 2){ //v3 electronics behavior
+        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
+        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
+        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
+        dacMonConfLocal(la, ohN, ch);
+        uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
+        uint32_t notmask = ~mask & 0xFFFFFF;
+        char regBuf[200];
+        if( (notmask & goodVFATs) != notmask)
         {
-            la->response->set_string("error","It doesn't make sense to calpulse all channels"); 
+            sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
+            la->response->set_string("error",regBuf);
             return;
         }
-    }
-    else
-    {
-        for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
+
+        if(ch >= 128)
         {
-            //uint32_t val = readRawReg(la->rtxn, la->dbi, regBuf, la->response);
-            //if(vfatCH == ch && enCal) val = (val | 0x8000);
-            //else val = (val & 0xFFFF7FFF);
-            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-            writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+            if(enCal)
+            {
+                la->response->set_string("error","It doesn't make sense to calpulse all channels");
+                return;
+            }
         }
-    }
-
-    uint32_t scanDacAddr[24];
-    uint32_t daqMonAddr[24];
-    uint32_t daqMonResetAddr;
-    uint32_t ttcGenStartAddr;
-    uint32_t ttcGenRunAddr;
-
-    for(int vfatN = 0; vfatN < 24; vfatN++)
-    { 
-        sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str()); 
-        scanDacAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
-        sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
-        daqMonAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
-
-        if((notmask >> vfatN) & 0x1)
+        else
         {
-            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN); 
-            writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+            for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
+            {
+                sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
+                writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+            }
         }
-    }
 
+        uint32_t scanDacAddr[24];
+        uint32_t daqMonAddr[24];
+        uint32_t daqMonResetAddr;
+        uint32_t ttcGenStartAddr;
+        uint32_t ttcGenRunAddr;
 
-    for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep)
-    {
-        for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
-        { 
-            writeRawAddress(scanDacAddr[vfatN], dacVal, la->response);
-        }
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1, la->response);
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1, la->response);
-        bool running = true;
-        while(running) running = readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING");
         for(int vfatN = 0; vfatN < 24; vfatN++)
-        { 
-            int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
-            outData[idx] = readRawAddress(daqMonAddr[vfatN], la->response);
+        {
+            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
+            scanDacAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+            sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
+            daqMonAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+
+            if((notmask >> vfatN) & 0x1)
+            {
+                sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
+                writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+            }
         }
 
-    }
+        for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep)
+        {
+            for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
+            {
+                writeRawAddress(scanDacAddr[vfatN], dacVal, la->response);
+            }
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1, la->response);
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1, la->response);
+            bool running = true;
+            while(running) running = readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING");
+            for(int vfatN = 0; vfatN < 24; vfatN++)
+            {
+                int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
+                outData[idx] = readRawAddress(daqMonAddr[vfatN], la->response);
+            }
 
-    for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
-    { 
-        sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN); 
-        writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
-        sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-        if(ch < 128) writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
-    }
-}
+        }
+
+        for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
+        {
+            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
+            writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
+            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
+            if(ch < 128) writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+        }
+    } //End v3 electronics behavior
+    else { //v2b electronics behavior
+        //Determine scanmode
+        std::map<int, std::string> map_strKnownRegs; //Key -> scanmode; val -> register
+
+        vec_strKnownRegs[0] = "VThreshold1";
+        vec_strKnownRegs[1] = "VThreshold1PerChan";
+        vec_strKnownRegs[2] = "Latency";
+        vec_strKnownRegs[3] = "VCal";
+        vec_strKnownRegs[4] = "VThreshold1Trk";
+
+        uint32_t scanmode = 1000;
+
+        for (auto knownRegIter = vec_strKnownRegs.begin(); knownRegIter != vec_strKnownRegs.end(); ++knownRegIter){
+            //Comparison code goes here
+            if ( (*knownRegIter).second.compare(scanReg) == 0){
+                scanmode = (*knownRegIter).first;
+                break;
+            }
+        }
+
+        //scanmode not understood
+        if (scanmode == 1000){
+            std::string strError = "scanReg: " + scanReg + " not understood.  Supported values are:\n";
+            for (auto knownRegIter = vec_strKnownRegs.begin(); knownRegIter != vec_strKnownRegs.end(); ++knownRegIter){
+                scanReg += ((*knownRegIter).second + "\n");
+            }
+            la->response->set_string("error",strError);
+        }
+
+        //Configure scan module
+        configureScanModuleLocal(&la, ohN, vfatN, scanmode, useUltra, mask, ch, nevts, dacMin, dacMax, dacStep);
+
+        //Print scan configuration
+        printScanConfigurationLocal(&la, ohN, seUltra)
+
+        //Start scan configuration
+
+        //Get scan results
+
+    } //End v2b electronics behavior
+} //End genScanLocal(...)
 
 void genScan(const RPCMsg *request, RPCMsg *response)
 {
