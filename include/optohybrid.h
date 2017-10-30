@@ -206,46 +206,92 @@ void configureVFATs(const RPCMsg *request, RPCMsg *response) {
   rtxn.abort();
 }
 
-/*
- *     Configure the firmware scan controller
-*      mode: 0 Threshold scan
-*            1 Threshold scan per channel
-*            2 Latency scan
-*            3 s-curve scan
-*            4 Threshold scan with tracking data
-*      vfat: for single VFAT scan, specify the VFAT number
-*            for ULTRA scan, specify the VFAT mask
- */
-void configureScanModule(lmdb::txn & rtxn, lmdb::dbi & dbi, const RPCMsg *request, RPCMsg *response)
-{
-  std::string oh_number = request->get_string("oh_number");
-  uint32_t mode = request->get_word("mode");
-  uint32_t vfat_mask = request->get_key_exists("vfat_mask")?request->get_word("vfatN"):0xFFFFFFFF;
-  bool ultra = request->get_key_exists("ultra")?true:false;
-  uint32_t scanmin = request->get_word("scanmin");
-  uint32_t scanmax = request->get_word("scanmax");
-  uint32_t stepsize = request->get_word("stepsize");
-  uint32_t numtrigs = request->get_word("numtrigs");
-  uint32_t channel = request->get_word("channel");
-  std::string scanBase = "GEM_AMC.OH.OH" + oh_number + ".ScanController";
-  (ultra)?scanBase += ".ULTRA":scanBase += ".THLAT";
-  // check if another scan is running
-  if (readRawReg(rtxn, dbi, scanBase + ".MONITOR.STATUS", response) > 0) {
-    LOGGER->log_message(LogManager::WARNING, stdsprintf("%s: Scan is already running, not starting a new scan", scanBase.c_str()));
-    response->set_string("error", "Scan is already running, not starting a new scan");
+void configureScanModuleLocal(localArgs * la, uint32_t ohN, uint32_t vfatN, uint32_t scanmode, bool useUltra, uint32_t mask, uint32_t ch, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep){
+    /*
+     *     Configure the firmware scan controller
+     *      mode: 0 Threshold scan
+     *            1 Threshold scan per channel
+     *            2 Latency scan
+     *            3 s-curve scan
+     *            4 Threshold scan with tracking data
+     *      vfat: for single VFAT scan, specify the VFAT number
+     *            for ULTRA scan, specify the VFAT mask
+     */
+
+    //Set Scan Base
+    std::string scanBase = "GEM_AMC.OH.OH" + ohN + ".ScanController";
+    (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
+
+    // check if another scan is running
+    if (readRawReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS", la->response) > 0) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("%s: Scan is already running, not starting a new scan", scanBase.c_str()));
+      la->response->set_string("error", "Scan is already running, not starting a new scan");
+      return;
+    }
+    // reset scan module
+    writeRawReg(la->rtxn, la->dbi, scanBase + ".RESET", 0x1, la->response);
+
+    // write scan parameters
+    writeReg(la->rtxn, la->dbi, scanBase + ".MODE", scanmode, la->response);
+    if (useUltra){
+        writeReg(la->rtxn, la->dbi, scanBase + ".MASK", mask, la->response);
+    else{
+        writeReg(la->rtxn, la->dbi, scanBase + ".CHIP", vfatN, la->response);
+    }
+    writeReg(la->rtxn, la->dbi, scanBase + ".CHAN", ch, la->response);
+    writeReg(la->rtxn, la->dbi, scanBase + ".NTRIGS", nevts, la->response);
+    writeReg(la->rtxn, la->dbi, scanBase + ".MIN", dacMin, la->response);
+    writeReg(la->rtxn, la->dbi, scanBase + ".MAX", dacMax, la->response);
+    writeReg(la->rtxn, la->dbi, scanBase + ".STEP", dacStep, la->response);
+
     return;
-  }
-  // reset scan module
-  writeRawReg(rtxn, dbi, scanBase + ".RESET", 0x1, response);
-  // write scan parameters
-  writeReg(rtxn, dbi, scanBase + ".MODE", mode, response);
-  writeReg(rtxn, dbi, scanBase + ".MIN", scanmin, response);
-  writeReg(rtxn, dbi, scanBase + ".MAX", scanmax, response);
-  writeReg(rtxn, dbi, scanBase + ".CHAN", channel, response);
-  writeReg(rtxn, dbi, scanBase + ".STEP", stepsize, response);
-  writeReg(rtxn, dbi, scanBase + ".NTRIGS", numtrigs, response);
-  (ultra)?writeReg(rtxn, dbi, scanBase + ".MASK", vfat_mask, response):writeReg(rtxn, dbi, scanBase + ".CHIP", vfat_mask, response);
-  return;
+} //End configureScanModuleLocal()
+
+void configureScanModule(const RPCMsg *request, RPCMsg *response){
+    /*
+     *     Configure the firmware scan controller
+     *      mode: 0 Threshold scan
+     *            1 Threshold scan per channel
+     *            2 Latency scan
+     *            3 s-curve scan
+     *            4 Threshold scan with tracking data
+     *      vfat: for single VFAT scan, specify the VFAT number
+     *            for ULTRA scan, specify the VFAT mask
+     */
+
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    //Get OH and scanmode
+    std::string ohN = request->get_string("ohN");
+    uint32_t scanmode = request->get_word("scanmode");
+
+    //Setup ultra mode, mask, and/or vfat number
+    bool useUltra = false;
+    uint32_t mask = 0xFFFFFFFF;
+    uint32_t vfatN = 0;
+    if (request->get_key_exists("useUltra")){
+        useUltra = true;
+        mask = request->get_word("mask");
+    }
+    else{
+        vfatN = request->get_word("vfatN");
+    }
+
+    uint32_t channel = request->get_word("ch");
+    uint32_t numtrigs = request->get_word("nevts");
+    uint32_t scanmin = request->get_word("dacMin");
+    uint32_t scanmax = request->get_word("dacMax");
+    uint32_t stepsize = request->get_word("dacStep");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    configureScanModuleLocal(&la, ohN, vfatN, scanmode, useUltra, mask, ch, nevts, dacMin, dacMax, dacStep);
+
+    return;
 }
 
 void startScanModule(lmdb::txn & rtxn, lmdb::dbi & dbi, RPCMsg *response)
