@@ -218,8 +218,12 @@ void configureScanModuleLocal(localArgs * la, uint32_t ohN, uint32_t vfatN, uint
      *            for ULTRA scan, specify the VFAT mask
      */
 
+    std::stringstream sstream;
+    sstream<<ohN;
+    std::string strOhN = sstream.str();
+
     //Set Scan Base
-    std::string scanBase = "GEM_AMC.OH.OH" + std::stoi(ohN) + ".ScanController";
+    std::string scanBase = "GEM_AMC.OH.OH" + strOhN + ".ScanController";
     (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
     // check if another scan is running
@@ -236,6 +240,7 @@ void configureScanModuleLocal(localArgs * la, uint32_t ohN, uint32_t vfatN, uint
     writeReg(la->rtxn, la->dbi, scanBase + ".MODE", scanmode, la->response);
     if (useUltra){
         writeReg(la->rtxn, la->dbi, scanBase + ".MASK", mask, la->response);
+    }
     else{
         writeReg(la->rtxn, la->dbi, scanBase + ".CHIP", vfatN, la->response);
     }
@@ -282,22 +287,25 @@ void configureScanModule(const RPCMsg *request, RPCMsg *response){
         vfatN = request->get_word("vfatN");
     }
 
-    uint32_t channel = request->get_word("ch");
-    uint32_t numtrigs = request->get_word("nevts");
-    uint32_t scanmin = request->get_word("dacMin");
-    uint32_t scanmax = request->get_word("dacMax");
-    uint32_t stepsize = request->get_word("dacStep");
+    uint32_t ch = request->get_word("ch");
+    uint32_t nevts = request->get_word("nevts");
+    uint32_t dacMin = request->get_word("dacMin");
+    uint32_t dacMax = request->get_word("dacMax");
+    uint32_t dacStep = request->get_word("dacStep");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-
     configureScanModuleLocal(&la, ohN, vfatN, scanmode, useUltra, mask, ch, nevts, dacMin, dacMax, dacStep);
 
     return;
 } //End configureScanModule(...)
 
 void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
+    std::stringstream sstream;
+    sstream<<ohN;
+    std::string strOhN = sstream.str();
+
     //Set Scan Base
-    std::string scanBase = "GEM_AMC.OH.OH" + std::stoi(ohN) + ".ScanController";
+    std::string scanBase = "GEM_AMC.OH.OH" + strOhN + ".ScanController";
     (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
     //char regBuf[200];
@@ -321,14 +329,14 @@ void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
         map_regValues[scanBase + ".CHIP"] = 0;
     }
 
-    stdsprintf(scanBase);
+    stdsprintf(scanBase.c_str());
     for(auto regIter = map_regValues.begin(); regIter != map_regValues.end(); ++regIter){
         (*regIter).second = readReg(la->rtxn, la->dbi, (*regIter).first);
-        stdsprintf("FW %s   : %d"%((*regIter).first, (*regIter).second));
-        if ( (*regIter).second == 0xdeaddead) response->set_string("error",stdsprintf("Error reading register %s", (*regIter).first.C_str()));
+        stdsprintf("FW %s   : %d",(*regIter).first.c_str(), (*regIter).second);
+        if ( (*regIter).second == 0xdeaddead) la->response->set_string("error",stdsprintf("Error reading register %s", (*regIter).first.c_str()));
     }
 
-    return
+    return;
 } //End printScanConfigurationLocal(...)
 
 void printScanConfiguration(const RPCMsg *request, RPCMsg *response){
@@ -352,8 +360,12 @@ void printScanConfiguration(const RPCMsg *request, RPCMsg *response){
 } //End printScanConfiguration(...)
 
 void startScanModuleLocal(localArgs * la, uint32_t ohN, bool useUltra){
+    std::stringstream sstream;
+    sstream<<ohN;
+    std::string strOhN = sstream.str();
+
     //Set Scan Base
-    std::string scanBase = "GEM_AMC.OH.OH" + std::stoi(ohN) + ".ScanController";
+    std::string scanBase = "GEM_AMC.OH.OH" + strOhN + ".ScanController";
     (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
     // check if another scan is running
@@ -364,18 +376,20 @@ void startScanModuleLocal(localArgs * la, uint32_t ohN, bool useUltra){
     }
 
     //Check if there was an error in the config
-    if (readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR") > 0 ){
-        LOGGER->log_message(LogManager::WARNING, stdsprintf("OH %i: Error in scan configuration, not starting a new scans"%(ohN)));
+    if (readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR",la->response) > 0 ){
+        LOGGER->log_message(LogManager::WARNING, stdsprintf("OH %i: Error in scan configuration, not starting a new scans",ohN));
         la->response->set_string("error","Error in scan configuration");
         return;
     }
 
     //Start the scan
     writeReg(la->rtxn, la->dbi, scanBase + "START", 0x1, la->response);
-    if (readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR") || !(readRawReg(la->rtxn, la->dbi,  scanBase + ".MONITOR.STATUS"))){
-        LOGGER->log_message(LogManager::WARNING stdsprintf("OH %i: Scan failed to start"%(ohN)));
-        LOGGER->log_message(LogManager::WARNING stdsprintf("\tERROR\t%d"%(readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR"))));
-        LOGGER->log_message(LogManager::WARNING stdsprintf("\tSTATUS\t%d"%(readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.STATUS"))));
+    if (readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR", la->response)
+            || !(readRawReg(la->rtxn, la->dbi,  scanBase + ".MONITOR.STATUS", la->response)))
+    {
+        LOGGER->log_message(LogManager::WARNING, stdsprintf("OH %i: Scan failed to start",ohN));
+        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tERROR\t%d",readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR", la->response)));
+        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tSTATUS\t%d",readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.STATUS", la->response)));
     }
 
     return;
@@ -400,3 +414,82 @@ void startScanModule(const RPCMsg *request, RPCMsg *response){
 
     return;
 } //End startScanModule(...)
+
+void getUltraScanResultsLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep){
+    std::stringstream sstream;
+    sstream<<ohN;
+    std::string strOhN = sstream.str();
+
+    //Set Scan Base
+    std::string scanBase = "GEM_AMC.OH.OH" + strOhN + ".ScanController.ULTRA";
+
+    //Get L1A Count & num events
+    uint32_t ohnL1A_0 =  readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
+    uint32_t ohnL1A   =  readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
+    uint32_t numtrigs = readReg(la->rtxn, la->dbi, scanBase + ".NTRIGS");
+
+    //Print latency counts
+    bool bIsLatency = false;
+    if( readReg(la->rtxn, la->dbi, scanBase + ".MODE") == 2){
+        bIsLatency = true;
+
+        stdsprintf(
+                "At Link %i: %d/%d L1As processed, %d%% done",
+                    ohN,
+                    readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0,
+                    nevts*numtrigs,
+                    (readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0)*100./(nevts*numtrigs)
+                );
+    }
+
+    //Check if the scan is still running
+    while(readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS") > 0){
+        stdsprintf("OH %i: Ultra scan still running (0x%x), not returning results",ohN,
+                    readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS"));
+        if (bIsLatency){
+            if( (readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A ) > numtrigs){
+                stdsprintf(
+                        "At Link %i: %d/%d L1As processed, %d%% done",
+                            ohN,
+                            readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0,
+                            nevts*numtrigs,
+                            (readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0)*100./(nevts*numtrigs)
+                        );
+                ohnL1A   =  readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
+            }
+        }
+        sleep(0.1);
+    }
+
+    LOGGER->log_message(LogManager::DEBUG, "OH " + strOhN + ": getUltraScanResults(...)");
+    LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan status (0x%08x)\n",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR")));
+    LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan results available (0x%06x)",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.READY")));
+
+    /*for(int vfatN = 0; vfatN < 24; ++vfatN){
+        int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
+        outData[idx] = readRawAddress(daqMonAddr[vfatN], la->response);
+    }*/
+
+    return;
+} //End getUltraScanResultsLocal(...)
+
+void getUltraScanResults(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t nevts = request->get_word("nevts");
+    uint32_t dacMin = request->get_word("dacMin");
+    uint32_t dacMax = request->get_word("dacMax");
+    uint32_t dacStep = request->get_word("dacStep");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    uint32_t outData[24*(dacMax-dacMin+1)/dacStep];
+    getUltraScanResultsLocal(&la, outData, ohN, nevts, dacMin, dacMax, dacStep);
+    response->set_word_array("data",outData,24*(dacMax-dacMin+1)/dacStep);
+
+    return;
+} //End getUltraScanResults(...)

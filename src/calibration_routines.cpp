@@ -49,6 +49,9 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
 }
 
 void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, uint32_t enCal, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra){
+    //Determine the inverse of the vfatmask
+    uint32_t notmask = ~mask & 0xFFFFFF;
+
     //Get firmware version
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
@@ -58,7 +61,6 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
         dacMonConfLocal(la, ohN, ch);
         uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-        uint32_t notmask = ~mask & 0xFFFFFF;
         char regBuf[200];
         if( (notmask & goodVFATs) != notmask)
         {
@@ -86,9 +88,9 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
         uint32_t scanDacAddr[24];
         uint32_t daqMonAddr[24];
-        uint32_t daqMonResetAddr;
-        uint32_t ttcGenStartAddr;
-        uint32_t ttcGenRunAddr;
+        //uint32_t daqMonResetAddr;
+        //uint32_t ttcGenStartAddr;
+        //uint32_t ttcGenRunAddr;
 
         for(int vfatN = 0; vfatN < 24; vfatN++)
         {
@@ -134,15 +136,15 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         //Determine scanmode
         std::map<int, std::string> map_strKnownRegs; //Key -> scanmode; val -> register
 
-        vec_strKnownRegs[0] = "VThreshold1";
-        vec_strKnownRegs[1] = "VThreshold1PerChan";
-        vec_strKnownRegs[2] = "Latency";
-        vec_strKnownRegs[3] = "VCal";
-        vec_strKnownRegs[4] = "VThreshold1Trk";
+        map_strKnownRegs[0] = "VThreshold1";
+        map_strKnownRegs[1] = "VThreshold1PerChan";
+        map_strKnownRegs[2] = "Latency";
+        map_strKnownRegs[3] = "VCal";
+        map_strKnownRegs[4] = "VThreshold1Trk";
 
         uint32_t scanmode = 1000;
 
-        for (auto knownRegIter = vec_strKnownRegs.begin(); knownRegIter != vec_strKnownRegs.end(); ++knownRegIter){
+        for (auto knownRegIter = map_strKnownRegs.begin(); knownRegIter != map_strKnownRegs.end(); ++knownRegIter){
             //Comparison code goes here
             if ( (*knownRegIter).second.compare(scanReg) == 0){
                 scanmode = (*knownRegIter).first;
@@ -153,20 +155,31 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         //scanmode not understood
         if (scanmode == 1000){
             std::string strError = "scanReg: " + scanReg + " not understood.  Supported values are:\n";
-            for (auto knownRegIter = vec_strKnownRegs.begin(); knownRegIter != vec_strKnownRegs.end(); ++knownRegIter){
+            for (auto knownRegIter = map_strKnownRegs.begin(); knownRegIter != map_strKnownRegs.end(); ++knownRegIter){
                 scanReg += ((*knownRegIter).second + "\n");
             }
             la->response->set_string("error",strError);
         }
 
         //Configure scan module
-        configureScanModuleLocal(&la, ohN, vfatN, scanmode, useUltra, mask, ch, nevts, dacMin, dacMax, dacStep);
+        uint32_t vfatN = 0;
+        if (!useUltra){
+            //If we are not performing an ultraScan, take the first non-masked VFAT
+            for(int vfat=0; vfat<24; ++vfat){
+                if((notmask >> vfat) & 0x1){
+                    vfatN=vfat;
+                    break;
+                }
+            }
+        }
+
+        configureScanModuleLocal(la, ohN, vfatN, scanmode, useUltra, mask, ch, nevts, dacMin, dacMax, dacStep);
 
         //Print scan configuration
-        printScanConfigurationLocal(&la, ohN, useUltra)
+        printScanConfigurationLocal(la, ohN, useUltra);
 
         //Start scan configuration
-        startScanModuleLocal(&la, ohN, useUltra);
+        startScanModuleLocal(la, ohN, useUltra);
 
         //Get scan results
 
