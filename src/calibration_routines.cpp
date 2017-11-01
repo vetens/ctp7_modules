@@ -21,12 +21,135 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch)
     return;
 }
 
-void ttcGenConfLocal(localArgs * la, uint32_t L1Ainterval, uint32_t pulseDelay)
-{
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.RESET", 0x1, la->response);
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1, la->response);
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_GAP", L1Ainterval, la->response);
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_CALPULSE_TO_L1A_GAP", pulseDelay, la->response);
+void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool bRun){
+    //Get firmware version
+    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+
+    if (iFWVersion > 2){ //v3 electronics behavior
+        if (bRun){
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1, la->response);
+        }
+        else{
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0, la->response);
+        }
+    } //End v3 electronics behavior
+    else { //v2b electronics behavior
+        //base reg
+        std::stringstream sstream;
+        sstream<<ohN;
+        std::string contBase = "GEM_AMC.OH.OH" + sstream.str() + ".T1Controller";
+
+        if (bRun){ //Start
+            if ( !(readReg(la->rtxn, la->dbi, contBase + ".MONITOR"))){
+                writeReg(la->rtxn, la->dbi, contBase + ".TOGGLE", 0x1, la->response);
+            }
+        }
+        else { //Stop
+            if( readReg(la->rtxn, la->dbi, contBase + ".MONITOR")){
+                writeReg(la->rtxn, la->dbi, contBase + ".TOGGLE", 0x1, la->response);
+            }
+        }
+    } //End v2b electronics behavior
+
+    return;
+} //End ttcGenToggleLocal(...)
+
+void ttcGenToggle(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    bool bRun = request->get_word("bRun");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    ttcGenToggleLocal(&la, ohN, bRun);
+
+    return;
+} //End ttcGenToggle(...)
+
+void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type, uint32_t pulseDelay, uint32_t L1Ainterval, uint32_t nPulses, bool bRun){
+    //Get firmware version
+    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+
+    if (iFWVersion > 2){ //v3 electronics behavior
+        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.RESET", 0x1, la->response);
+        //ttcGenToggleLocal(la, ohN, bRun);
+        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_GAP", L1Ainterval, la->response);
+        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_CALPULSE_TO_L1A_GAP", pulseDelay, la->response);
+    } //End v3 electronics behavior
+    else { //v2b electronics behavior
+        /*
+         * Configure the T1 controller
+         * mode: 0 (Single T1 signal),
+         *       1 (CalPulse followed by L1A),
+         *       2 (pattern)
+         * type (only for mode 0, type of T1 signal to send):
+         *       0 L1A
+         *       1 CalPulse
+         *       2 Resync
+         *       3 BC0
+         * pulseDelay (only for mode 1), delay between CalPulse and L1A
+         * L1Ainterval (only for mode 0,1), how often to repeat signals
+         * nPulses how many signals to send (0 is continuous)
+         */
+
+        //base reg
+        std::stringstream sstream;
+        sstream<<ohN;
+        std::string contBase = "GEM_AMC.OH.OH" + sstream.str() + ".T1Controller";
+
+        //reset the controller
+        writeReg(la->rtxn,la->dbi,contBase + ".RESET",0x1,la->response);
+
+        //Set the mode
+        writeReg(la->rtxn,la->dbi,contBase + ".MODE",mode,la->response);
+        LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for mode 0x%x (0x%x)",
+                    ohN,mode,
+                    readReg(la->rtxn, la->dbi, contBase + ".MODE")
+                    )
+                );
+
+        if (mode == 0){
+            writeReg(la->rtxn, la->dbi, contBase + ".TYPE", type, la->response);
+            LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for type 0x%x (0x%x)",
+                        ohN,type,
+                        readReg(la->rtxn, la->dbi, contBase + ".TYPE")
+                        )
+                    );
+        }
+        if (mode == 1){
+            writeReg(la->rtxn, la->dbi, contBase + ".DELAY", pulseDelay, la->response);
+            LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for delay %i (%i)",
+                        ohN,pulseDelay,
+                        readReg(la->rtxn, la->dbi, contBase + ".DELAY")
+                        )
+                    );
+        }
+        if (mode != 2){
+            writeReg(la->rtxn, la->dbi, contBase + ".INTERVAL", L1Ainterval, la->response);
+            LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for interval %i (%i)",
+                        ohN,L1Ainterval,
+                        readReg(la->rtxn, la->dbi, contBase + ".INTERVAL")
+                        )
+                    );
+        }
+
+        writeReg(la->rtxn, la->dbi, contBase + ".NUMBER", nPulses, la->response);
+        LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for nsignals %i (%i)",
+                    ohN,nPulses,
+                    readReg(la->rtxn, la->dbi, contBase + ".NUMBER")
+                    )
+                );
+
+        //ttcGenToggleLocal(la, ohN, bRun);
+    } //End v2b electronics behavior
+
+    //start or stop
+    ttcGenToggleLocal(la, ohN, bRun);
+
     return;
 }
 
@@ -38,11 +161,16 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
-    uint32_t L1Ainterval = request->get_word("L1Ainterval");
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t mode = request->get_word("mode");
+    uint32_t type = request->get_word("type");
     uint32_t pulseDelay = request->get_word("pulseDelay");
+    uint32_t L1Ainterval = request->get_word("L1Ainterval");
+    uint32_t nPulses = request->get_word("nPulses");
+    bool bRun = request->get_word("bRun");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-    ttcGenConfLocal(&la, L1Ainterval, pulseDelay);
+    ttcGenConfLocal(&la, ohN, mode, type, pulseDelay, L1Ainterval, nPulses, bRun);
 
     return;
 }
@@ -87,9 +215,6 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
         uint32_t scanDacAddr[24];
         uint32_t daqMonAddr[24];
-        //uint32_t daqMonResetAddr;
-        //uint32_t ttcGenStartAddr;
-        //uint32_t ttcGenRunAddr;
 
         for(int vfatN = 0; vfatN < 24; vfatN++)
         {
@@ -262,5 +387,6 @@ extern "C" {
         modmgr->register_method("calibration_routines", "genScan", genScan);
         modmgr->register_method("calibration_routines", "genChannelScan", genScan);
         modmgr->register_method("calibration_routines", "ttcGenConf", ttcGenConf);
+        modmgr->register_method("calibration_routines", "ttcGenToggle", ttcGenToggle);
     }
 }
