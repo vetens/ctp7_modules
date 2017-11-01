@@ -45,7 +45,6 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
     ttcGenConfLocal(&la, L1Ainterval, pulseDelay);
 
     return;
-
 }
 
 void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, uint32_t enCal, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra){
@@ -121,7 +120,6 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                 int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
                 outData[idx] = readRawAddress(daqMonAddr[vfatN], la->response);
             }
-
         }
 
         for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
@@ -182,8 +180,10 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         startScanModuleLocal(la, ohN, useUltra);
 
         //Get scan results
-
+        getUltraScanResultsLocal(la, outData, ohN, nevts, dacMin, dacMax, dacStep);
     } //End v2b electronics behavior
+
+    return;
 } //End genScanLocal(...)
 
 void genScan(const RPCMsg *request, RPCMsg *response)
