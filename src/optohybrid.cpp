@@ -9,10 +9,14 @@ extern "C" {
 			LOGGER->log_message(LogManager::ERROR, "Unable to load module");
 			return; // Do not register our functions, we depend on memsvc.
 		}
-		modmgr->register_method("optohybrid", "broadcastWrite", broadcastWrite);
 		modmgr->register_method("optohybrid", "broadcastRead", broadcastRead);
-		modmgr->register_method("optohybrid", "loadVT1", loadVT1);
-		modmgr->register_method("optohybrid", "loadTRIMDAC", loadTRIMDAC);
+		modmgr->register_method("optohybrid", "broadcastWrite", broadcastWrite);
+		modmgr->register_method("optohybrid", "configureScanModule", configureScanModule);
 		modmgr->register_method("optohybrid", "configureVFATs", configureVFATs);
+		modmgr->register_method("optohybrid", "getUltraScanResults", getUltraScanResults);
+        modmgr->register_method("optohybrid", "loadTRIMDAC", loadTRIMDAC);
+		modmgr->register_method("optohybrid", "loadVT1", loadVT1);
+		modmgr->register_method("optohybrid", "printScanConfiguration", printScanConfiguration);
+		modmgr->register_method("optohybrid", "startScanModule", startScanModule);
 	}
 }
