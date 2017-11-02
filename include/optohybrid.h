@@ -4,7 +4,7 @@
 
 void broadcastWriteLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std::string reg_to_write, uint32_t val_to_write, RPCMsg * response, uint32_t mask = 0xFF000000) {
   uint32_t fw_maj = readReg(rtxn, dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
-  if (fw_maj == 2) {
+  if (fw_maj == 1) {
     std::string reg_basename = "GEM_AMC.OH.OH";
     reg_basename += oh_number;
     reg_basename += ".GEB.Broadcast";
@@ -60,7 +60,7 @@ void broadcastReadLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number
   uint32_t fw_maj = readReg(rtxn, dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
   std::string reg_basename = "GEM_AMC.OH.OH";
   reg_basename += oh_number;
-  if (fw_maj == 2) {
+  if (fw_maj == 1) {
     reg_basename += ".GEB.VFATS.VFAT";
   } else if (fw_maj == 3) {
     reg_basename += ".GEB.VFAT";

@@ -25,7 +25,7 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool bRun){
     //Get firmware version
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
-    if (iFWVersion > 2){ //v3 electronics behavior
+    if (iFWVersion == 3){ //v3 electronics behavior
         if (bRun){
             writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1, la->response);
         }
@@ -33,7 +33,7 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool bRun){
             writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0, la->response);
         }
     } //End v3 electronics behavior
-    else { //v2b electronics behavior
+    else if (iFWVersion == 1) { //v2b electronics behavior
         //base reg
         std::stringstream sstream;
         sstream<<ohN;
@@ -50,6 +50,9 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool bRun){
             }
         }
     } //End v2b electronics behavior
+    else {
+        LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+    }
 
     return;
 } //End ttcGenToggleLocal(...)
@@ -74,13 +77,13 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
     //Get firmware version
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
-    if (iFWVersion > 2){ //v3 electronics behavior
+    if (iFWVersion == 3){ //v3 electronics behavior
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.RESET", 0x1, la->response);
         //ttcGenToggleLocal(la, ohN, bRun);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_GAP", L1Ainterval, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_CALPULSE_TO_L1A_GAP", pulseDelay, la->response);
     } //End v3 electronics behavior
-    else { //v2b electronics behavior
+    else if (iFWVersion == 1){ //v2b electronics behavior
         /*
          * Configure the T1 controller
          * mode: 0 (Single T1 signal),
@@ -146,6 +149,9 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
 
         //ttcGenToggleLocal(la, ohN, bRun);
     } //End v2b electronics behavior
+    else {
+        LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+    }
 
     //start or stop
     ttcGenToggleLocal(la, ohN, bRun);
@@ -182,7 +188,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
     //Get firmware version
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
-    if (iFWVersion > 2){ //v3 electronics behavior
+    if (iFWVersion == 3){ //v3 electronics behavior
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
@@ -255,7 +261,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             if(ch < 128) writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
         }
     } //End v3 electronics behavior
-    else { //v2b electronics behavior
+    else if (iFWVersion == 1){ //v2b electronics behavior
         //Determine scanmode
         std::map<int, std::string> map_strKnownRegs; //Key -> scanmode; val -> register
 
@@ -307,6 +313,9 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         //Get scan results
         getUltraScanResultsLocal(la, outData, ohN, nevts, dacMin, dacMax, dacStep);
     } //End v2b electronics behavior
+    else {
+        LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+    }
 
     return;
 } //End genScanLocal(...)
