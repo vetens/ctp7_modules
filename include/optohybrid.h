@@ -38,7 +38,7 @@ void broadcastWriteLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_numbe
       }
     }
   } else {
-    LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+    LOGGER->log_message(LogManager::ERROR, stdsprintf("Unexpected value for system release major: %i",fw_maj));
   }
 }
 
@@ -495,3 +495,45 @@ void getUltraScanResults(const RPCMsg *request, RPCMsg *response){
 
     return;
 } //End getUltraScanResults(...)
+
+void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch_min, uint32_t ch_max){
+    //Get FW release
+    uint32_t fw_maj = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+
+    if (fw_maj == 1){
+        uint32_t trimVal=0;
+        for(int vfat=0; vfat<24; ++vfat){
+            for(uint32_t chan=ch_min; chan<=ch_max; ++chan){
+                trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,chan)));
+                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,chan),trimVal, la->response);
+            }
+        }
+    }
+    else if (fw_maj == 3){
+        //Placeholder
+        LOGGER->log_message(LogManager::INFO, stdsprintf("stopCalPulse2AllChannelsLocal(): No functionality for v3 electronics yet"));
+    }
+    else {
+        LOGGER->log_message(LogManager::ERROR, stdsprintf("Unexpected value for system release major: %i",fw_maj));
+    }
+
+    return;
+}
+
+void stopCalPulse2AllChannels(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t mask = request->get_word("mask");
+    uint32_t ch_min = request->get_word("ch_min");
+    uint32_t ch_max = request->get_word("ch_max");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    stopCalPulse2AllChannelsLocal(&la, ohN, mask, ch_min, ch_max);
+
+    return;
+}
