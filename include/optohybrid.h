@@ -227,7 +227,7 @@ void configureScanModuleLocal(localArgs * la, uint32_t ohN, uint32_t vfatN, uint
     (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
     // check if another scan is running
-    if (readRawReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS", la->response) > 0) {
+    if (readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS") > 0) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("%s: Scan is already running, not starting a new scan", scanBase.c_str()));
       la->response->set_string("error", "Scan is already running, not starting a new scan");
       return;
@@ -320,7 +320,7 @@ void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
     map_regValues[scanBase + ".STEP"] = 0;
     map_regValues[scanBase + ".CHAN"] = 0;
     map_regValues[scanBase + ".NTRIGS"] = 0;
-    map_regValues[scanBase + ".MONITOR"] = 0;
+    map_regValues[scanBase + ".MONITOR.STATUS"] = 0;
 
     if (useUltra){
         map_regValues[scanBase + ".MASK"] = 0;
@@ -369,27 +369,27 @@ void startScanModuleLocal(localArgs * la, uint32_t ohN, bool useUltra){
     (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
     // check if another scan is running
-    if (readRawReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS", la->response) > 0) {
+    if (readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS") > 0) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("%s: Scan is already running, not starting a new scan", scanBase.c_str()));
       la->response->set_string("error", "Scan is already running, not starting a new scan");
       return;
     }
 
     //Check if there was an error in the config
-    if (readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR",la->response) > 0 ){
+    if (readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.ERROR") > 0 ){
         LOGGER->log_message(LogManager::WARNING, stdsprintf("OH %i: Error in scan configuration, not starting a new scans",ohN));
         la->response->set_string("error","Error in scan configuration");
         return;
     }
 
     //Start the scan
-    writeReg(la->rtxn, la->dbi, scanBase + "START", 0x1, la->response);
-    if (readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR", la->response)
-            || !(readRawReg(la->rtxn, la->dbi,  scanBase + ".MONITOR.STATUS", la->response)))
+    writeReg(la->rtxn, la->dbi, scanBase + ".START", 0x1, la->response);
+    if (readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.ERROR")
+            || !(readReg(la->rtxn, la->dbi,  scanBase + ".MONITOR.STATUS")))
     {
         LOGGER->log_message(LogManager::WARNING, stdsprintf("OH %i: Scan failed to start",ohN));
-        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tERROR\t%d",readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.ERROR", la->response)));
-        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tSTATUS\t%d",readRawReg(la->rtxn, la->dbi, scanBase + "MONITOR.STATUS", la->response)));
+        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tERROR Code:\t %i",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.ERROR")));
+        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tSTATUS Code:\t %i",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS")));
     }
 
     return;
@@ -462,7 +462,7 @@ void getUltraScanResultsLocal(localArgs *la, uint32_t *outData, uint32_t ohN, ui
     }
 
     LOGGER->log_message(LogManager::DEBUG, "OH " + strOhN + ": getUltraScanResults(...)");
-    LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan status (0x%08x)\n",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR")));
+    LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan status (0x%08x)\n",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS")));
     LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan results available (0x%06x)",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.READY")));
 
     for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
@@ -503,9 +503,13 @@ void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
     if (fw_maj == 1){
         uint32_t trimVal=0;
         for(int vfat=0; vfat<24; ++vfat){
-            for(uint32_t chan=ch_min; chan<=ch_max; ++chan){
-                trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,chan)));
-                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,chan),trimVal, la->response);
+            for(uint32_t chan=ch_min; chan<ch_max; ++chan){
+                trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfat,chan)));
+                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfat,chan),trimVal, la->response);
+                if(chan>127){
+                    LOGGER->log_message(LogManager::ERROR, stdsprintf("OH %d: Chan %d greater than possible chan_max %d",ohN,chan,ch_max));
+                    //break; //Why is this necessary?
+                }
             }
         }
     }
