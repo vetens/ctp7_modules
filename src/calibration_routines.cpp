@@ -224,7 +224,7 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
     return;
 }
 
-void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, uint32_t enCal, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra){
+void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
@@ -233,7 +233,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
     if (iFWVersion == 3){ //v3 electronics behavior
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
+        //writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
         dacMonConfLocal(la, ohN, ch);
         uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
@@ -245,9 +245,9 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             return;
         }
 
-        if(ch >= 128)
+        /*if(ch >= 128)
         {
-            if(enCal)
+            if(useCalPulse)
             {
                 la->response->set_string("error","It doesn't make sense to calpulse all channels");
                 return;
@@ -259,6 +259,22 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             {
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
                 writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+            }
+        }*/
+
+        //Do we turn on the calpulse for the channel = ch?
+        if(useCalPulse){
+            if(ch >= 128){
+                la->response->set_string("error","It doesn't make sense to calpulse all channels");
+                return;
+            }
+            else{
+                for(int vfatN = 0; vfatN < 24; vfatN++){
+                    if((notmask >> vfatN) & 0x1){
+                        sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
+                        writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+                    }
+                }
             }
         }
 
@@ -272,11 +288,11 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
             daqMonAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
 
-            if((notmask >> vfatN) & 0x1)
+            /*if((notmask >> vfatN) & 0x1)
             {
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
                 writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
-            }
+            }*/
         }
 
         for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep)
@@ -296,12 +312,15 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             }
         }
 
-        for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
-        {
-            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
-            writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
-            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-            if(ch < 128) writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+        //If the calpulse for channel ch was turned on, turn it off
+        if(useCalPulse){
+            for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
+            {
+                //sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
+                //writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
+                sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
+                if(ch < 128) writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
+            }
         }
     } //End v3 electronics behavior
     else if (iFWVersion == 1){ //v2b electronics behavior
@@ -350,23 +369,33 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         //Print scan configuration
         printScanConfigurationLocal(la, ohN, useUltra);
 
-        //Turn on the calpulse for channel ch
-        uint32_t trimVal=0;
-        for(int vfat=0; vfat<24; ++vfat){
-            if ( (notmask >> vfat) & 0x1){
-                trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
-                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal+64, la->response);
+        //Do we turn on the calpulse for the channel = ch?
+        if(useCalPulse){
+            uint32_t trimVal=0;
+            if(ch >= 128){
+                la->response->set_string("error","It doesn't make sense to calpulse all channels");
+                return;
+            }
+            else{
+                for(int vfat=0; vfat<24; ++vfat){
+                    if ( (notmask >> vfat) & 0x1){
+                        trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
+                        writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal+64, la->response);
+                    }
+                }
             }
         }
 
         //Start scan configuration
         startScanModuleLocal(la, ohN, useUltra);
 
-        //Turn off the calpulse for channel chan
-        for(int vfat=0; vfat<24; ++vfat){
-            if ( (notmask >> vfat) & 0x1){
-                trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
-                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal, la->response);
+        //If the calpulse for channel ch was turned on, turn it off
+        if(useCalPulse){
+            for(int vfat=0; vfat<24; ++vfat){
+                if ( (notmask >> vfat) & 0x1){
+                    trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
+                    writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal, la->response);
+                }
             }
         }
 
@@ -395,7 +424,7 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
-    uint32_t enCal = request->get_word("enCal");
+    uint32_t useCalPulse = request->get_word("useCalPulse");
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
@@ -405,7 +434,7 @@ void genScan(const RPCMsg *request, RPCMsg *response)
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[24*(dacMax-dacMin+1)/dacStep];
-    genScanLocal(&la, outData, ohN, mask, ch, enCal, nevts, dacMin, dacMax, dacStep, scanReg, useUltra);
+    genScanLocal(&la, outData, ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra);
     response->set_word_array("data",outData,24*(dacMax-dacMin+1)/dacStep);
 
     return;
@@ -425,7 +454,7 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
-    uint32_t enCal = request->get_word("enCal");
+    uint32_t useCalPulse = request->get_word("useCalPulse");
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
@@ -437,7 +466,7 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     uint32_t outData[128*24*(dacMax-dacMin+1)/dacStep];
     for(uint32_t ch = 0; ch < 128; ch++)
     {
-        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, enCal, nevts, dacMin, dacMax, dacStep, scanReg, useUltra);
+        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra);
     }
     response->set_word_array("data",outData,24*128*(dacMax-dacMin+1)/dacStep);
 
