@@ -28,16 +28,21 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch){
     return;
 }
 
-void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool bRun){
+void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable){
+    /*
+     * v3  electronics: enable = true (false) ignore (take) ttc commands from backplane for this AMC
+     * v2b electronics: enable = true (false) start (stop) the T1Controller for link ohN
+     */
+
     //Get firmware version
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
     if (iFWVersion == 3){ //v3 electronics behavior
-        if (bRun){
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1, la->response);
+        if (enable){
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1, la->response); //Internal, TTC cmds from backplane are ignored
         }
         else{
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0, la->response);
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0, la->response); //External, TTC cmds from backplane
         }
     } //End v3 electronics behavior
     else if (iFWVersion == 1) { //v2b electronics behavior
@@ -46,14 +51,14 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool bRun){
         sstream<<ohN;
         std::string contBase = "GEM_AMC.OH.OH" + sstream.str() + ".T1Controller";
 
-        if (bRun){ //Start
+        if (enable){ //Start
             if ( !(readReg(la->rtxn, la->dbi, contBase + ".MONITOR"))){
-                writeReg(la->rtxn, la->dbi, contBase + ".TOGGLE", 0x1, la->response);
+                writeReg(la->rtxn, la->dbi, contBase + ".TOGGLE", 0x1, la->response);   //Enable
             }
         }
         else { //Stop
             if( readReg(la->rtxn, la->dbi, contBase + ".MONITOR")){
-                writeReg(la->rtxn, la->dbi, contBase + ".TOGGLE", 0x1, la->response);
+                writeReg(la->rtxn, la->dbi, contBase + ".TOGGLE", 0x0, la->response);   //Disable
             }
         }
     } //End v2b electronics behavior
@@ -65,6 +70,11 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool bRun){
 } //End ttcGenToggleLocal(...)
 
 void ttcGenToggle(const RPCMsg *request, RPCMsg *response){
+    /*
+     * v3  electronics: enable = true (false) ignore (take) ttc commands from backplane for this AMC
+     * v2b electronics: enable = true (false) start (stop) the T1Controller for link ohN
+     */
+
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
     env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
@@ -72,40 +82,45 @@ void ttcGenToggle(const RPCMsg *request, RPCMsg *response){
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
     uint32_t ohN = request->get_word("ohN");
-    bool bRun = request->get_word("bRun");
+    bool enable = request->get_word("enable");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-    ttcGenToggleLocal(&la, ohN, bRun);
+    ttcGenToggleLocal(&la, ohN, enable);
 
     return;
 } //End ttcGenToggle(...)
 
-void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type, uint32_t pulseDelay, uint32_t L1Ainterval, uint32_t nPulses, bool bRun){
+void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type, uint32_t pulseDelay, uint32_t L1Ainterval, uint32_t nPulses, bool enable){
+    /*
+     * v3  electronics Behavior:
+     *      pulseDelay (only for enable = true), delay between CalPulse and L1A
+     *      L1Ainterval (only for enable = true), how often to repeat signals
+     *      enable = true (false) ignore (take) ttc commands from backplane for this AMC (affects all links)
+     * v2b electronics behavior:
+     *      Configure the T1 controller
+     *      mode: 0 (Single T1 signal),
+     *            1 (CalPulse followed by L1A),
+     *            2 (pattern)
+     *      type (only for mode 0, type of T1 signal to send):
+     *            0 L1A
+     *            1 CalPulse
+     *            2 Resync
+     *            3 BC0
+     *      pulseDelay (only for mode 1), delay between CalPulse and L1A
+     *      L1Ainterval (only for mode 0,1), how often to repeat signals
+     *      nPulses how many signals to send (0 is continuous)
+     *      enable = true (false) start (stop) the T1Controller for link ohN
+     */
+
     //Get firmware version
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
     if (iFWVersion == 3){ //v3 electronics behavior
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.RESET", 0x1, la->response);
-        //ttcGenToggleLocal(la, ohN, bRun);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_GAP", L1Ainterval, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_CALPULSE_TO_L1A_GAP", pulseDelay, la->response);
     } //End v3 electronics behavior
     else if (iFWVersion == 1){ //v2b electronics behavior
-        /*
-         * Configure the T1 controller
-         * mode: 0 (Single T1 signal),
-         *       1 (CalPulse followed by L1A),
-         *       2 (pattern)
-         * type (only for mode 0, type of T1 signal to send):
-         *       0 L1A
-         *       1 CalPulse
-         *       2 Resync
-         *       3 BC0
-         * pulseDelay (only for mode 1), delay between CalPulse and L1A
-         * L1Ainterval (only for mode 0,1), how often to repeat signals
-         * nPulses how many signals to send (0 is continuous)
-         */
-
         //base reg
         std::stringstream sstream;
         sstream<<ohN;
@@ -154,20 +169,41 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
                     )
                 );
 
-        //ttcGenToggleLocal(la, ohN, bRun);
+        //ttcGenToggleLocal(la, ohN, enable);
     } //End v2b electronics behavior
     else {
         LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
     }
 
     //start or stop
-    ttcGenToggleLocal(la, ohN, bRun);
+    ttcGenToggleLocal(la, ohN, enable);
 
     return;
 }
 
 void ttcGenConf(const RPCMsg *request, RPCMsg *response)
 {
+    /*
+     * v3  electronics Behavior:
+     *      pulseDelay (only for enable = true), delay between CalPulse and L1A
+     *      L1Ainterval (only for enable = true), how often to repeat signals
+     *      enable = true (false) ignore (take) ttc commands from backplane for this AMC (affects all links)
+     * v2b electronics behavior:
+     *      Configure the T1 controller
+     *      mode: 0 (Single T1 signal),
+     *            1 (CalPulse followed by L1A),
+     *            2 (pattern)
+     *      type (only for mode 0, type of T1 signal to send):
+     *            0 L1A
+     *            1 CalPulse
+     *            2 Resync
+     *            3 BC0
+     *      pulseDelay (only for mode 1), delay between CalPulse and L1A
+     *      L1Ainterval (only for mode 0,1), how often to repeat signals
+     *      nPulses how many signals to send (0 is continuous)
+     *      enable = true (false) start (stop) the T1Controller for link ohN
+     */
+
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
     env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
@@ -180,10 +216,10 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
     uint32_t pulseDelay = request->get_word("pulseDelay");
     uint32_t L1Ainterval = request->get_word("L1Ainterval");
     uint32_t nPulses = request->get_word("nPulses");
-    bool bRun = request->get_word("bRun");
+    bool enable = request->get_word("enable");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-    ttcGenConfLocal(&la, ohN, mode, type, pulseDelay, L1Ainterval, nPulses, bRun);
+    ttcGenConfLocal(&la, ohN, mode, type, pulseDelay, L1Ainterval, nPulses, enable);
 
     return;
 }
