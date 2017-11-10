@@ -469,6 +469,7 @@ void getUltraScanResultsLocal(localArgs *la, uint32_t *outData, uint32_t ohN, ui
         for(int vfatN = 0; vfatN < 24; ++vfatN){
             int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
             outData[idx] = readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.ScanController.ULTRA.RESULTS.VFAT%i",ohN,vfatN));
+            LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan results: outData[%i] = (%i, %i)",idx,(outData[idx]&0xff000000)>>24,(outData[idx]&0xffffff)));
         }
     }
 
@@ -502,11 +503,11 @@ void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
 
     if (fw_maj == 1){
         uint32_t trimVal=0;
-        for(int vfat=0; vfat<24; ++vfat){
+        for(int vfatN=0; vfatN<24; ++vfatN){
             if ((mask >> vfatN) & 0x1) continue; //skip masked VFATs
             for(uint32_t chan=ch_min; chan<ch_max; ++chan){
-                trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfat,chan)));
-                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfat,chan),trimVal, la->response);
+                trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan)));
+                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan),trimVal, la->response);
                 if(chan>127){
                     LOGGER->log_message(LogManager::ERROR, stdsprintf("OH %d: Chan %d greater than possible chan_max %d",ohN,chan,ch_max));
                 }
@@ -517,8 +518,7 @@ void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
         for(int vfatN = 0; vfatN < 24; vfatN++){
             if ((mask >> vfatN) & 0x1) continue; //skip masked VFATs
             for(uint32_t chan=ch_min; chan<ch_max; ++chan){
-                sprintf(regBuf,"GEM_AMC.OH.OH%d.GEB.VFAT%d.VFAT_CHANNELS.CHANNEL%d.CALPULSE_ENABLE", ohN, vfatN, ch);
-                writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
+                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFAT%d.VFAT_CHANNELS.CHANNEL%d.CALPULSE_ENABLE", ohN, vfatN, chan), 0x0, la->response);
             }
         }
     }

@@ -233,7 +233,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
     if (iFWVersion == 3){ //v3 electronics behavior
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
-        //writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
+        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
         dacMonConfLocal(la, ohN, ch);
         uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
@@ -244,23 +244,6 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             la->response->set_string("error",regBuf);
             return;
         }
-
-        /*if(ch >= 128)
-        {
-            if(useCalPulse)
-            {
-                la->response->set_string("error","It doesn't make sense to calpulse all channels");
-                return;
-            }
-        }
-        else
-        {
-            for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
-            {
-                sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-                writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
-            }
-        }*/
 
         //Do we turn on the calpulse for the channel = ch?
         if(useCalPulse){
@@ -288,6 +271,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
             daqMonAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
 
+            //This shouldn't be done here since it will be written every channel
             /*if((notmask >> vfatN) & 0x1)
             {
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
@@ -304,13 +288,31 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1, la->response);
             writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1, la->response);
             bool running = true;
-            while(running) running = readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING");
+            if(readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE")){ //TTC Commands from TTC.GENERATOR
+                while(running) running = readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING");
+            } //End TTC Commands from TTC.GENERATOR
+            else { //TTC Commands from Backplane
+                for(int vfatN = 0; vfatN < 24; vfatN++){
+                    if((notmask >> vfatN) & 0x1){
+                        uint32_t currentEvtNum = 0;
+                        while(running){
+                            currentEvtNum = readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN));
+                            running = (currentEvtNum <= nevts);
+                            if( currentEvtNum % 100 ){
+                                LOGGER->log_message(LogManager::INFO, stdsprintf("OH%d: dacVal: %d; Trigger Recieved, L1A Num: %d",ohN, dacVal, readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CMD_COUNTERS.L1A")));
+                            }
+                        }
+                        break;
+                    }
+                }
+            } //End TTC Commands from Backplane
+
             for(int vfatN = 0; vfatN < 24; vfatN++)
             {
                 int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
                 outData[idx] = readRawAddress(daqMonAddr[vfatN], la->response);
             }
-        }
+        } //End Loop from dacMin to dacMax
 
         //If the calpulse for channel ch was turned on, turn it off
         if(useCalPulse){
@@ -370,8 +372,8 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         printScanConfigurationLocal(la, ohN, useUltra);
 
         //Do we turn on the calpulse for the channel = ch?
+        uint32_t trimVal=0;
         if(useCalPulse){
-            uint32_t trimVal=0;
             if(ch >= 128){
                 la->response->set_string("error","It doesn't make sense to calpulse all channels");
                 return;
@@ -424,7 +426,7 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
-    uint32_t useCalPulse = request->get_word("useCalPulse");
+    bool useCalPulse = request->get_word("useCalPulse");
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
