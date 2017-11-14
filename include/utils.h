@@ -102,10 +102,24 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response) {
   tmp = split(t_db_res,'|');
   uint32_t data[1];
   uint32_t address = stoi(tmp[0]);
-  if (memsvc_read(memsvc, address, 1, data) != 0) {
-  	response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
-  	LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
-    return 0xdeaddead;
+  int n_current_tries = 0;
+  while (true) 
+  {
+      if (memsvc_read(memsvc, address, 1, data) != 0) 
+      {
+          if (n_current_tries < 9) 
+          {
+              n_current_tries++;
+              LOGGER->log_message(LogManager::ERROR, stdsprintf("Reading reg %08X failed %i times.", address, n_current_tries));
+          }
+          else
+          {
+               response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
+               LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s failed 10 times", memsvc_get_last_error(memsvc)));
+               return 0xdeaddead;
+          }
+      }
+      else break;
   }
   return data[0];
 }
