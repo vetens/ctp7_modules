@@ -300,7 +300,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                             currentEvtNum = readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN));
                             running = (currentEvtNum <= nevts);
                             if( currentEvtNum % 100 ){
-                                LOGGER->log_message(LogManager::INFO, stdsprintf("OH%d: dacVal: %d; Trigger Recieved, L1A Num: %d",ohN, dacVal, readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CMD_COUNTERS.L1A")));
+                                LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%d: dacVal: %d; Trigger Recieved, L1A Num: %d",ohN, dacVal, readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CMD_COUNTERS.L1A")));
                             }
                         }
                         break;
