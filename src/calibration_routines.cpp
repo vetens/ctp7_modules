@@ -254,6 +254,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                     if((notmask >> vfatN) & 0x1){
                         sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
                         writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+                        writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1, la->response);
                     }
                 }
             }
@@ -348,7 +349,10 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
             {
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-                if(ch < 128) writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
+                if(ch < 128){
+                    writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
+                    writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x0, la->response);
+                }
             }
         }
     } //End v3 electronics behavior
