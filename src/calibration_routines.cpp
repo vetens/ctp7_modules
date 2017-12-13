@@ -1,5 +1,7 @@
+#include <chrono>
 #include <pthread.h>
 #include "optohybrid.h"
+#include <thread>
 #include "vfat3.h"
 
 void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch){
@@ -7,8 +9,8 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch){
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
     if (iFWVersion == 3){ //v3 electronics behavior
+        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x0, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1, la->response);
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x1, la->response);
         writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.OH_SELECT", ohN, la->response);
         if(ch==128)
         {
@@ -224,7 +226,7 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
     return;
 }
 
-void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra){
+void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra, bool useExtTrig){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
@@ -232,10 +234,6 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
     if (iFWVersion == 3){ //v3 electronics behavior
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
-        dacMonConfLocal(la, ohN, ch);
         uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
         char regBuf[200];
         if( (notmask & goodVFATs) != notmask)
@@ -261,52 +259,71 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             }
         }
 
+        //Get addresses
         uint32_t scanDacAddr[24];
         uint32_t daqMonAddr[24];
-
+        uint32_t l1CntAddr = getAddress(la->rtxn, la->dbi, "GEM_AMC.TTC.CMD_COUNTERS.L1A", la->response);
         for(int vfatN = 0; vfatN < 24; vfatN++)
         {
             sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
             scanDacAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
             sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
             daqMonAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
-
-            //This shouldn't be done here since it will be written every channel
-            /*if((notmask >> vfatN) & 0x1)
-            {
-                sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
-                writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
-            }*/
         }
 
+        //TTC Config
+        if(useExtTrig){
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0, la->response);
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.CNT_RESET", 0x1, la->response);
+        }
+        else{
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
+        }
+
+        //Configure VFAT_DAQ_MONITOR
+        dacMonConfLocal(la, ohN, ch);
+
+        //Place VFATs out of slow control only mode
+        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
+
+        //Scan over DAC values
         for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep)
         {
+            //Write the scan reg value
             for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
             {
                 //writeRawAddress(scanDacAddr[vfatN], dacVal, la->response);
                 writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str()), dacVal, la->response);
             }
+
+            //Reset and enable the VFAT_DAQ_MONITOR
             writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1, la->response);
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1, la->response);
-            bool running = true;
-            if(readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE")){ //TTC Commands from TTC.GENERATOR
-                while(running) running = readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING");
-            } //End TTC Commands from TTC.GENERATOR
-            else { //TTC Commands from Backplane
-                for(int vfatN = 0; vfatN < 24; vfatN++){
-                    if((notmask >> vfatN) & 0x1){
-                        uint32_t currentEvtNum = 0;
-                        while(running){
-                            currentEvtNum = readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN));
-                            running = (currentEvtNum <= nevts);
-                            if( currentEvtNum % 100 ){
-                                LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%d: dacVal: %d; Trigger Recieved, L1A Num: %d",ohN, dacVal, readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CMD_COUNTERS.L1A")));
-                            }
-                        }
-                        break;
-                    }
+            writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x1, la->response);
+
+            //Start the triggers
+            if(useExtTrig){
+                writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.CNT_RESET", 0x1, la->response);
+                writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x1, la->response);
+
+                uint32_t l1aCnt = 0;
+                while(l1aCnt < nevts){
+                    l1aCnt = readRawAddress(l1CntAddr, la->response);
+                    std::this_thread::sleep_for(std::chrono::microseconds(50));
                 }
-            } //End TTC Commands from Backplane
+
+                writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0, la->response);
+                l1aCnt = readRawAddress(l1CntAddr, la->response);
+            }
+            else{
+                writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1, la->response);
+                if(readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE")){ //TTC Commands from TTC.GENERATOR
+                    while(readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING")){
+                        std::this_thread::sleep_for(std::chrono::microseconds(50));
+                    }
+                } //End TTC Commands from TTC.GENERATOR
+            }
+
 
             for(int vfatN = 0; vfatN < 24; vfatN++){
                 int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
@@ -324,15 +341,12 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                     );
                 }
             }
-
         } //End Loop from dacMin to dacMax
 
         //If the calpulse for channel ch was turned on, turn it off
         if(useCalPulse){
             for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
             {
-                //sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
-                //writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
                 if(ch < 128) writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
             }
@@ -446,10 +460,11 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     if (request->get_key_exists("useUltra")){
         useUltra = true;
     }
+    bool useExtTrig = request->get_word("useExtTrig");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[24*(dacMax-dacMin+1)/dacStep];
-    genScanLocal(&la, outData, ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra);
+    genScanLocal(&la, outData, ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
     response->set_word_array("data",outData,24*(dacMax-dacMin+1)/dacStep);
 
     return;
@@ -470,6 +485,7 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
     uint32_t useCalPulse = request->get_word("useCalPulse");
+    uint32_t useExtTrig = request->get_word("useExtTrig");
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
@@ -481,7 +497,7 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     uint32_t outData[128*24*(dacMax-dacMin+1)/dacStep];
     for(uint32_t ch = 0; ch < 128; ch++)
     {
-        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra);
+        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
     }
     response->set_word_array("data",outData,24*128*(dacMax-dacMin+1)/dacStep);
 
