@@ -1,12 +1,22 @@
+# Ignore everything
 *
-!setup.sh
-!Makefile
-!apps.common.mk
-!README.md
-!./src/*.cpp
-!./include/*.h
-!./doc
-!./lib
+
+# Don't ignore git settings
 !.gitignore
 !.github
-!./conf/conf.txt
+
+# Don't Ignore special files
+!apps.common.mk
+!README.md
+!Makefile
+!setup.sh
+
+# Don't ignore subdirectories
+!*/
+
+# Don't ignore source files
+!*.cpp
+!*.h
+
+# Don't ignore configuration
+!/conf/conf.txt
