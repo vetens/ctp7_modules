@@ -481,7 +481,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     //Will scan from dacMin to dacMax in steps of dacStep
     //The x-values (e.g. scanReg values) will be stored in outDataDacVal
     //The y-valued (e.g. rate) will be stored in outDataTrigRate
-    //Each measured point will take 3 seconds
+    //Each measured point will take 1.05 seconds
     //The measurement is performed for all channels (ch=128) or a specific channel (0 <= ch <= 127)
 
     char regBuf[200];
@@ -494,7 +494,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
     uint32_t notmask = ~maskOh & 0xFFFFFF;
-    if(!((notmask >> maskOh) & 0x1)){
+    if( (notmask & goodVFATs) != notmask){
         sprintf(regBuf,"The requested VFAT is not synced; goodVFATs: %x\t requested VFAT: %x", goodVFATs, maskOh);
         la->response->set_string("error",regBuf);
         return;
@@ -554,7 +554,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     //Loop from dacMin to dacMax in steps of dacStep
     for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
         writeRawAddress(scanDacAddr, dacVal, la->response);
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1050));
 
         int idx = (dacMax-dacMin+1)/dacStep;
         outDataDacVal[idx] = dacVal;
