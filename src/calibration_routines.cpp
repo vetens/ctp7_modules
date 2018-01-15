@@ -497,24 +497,29 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     if(!((notmask >> maskOh) & 0x1)){
         sprintf(regBuf,"The requested VFAT is not synced; goodVFATs: %x\t requested VFAT: %x", goodVFATs, maskOh);
         la->response->set_string("error",regBuf);
-        return
+        return;
     }
 
     //Determine which VFAT we are using;
-    uint32_t vfatN;
+    uint32_t vfatN=1000;
     for (int vfat=0; vfat<24; ++vfat){
-        if ( 1 == ( (maskOh >> bit) & 1)){
+        if ( 1 == ( (maskOh >> vfat) & 1)){
             vfatN=vfat;
             break;
         }
+    }
+    if( vfatN > 23 ){
+        sprintf(regBuf,"I did not find a VFAT to perform this scan on, maskOh: %x", maskOh);
+        la->response->set_string("error",regBuf);
+        return;
     }
 
     //If ch!=128 store the original channel mask settings
     //Then mask all other channels except for channel ch
     std::map<uint32_t, uint32_t> map_chanOrigMask; //key -> reg addr; val -> reg value
     if( ch != 128){
-        chanMaskAddr[128];
-        for(int chan=0; chan<128; ++chan){ //Loop Over All Channels
+        uint32_t chanMaskAddr[128];
+        for(unsigned int chan=0; chan<128; ++chan){ //Loop Over All Channels
             uint32_t chMask = 1;
             if ( ch == chan){ //Do not mask the channel of interest
                 chMask = 0;
@@ -532,28 +537,28 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 
     //Get the scanAddress
     sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
-    scanDacAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    uint32_t scanDacAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
 
     //Get the OH Rate Monitor Address
     sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
-    ohTrigRateAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    uint32_t ohTrigRateAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
 
     //Take the VFATs out of slow control only mode
     writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
 
     //Place chip in run mode
     sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
-    runAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    uint32_t runAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
     writeRawAddress(runAddr, 0x1, la->response);
 
     //Loop from dacMin to dacMax in steps of dacStep
-    for(uint32_t dacVal = dacMin; dacVal <= daxMax; dacVal += dacStep){
+    for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
         writeRawAddress(scanDacAddr, dacVal, la->response);
         std::this_thread::sleep_for(std::chrono::seconds(3));
 
         int idx = (dacMax-dacMin+1)/dacStep;
         outDataDacVal[idx] = dacVal;
-        outDataTrigRate[idx] = readRawAddress(ohTrigRateAddr);
+        outDataTrigRate[idx] = readRawAddress(ohTrigRateAddr, la->response);
     } //End Loop from dacMin to dacMax
 
     //Take chip out of run mode
@@ -566,7 +571,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
         }
     } //End restore original channel masks if specific channel was requested
 
-    return
+    return;
 } //End sbitRateScanLocal(...)
 
 void sbitRateScan(const RPCMsg *request, RPCMsg *response){
@@ -584,6 +589,7 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response){
     uint32_t dacStep = request->get_word("dacStep");
     std::string scanReg = request->get_string("scanReg");
 
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outDataDacVal[(dacMax-dacMin+1)/dacStep];
     uint32_t outDataTrigRate[(dacMax-dacMin+1)/dacStep];
     sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg);
