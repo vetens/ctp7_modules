@@ -593,6 +593,11 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response){
     uint32_t outDataDacVal[(dacMax-dacMin+1)/dacStep];
     uint32_t outDataTrigRate[(dacMax-dacMin+1)/dacStep];
     sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg);
+
+    response->set_word_array("data_dacVal", outDataDacVal, (dacMax-dacMin+1)/dacStep);
+    response->set_word_array("data_trigRate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
+
+    return;
 } //End sbitRateScan(...)
 
 void genChannelScan(const RPCMsg *request, RPCMsg *response)
