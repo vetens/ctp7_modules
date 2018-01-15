@@ -556,7 +556,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
         writeRawAddress(scanDacAddr, dacVal, la->response);
         std::this_thread::sleep_for(std::chrono::milliseconds(1050));
 
-        int idx = (dacMax-dacMin+1)/dacStep;
+        int idx = (dacVal-dacMin)/dacStep;
         outDataDacVal[idx] = dacVal;
         outDataTrigRate[idx] = readRawAddress(ohTrigRateAddr, la->response);
     } //End Loop from dacMin to dacMax
