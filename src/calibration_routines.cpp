@@ -633,7 +633,7 @@ extern "C" {
             return; // Do not register our functions, we depend on memsvc.
         }
         modmgr->register_method("calibration_routines", "genScan", genScan);
-        modmgr->register_method("calibration_routines", "genChannelScan", genScan);
+        modmgr->register_method("calibration_routines", "genChannelScan", genChannelScan);
         modmgr->register_method("calibration_routines", "sbitRateScan", sbitRateScan);
         modmgr->register_method("calibration_routines", "ttcGenConf", ttcGenConf);
         modmgr->register_method("calibration_routines", "ttcGenToggle", ttcGenToggle);
