@@ -613,7 +613,6 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response){
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t maskOh = request->get_word("maskOh");
-    uint32_t vfatN = request->get_word("vfatN");
     uint32_t ch = request->get_word("ch");
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
@@ -624,7 +623,7 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response){
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outDataDacVal[(dacMax-dacMin+1)/dacStep];
     uint32_t outDataTrigRate[(dacMax-dacMin+1)/dacStep];
-    sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, vfatN, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
+    sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
 
     response->set_word_array("data_dacVal", outDataDacVal, (dacMax-dacMin+1)/dacStep);
     response->set_word_array("data_trigRate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
