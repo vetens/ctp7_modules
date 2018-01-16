@@ -311,7 +311,8 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                 uint32_t l1aCnt = 0;
                 while(l1aCnt < nevts){
                     l1aCnt = readRawAddress(l1CntAddr, la->response);
-                    std::this_thread::sleep_for(std::chrono::microseconds(50));
+                    //std::this_thread::sleep_for(std::chrono::microseconds(50));
+                    std::this_thread::sleep_for(std::chrono::microseconds(200));
                 }
 
                 writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0, la->response);
