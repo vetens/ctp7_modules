@@ -494,7 +494,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     }
 
     //Hard code possible maskOh values and how they map to vfatN
-    std::map<uint32_t,uint32_t> map_maskOh2vfatN;
+    std::unordered_map<uint32_t,uint32_t> map_maskOh2vfatN;
     map_maskOh2vfatN[0xfffffe] = 0;
     map_maskOh2vfatN[0xfffffd] = 1;
     map_maskOh2vfatN[0xfffffb] = 2;
