@@ -475,13 +475,13 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     return;
 }
 
-void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRate, uint32_t ohN, uint32_t maskOh, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg){
-    //Measures the SBIT rate seen by OHv3 ohN for the VFATs defined in maskOh as a function of scanReg
-    //It is assumed maskOh is a 24 bit number with only one bit == 0; rest of bits should be 1
+void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRate, uint32_t ohN, uint32_t maskOh, uint32_t vfatN, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t waitTime){
+    //Measures the SBIT rate seen by OHv3 ohN for VFAT vfatN as a function of scanReg
+    //It is assumed that all other VFATs are masked in the OHv3 via maskOh
     //Will scan from dacMin to dacMax in steps of dacStep
     //The x-values (e.g. scanReg values) will be stored in outDataDacVal
     //The y-valued (e.g. rate) will be stored in outDataTrigRate
-    //Each measured point will take 1.05 seconds
+    //Each measured point will take waitTime milliseconds (recommond between 1000->3000)
     //The measurement is performed for all channels (ch=128) or a specific channel (0 <= ch <= 127)
 
     char regBuf[200];
@@ -493,21 +493,12 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     }
 
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-    uint32_t notmask = ~maskOh & 0xFFFFFF;
-    if( (notmask & goodVFATs) != notmask){
+    if( !( (goodVFATs >> vfatN) & 0x1 ) ){
         sprintf(regBuf,"The requested VFAT is not synced; goodVFATs: %x\t requested VFAT: %x", goodVFATs, maskOh);
         la->response->set_string("error",regBuf);
         return;
     }
 
-    //Determine which VFAT we are using;
-    uint32_t vfatN=1000;
-    for (int vfat=0; vfat<24; ++vfat){
-        if ( 1 == ( (maskOh >> vfat) & 1)){
-            vfatN=vfat;
-            break;
-        }
-    }
     if( vfatN > 23 ){
         sprintf(regBuf,"I did not find a VFAT to perform this scan on, maskOh: %x", maskOh);
         la->response->set_string("error",regBuf);
@@ -547,14 +538,14 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
 
     //Place chip in run mode
-    sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
-    uint32_t runAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
-    writeRawAddress(runAddr, 0x1, la->response);
+    //sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
+    //uint32_t runAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    //writeRawAddress(runAddr, 0x1, la->response);
 
     //Loop from dacMin to dacMax in steps of dacStep
     for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
         writeRawAddress(scanDacAddr, dacVal, la->response);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1050));
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
 
         int idx = (dacVal-dacMin)/dacStep;
         outDataDacVal[idx] = dacVal;
@@ -562,7 +553,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     } //End Loop from dacMin to dacMax
 
     //Take chip out of run mode
-    writeRawAddress(runAddr, 0x0, la->response);
+    //writeRawAddress(runAddr, 0x0, la->response);
 
     //Restore the original channel masks if specific channel was requested
     if( ch != 128){
@@ -583,16 +574,18 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response){
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t maskOh = request->get_word("maskOh");
+    uint32_t vfatN = request->get_word("vfatN");
     uint32_t ch = request->get_word("ch");
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
     std::string scanReg = request->get_string("scanReg");
+    uint32_t waitTime = request->get_word("waitTime");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outDataDacVal[(dacMax-dacMin+1)/dacStep];
     uint32_t outDataTrigRate[(dacMax-dacMin+1)/dacStep];
-    sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg);
+    sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, vfatN, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
 
     response->set_word_array("data_dacVal", outDataDacVal, (dacMax-dacMin+1)/dacStep);
     response->set_word_array("data_trigRate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
