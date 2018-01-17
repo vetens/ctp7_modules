@@ -476,7 +476,7 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     return;
 }
 
-void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRate, uint32_t ohN, uint32_t maskOh, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t waitTime){
+void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRate, uint32_t ohN, uint32_t maskOh, bool invertVFATPos, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t waitTime){
     //Measures the SBIT rate seen by OHv3 ohN for the non-masked VFAT found in maskOh as a function of scanReg
     //It is assumed that all other VFATs are masked in the OHv3 via maskOh
     //Will scan from dacMin to dacMax in steps of dacStep
@@ -484,6 +484,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     //The y-valued (e.g. rate) will be stored in outDataTrigRate
     //Each measured point will take waitTime milliseconds (recommond between 1000->3000)
     //The measurement is performed for all channels (ch=128) or a specific channel (0 <= ch <= 127)
+    //invertVFATPos is for FW backwards compatiblity; if true then the vfatN =  23 - map_maskOh2vfatN[maskOh]
 
     char regBuf[200];
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
@@ -527,10 +528,11 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
         la->response->set_string("error",regBuf);
         return;
     }
+    uint32_t vfatN = (invertVFATPos) ? 23 - (*vfatNptr).second : (*vfatNptr).second;
 
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-    if( !( (goodVFATs >> (*vfatNptr).second ) & 0x1 ) ){
-        sprintf(regBuf,"The requested VFAT is not synced; goodVFATs: %x\t requested VFAT: %i; maskOh: %x", goodVFATs, (*vfatNptr).second, maskOh);
+    if( !( (goodVFATs >> vfatN ) & 0x1 ) ){
+        sprintf(regBuf,"The requested VFAT is not synced; goodVFATs: %x\t requested VFAT: %i; maskOh: %x", goodVFATs, vfatN, maskOh);
         la->response->set_string("error",regBuf);
         return;
     }
@@ -547,7 +549,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
             }
 
             //store the original channel mask
-            sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,(*vfatNptr).second,chan);
+            sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan);
             chanMaskAddr[chan]=getAddress(la->rtxn, la->dbi, regBuf, la->response);
             map_chanOrigMask[chanMaskAddr[chan]]=readReg(la->rtxn, la->dbi, regBuf);   //We'll write this by address later
 
@@ -557,7 +559,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     } //End Case: Measuring Rate for 1 channel
 
     //Get the scanAddress
-    sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,(*vfatNptr).second,scanReg.c_str());
+    sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
     uint32_t scanDacAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
 
     //Get the OH Rate Monitor Address
@@ -574,7 +576,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
 
     //Place chip in run mode
-    //sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,(*vfatNptr).second);
+    //sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
     //uint32_t runAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
     //writeRawAddress(runAddr, 0x1, la->response);
 
@@ -613,6 +615,7 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response){
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t maskOh = request->get_word("maskOh");
+    bool invertVFATPos = request->get_word("invertVFATPos");
     uint32_t ch = request->get_word("ch");
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
@@ -623,7 +626,7 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response){
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outDataDacVal[(dacMax-dacMin+1)/dacStep];
     uint32_t outDataTrigRate[(dacMax-dacMin+1)/dacStep];
-    sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
+    sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, invertVFATPos, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
 
     response->set_word_array("data_dacVal", outDataDacVal, (dacMax-dacMin+1)/dacStep);
     response->set_word_array("data_trigRate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
