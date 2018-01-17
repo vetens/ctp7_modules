@@ -559,8 +559,8 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     } //End Case: Measuring Rate for 1 channel
 
     //Get the scanAddress
-    sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
-    uint32_t scanDacAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    //sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
+    //uint32_t scanDacAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
 
     //Get the OH Rate Monitor Address
     sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
@@ -582,7 +582,9 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 
     //Loop from dacMin to dacMax in steps of dacStep
     for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
-        writeRawAddress(scanDacAddr, dacVal, la->response);
+        //writeRawAddress(scanDacAddr, dacVal, la->response);
+        sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
+        writeReg(la->rtxn, la->dbi, regBuf, dacVal, la->response);
         std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
 
         int idx = (dacVal-dacMin)/dacStep;
