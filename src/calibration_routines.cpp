@@ -522,7 +522,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 
     //Determine vfatN based on input maskOh
     auto vfatNptr = map_maskOh2vfatN.find(maskOh);
-    if( vfatNptr != map_maskOh2vfatN.end() ){
+    if( vfatNptr == map_maskOh2vfatN.end() ){
         sprintf(regBuf,"Input maskOh: %x not recgonized. Please make sure all but one VFAT is unmasked and then try again", maskOh);
         la->response->set_string("error",regBuf);
         return;
