@@ -311,7 +311,8 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                 uint32_t l1aCnt = 0;
                 while(l1aCnt < nevts){
                     l1aCnt = readRawAddress(l1CntAddr, la->response);
-                    std::this_thread::sleep_for(std::chrono::microseconds(50));
+                    //std::this_thread::sleep_for(std::chrono::microseconds(50));
+                    std::this_thread::sleep_for(std::chrono::microseconds(200));
                 }
 
                 writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0, la->response);
@@ -475,6 +476,166 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     return;
 }
 
+void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRate, uint32_t ohN, uint32_t maskOh, bool invertVFATPos, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t waitTime){
+    //Measures the SBIT rate seen by OHv3 ohN for the non-masked VFAT found in maskOh as a function of scanReg
+    //It is assumed that all other VFATs are masked in the OHv3 via maskOh
+    //Will scan from dacMin to dacMax in steps of dacStep
+    //The x-values (e.g. scanReg values) will be stored in outDataDacVal
+    //The y-valued (e.g. rate) will be stored in outDataTrigRate
+    //Each measured point will take waitTime milliseconds (recommond between 1000->3000)
+    //The measurement is performed for all channels (ch=128) or a specific channel (0 <= ch <= 127)
+    //invertVFATPos is for FW backwards compatiblity; if true then the vfatN =  23 - map_maskOh2vfatN[maskOh]
+
+    char regBuf[200];
+    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    if (iFWVersion < 3){ //v3 electronics behavior
+        sprintf(regBuf,"SBIT Rate Scan is Presently only supported in V3 Electronics");
+        la->response->set_string("error",regBuf);
+        return;
+    }
+
+    //Hard code possible maskOh values and how they map to vfatN
+    std::unordered_map<uint32_t,uint32_t> map_maskOh2vfatN;
+    map_maskOh2vfatN[0xfffffe] = 0;
+    map_maskOh2vfatN[0xfffffd] = 1;
+    map_maskOh2vfatN[0xfffffb] = 2;
+    map_maskOh2vfatN[0xfffff7] = 3;
+    map_maskOh2vfatN[0xffffef] = 4;
+    map_maskOh2vfatN[0xffffdf] = 5;
+    map_maskOh2vfatN[0xffffbf] = 6;
+    map_maskOh2vfatN[0xffff7f] = 7;
+    map_maskOh2vfatN[0xfffeff] = 8;
+    map_maskOh2vfatN[0xfffdff] = 9;
+    map_maskOh2vfatN[0xfffbff] = 10;
+    map_maskOh2vfatN[0xfff7ff] = 11;
+    map_maskOh2vfatN[0xffefff] = 12;
+    map_maskOh2vfatN[0xffdfff] = 13;
+    map_maskOh2vfatN[0xffbfff] = 14;
+    map_maskOh2vfatN[0xff7fff] = 15;
+    map_maskOh2vfatN[0xfeffff] = 16;
+    map_maskOh2vfatN[0xfdffff] = 17;
+    map_maskOh2vfatN[0xfbffff] = 18;
+    map_maskOh2vfatN[0xf7ffff] = 19;
+    map_maskOh2vfatN[0xefffff] = 20;
+    map_maskOh2vfatN[0xdfffff] = 21;
+    map_maskOh2vfatN[0xbfffff] = 22;
+    map_maskOh2vfatN[0x7fffff] = 23;
+
+    //Determine vfatN based on input maskOh
+    auto vfatNptr = map_maskOh2vfatN.find(maskOh);
+    if( vfatNptr == map_maskOh2vfatN.end() ){
+        sprintf(regBuf,"Input maskOh: %x not recgonized. Please make sure all but one VFAT is unmasked and then try again", maskOh);
+        la->response->set_string("error",regBuf);
+        return;
+    }
+    uint32_t vfatN = (invertVFATPos) ? 23 - (*vfatNptr).second : (*vfatNptr).second;
+
+    uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
+    if( !( (goodVFATs >> vfatN ) & 0x1 ) ){
+        sprintf(regBuf,"The requested VFAT is not synced; goodVFATs: %x\t requested VFAT: %i; maskOh: %x", goodVFATs, vfatN, maskOh);
+        la->response->set_string("error",regBuf);
+        return;
+    }
+
+    //If ch!=128 store the original channel mask settings
+    //Then mask all other channels except for channel ch
+    std::map<uint32_t, uint32_t> map_chanOrigMask; //key -> reg addr; val -> reg value
+    if( ch != 128){
+        uint32_t chanMaskAddr[128];
+        for(unsigned int chan=0; chan<128; ++chan){ //Loop Over All Channels
+            uint32_t chMask = 1;
+            if ( ch == chan){ //Do not mask the channel of interest
+                chMask = 0;
+            }
+
+            //store the original channel mask
+            sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan);
+            chanMaskAddr[chan]=getAddress(la->rtxn, la->dbi, regBuf, la->response);
+            map_chanOrigMask[chanMaskAddr[chan]]=readReg(la->rtxn, la->dbi, regBuf);   //We'll write this by address later
+
+            //write the new channel mask
+            writeRawAddress(chanMaskAddr[chan], chMask, la->response);
+        } //End Loop Over all Channels
+    } //End Case: Measuring Rate for 1 channel
+
+    //Get the scanAddress
+    //sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
+    //uint32_t scanDacAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+
+    //Get the OH Rate Monitor Address
+    sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
+    uint32_t ohTrigRateAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+
+    //Store the original OH  VFAT Mask, and then reset it
+    sprintf(regBuf,"GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN);
+    uint32_t ohVFATMaskAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    uint32_t maskOhOrig = readRawAddress(ohVFATMaskAddr, la->response);   //We'll write this later
+    writeRawAddress(ohVFATMaskAddr, maskOh, la->response);
+
+    //Take the VFATs out of slow control only mode
+    writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
+
+    //Place chip in run mode
+    //sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN,vfatN);
+    //uint32_t runAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    //writeRawAddress(runAddr, 0x1, la->response);
+
+    //Loop from dacMin to dacMax in steps of dacStep
+    for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
+        //writeRawAddress(scanDacAddr, dacVal, la->response);
+        sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
+        writeReg(la->rtxn, la->dbi, regBuf, dacVal, la->response);
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+
+        int idx = (dacVal-dacMin)/dacStep;
+        outDataDacVal[idx] = dacVal;
+        outDataTrigRate[idx] = readRawAddress(ohTrigRateAddr, la->response);
+    } //End Loop from dacMin to dacMax
+
+    //Take chip out of run mode
+    //writeRawAddress(runAddr, 0x0, la->response);
+
+    //Restore the original channel masks if specific channel was requested
+    if( ch != 128){
+        for(auto chanPtr = map_chanOrigMask.begin(); chanPtr != map_chanOrigMask.end(); ++chanPtr){
+            writeRawAddress( (*chanPtr).first, (*chanPtr).second, la->response);
+        }
+    } //End restore original channel masks if specific channel was requested
+
+    //Restore the original maskOh
+    writeRawAddress(ohVFATMaskAddr, maskOhOrig, la->response);
+
+    return;
+} //End sbitRateScanLocal(...)
+
+void sbitRateScan(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t maskOh = request->get_word("maskOh");
+    bool invertVFATPos = request->get_word("invertVFATPos");
+    uint32_t ch = request->get_word("ch");
+    uint32_t dacMin = request->get_word("dacMin");
+    uint32_t dacMax = request->get_word("dacMax");
+    uint32_t dacStep = request->get_word("dacStep");
+    std::string scanReg = request->get_string("scanReg");
+    uint32_t waitTime = request->get_word("waitTime");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    uint32_t outDataDacVal[(dacMax-dacMin+1)/dacStep];
+    uint32_t outDataTrigRate[(dacMax-dacMin+1)/dacStep];
+    sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, invertVFATPos, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
+
+    response->set_word_array("data_dacVal", outDataDacVal, (dacMax-dacMin+1)/dacStep);
+    response->set_word_array("data_trigRate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
+
+    return;
+} //End sbitRateScan(...)
+
 void genChannelScan(const RPCMsg *request, RPCMsg *response)
 {
     auto env = lmdb::env::create();
@@ -519,7 +680,8 @@ extern "C" {
             return; // Do not register our functions, we depend on memsvc.
         }
         modmgr->register_method("calibration_routines", "genScan", genScan);
-        modmgr->register_method("calibration_routines", "genChannelScan", genScan);
+        modmgr->register_method("calibration_routines", "genChannelScan", genChannelScan);
+        modmgr->register_method("calibration_routines", "sbitRateScan", sbitRateScan);
         modmgr->register_method("calibration_routines", "ttcGenConf", ttcGenConf);
         modmgr->register_method("calibration_routines", "ttcGenToggle", ttcGenToggle);
     }
