@@ -467,6 +467,7 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
     bool useCalPulse = request->get_word("useCalPulse");
+    bool currentPulse = request->get_word("currentPulse");
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
@@ -477,7 +478,7 @@ void genScan(const RPCMsg *request, RPCMsg *response)
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[24*(dacMax-dacMin+1)/dacStep];
-    genScanLocal(&la, outData, ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
+    genScanLocal(&la, outData, ohN, mask, ch, useCalPulse, currentPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
     response->set_word_array("data",outData,24*(dacMax-dacMin+1)/dacStep);
 
     return;
@@ -657,8 +658,9 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
-    uint32_t useCalPulse = request->get_word("useCalPulse");
-    uint32_t useExtTrig = request->get_word("useExtTrig");
+    bool useCalPulse = request->get_word("useCalPulse");
+    bool currentPulse = request->get_word("currentPulse");
+    bool useExtTrig = request->get_word("useExtTrig");
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
@@ -670,7 +672,7 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     uint32_t outData[128*24*(dacMax-dacMin+1)/dacStep];
     for(uint32_t ch = 0; ch < 128; ch++)
     {
-        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
+        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, useCalPulse, currentPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
     }
     response->set_word_array("data",outData,24*128*(dacMax-dacMin+1)/dacStep);
 
