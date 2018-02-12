@@ -226,7 +226,7 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
     return;
 }
 
-void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra, bool useExtTrig){
+void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, bool currentPulse, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra, bool useExtTrig){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
@@ -245,20 +245,30 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
         //Do we turn on the calpulse for the channel = ch?
         if(useCalPulse){
-            if(ch >= 128){
+            if(ch >= 128){ //Case: OR of all channels
                 la->response->set_string("error","It doesn't make sense to calpulse all channels");
                 return;
-            }
-            else{
-                for(int vfatN = 0; vfatN < 24; vfatN++){
-                    if((notmask >> vfatN) & 0x1){
+            } //End Case: OR of all channels
+            else{ //Case: Pulse a specific channel
+                for(int vfatN = 0; vfatN < 24; vfatN++){ //Loop over all VFATs
+                    if((notmask >> vfatN) & 0x1){ //End VFAT is not masked
                         sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
                         writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
-                        writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1, la->response);
-                    }
-                }
-            }
-        }
+
+                        if(currentPulse){ //Case: cal mode current injection
+                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x2, la->response);
+
+                            //Set cal current pulse scale factor. Q = CAL DUR[s] * CAL DAC * 10nA * CAL FS[%] (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
+                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_FS", ohN, vfatN), 0x0, la->response);
+                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_DUR", ohN, vfatN), 0x0, la->response);
+                        } //End Case: cal mode current injection
+                        else { //Case: cal mode voltage injection
+                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1, la->response);
+                        } //Case: cal mode voltage injection
+                    } //End VFAT is not masked
+                } //End Loop over all VFATs
+            } //End Case: Pulse a specific channel
+        } //End use calibration pulse
 
         //Get addresses
         uint32_t scanDacAddr[24];
