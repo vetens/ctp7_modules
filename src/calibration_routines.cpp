@@ -326,7 +326,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
 
             for(int vfatN = 0; vfatN < 24; vfatN++){
-                if ( !( (notmask >> vfat) & 0x1)) continue;
+                if ( !( (notmask >> vfatN) & 0x1)) continue;
 
                 int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
                 outData[idx] = readRawAddress(daqMonAddr[vfatN], la->response);
@@ -593,7 +593,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     return;
 } //End sbitRateScanLocal(...)
 
-void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t outDataTrigRateOverall, uint32_t ohN, uint32_t vfatmask, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg){
+void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ohN, uint32_t vfatmask, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg){
     //Measures the SBIT rate seen by OHv3 ohN for the non-masked VFATs defined in vfatmask as a function of scanReg
     //Will scan from dacMin to dacMax in steps of dacStep
     //The x-values (e.g. scanReg values) will be stored in outDataDacVal
@@ -613,7 +613,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
     }
 
     //Check if vfats are sync'd
-    uint32_t notmask = ~mask & 0xFFFFFF;
+    uint32_t notmask = ~vfatmask & 0xFFFFFF;
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
     if( (notmask & goodVFATs) != notmask){
         sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
@@ -637,7 +637,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
                 }
 
                 //store the original channel mask
-                sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan);
+                sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfat,chan);
                 chanMaskAddr=getAddress(la->rtxn, la->dbi, regBuf, la->response);
                 map_chanOrigMask[chanMaskAddr]=readReg(la->rtxn, la->dbi, regBuf);   //We'll write this by address later
 
