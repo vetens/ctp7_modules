@@ -285,9 +285,6 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         //Configure VFAT_DAQ_MONITOR
         dacMonConfLocal(la, ohN, ch);
 
-        //Place VFATs out of slow control only mode
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.VFAT3_RUN_MODE", 0x1, la->response);
-
         //Scan over DAC values
         for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep)
         {
