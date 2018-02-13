@@ -1,4 +1,3 @@
-export CTP7_MOD_ROOT=${PWD}
 if [[ ! "$0" =~ ("bash") ]]
 then
     # best for calling from zsh                                                                                                                                                                                                                                                   
