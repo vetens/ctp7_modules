@@ -4,7 +4,7 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
   LOGGER->log_message(LogManager::INFO, "START UPDATE ADDRESS TABLE");
   std::string at_xml = request->get_string("at_xml");
   xhal::utils::XHALXMLParser * m_parser = new xhal::utils::XHALXMLParser(at_xml.c_str());
-  try 
+  try
   {
     m_parser->setLogLevel(0);
     m_parser->parseXML();
@@ -42,7 +42,6 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
   for (auto it:m_parsed_at)
   {
     t_key = it.first;
-    t_key = t_key.substr(4);
     t_node = it.second;
     t_value = serialize(t_node);
     key.assign(t_key);
