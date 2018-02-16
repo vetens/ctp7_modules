@@ -14,7 +14,9 @@ void getmonTTCmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   getmonTTCmainLocal(rtxn, dbi, response);
@@ -36,7 +38,9 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   int NOH = request->get_word("NOH");
@@ -61,7 +65,9 @@ void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   int NOH = request->get_word("NOH");
@@ -86,7 +92,9 @@ void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   getmonDAQmainLocal(rtxn, dbi, response);
@@ -122,7 +130,9 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   int NOH = request->get_word("NOH");
@@ -162,7 +172,9 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   int NOH = request->get_word("NOH");

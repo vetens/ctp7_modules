@@ -20,7 +20,9 @@ void vfatSyncCheck(const RPCMsg *request, RPCMsg *response)
 {
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
@@ -81,7 +83,9 @@ void configureVFAT3sLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask) {
 void configureVFAT3s(const RPCMsg *request, RPCMsg *response) {
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
     uint32_t ohN = request->get_word("ohN");

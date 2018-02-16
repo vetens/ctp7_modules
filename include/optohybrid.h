@@ -45,7 +45,9 @@ void broadcastWriteLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_numbe
 void broadcastWrite(const RPCMsg *request, RPCMsg *response) {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   std::string reg_to_write = request->get_string("reg_name");
@@ -84,7 +86,9 @@ void broadcastReadLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number
 void broadcastRead(const RPCMsg *request, RPCMsg *response) {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   std::string reg_to_read = request->get_string("reg_name");
@@ -144,7 +148,9 @@ void loadVT1Local(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std:
 void loadVT1(const RPCMsg *request, RPCMsg *response) {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   std::string oh_number = request->get_string("oh_number");
@@ -177,7 +183,9 @@ void loadTRIMDACLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, 
 void loadTRIMDAC(const RPCMsg *request, RPCMsg *response) {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   std::string oh_number = request->get_string("oh_number");
@@ -189,7 +197,9 @@ void loadTRIMDAC(const RPCMsg *request, RPCMsg *response) {
 void configureVFATs(const RPCMsg *request, RPCMsg *response) {
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   std::string oh_number = request->get_string("oh_number");
@@ -267,7 +277,9 @@ void configureScanModule(const RPCMsg *request, RPCMsg *response){
 
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
@@ -342,7 +354,9 @@ void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
 void printScanConfiguration(const RPCMsg *request, RPCMsg *response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
@@ -398,7 +412,9 @@ void startScanModuleLocal(localArgs * la, uint32_t ohN, bool useUltra){
 void startScanModule(const RPCMsg *request, RPCMsg *response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
@@ -479,7 +495,9 @@ void getUltraScanResultsLocal(localArgs *la, uint32_t *outData, uint32_t ohN, ui
 void getUltraScanResults(const RPCMsg *request, RPCMsg *response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
@@ -532,7 +550,9 @@ void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
 void stopCalPulse2AllChannels(const RPCMsg *request, RPCMsg *response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 

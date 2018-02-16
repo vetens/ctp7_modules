@@ -3,6 +3,9 @@
 void update_address_table(const RPCMsg *request, RPCMsg *response) {
   LOGGER->log_message(LogManager::INFO, "START UPDATE ADDRESS TABLE");
   std::string at_xml = request->get_string("at_xml");
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  std::string lmdb_lock_file = gem_path+"address_table.mdb/lock.mdb";
   xhal::utils::XHALXMLParser * m_parser = new xhal::utils::XHALXMLParser(at_xml.c_str());
   try
   {
@@ -21,12 +24,12 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
 
   // Remove old DB
   LOGGER->log_message(LogManager::INFO, "REMOVE OLD DB");
-  std::remove("/mnt/persistent/texas/address_table.mdb/data.mdb");
-  std::remove("/mnt/persistent/texas/address_table.mdb/lock.mdb");
+  std::remove(lmdb_data_file.c_str());
+  std::remove(lmdb_lock_file.c_str());
 
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  env.open(lmdb_data_file.c_str(), 0, 0664);
 
   LOGGER->log_message(LogManager::INFO, "LMDB ENV OPEN");
 
@@ -57,7 +60,9 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response) {
   std::string regName = request->get_string("reg_name");
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
   LOGGER->log_message(LogManager::INFO, "LMDB ENV OPEN");
   lmdb::val key;
   lmdb::val value;
