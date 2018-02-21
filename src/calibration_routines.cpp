@@ -4,6 +4,46 @@
 #include <thread>
 #include "vfat3.h"
 
+unsigned int fw_version_check(const char* caller_name, localArgs *la)
+{
+    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    char regBuf[200];
+    if (iFWVersion < 3){ //v2b electronics behavior
+        sprintf(regBuf,"%s is Presently only supported in V3 Electronics", caller_name);
+        la->response->set_string("error",regBuf);
+    }
+    return iFWVersion;
+}
+
+/// @brief Unmask the channel of interest and masks all the other
+std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, unsigned int ch, localArgs *la)
+{
+    char regBuf[200];
+    std::unordered_map<uint32_t, uint32_t> map_chanOrigMask; //key -> reg addr; val -> reg value
+    uint32_t chanMaskAddr;
+    for(unsigned int chan=0; chan<128; ++chan){ //Loop Over All Channels
+        uint32_t chMask = 1;
+        if ( ch == chan){ //Do not mask the channel of interest
+            chMask = 0;
+        }
+        //store the original channel mask
+        sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan);
+        chanMaskAddr=getAddress(la->rtxn, la->dbi, regBuf, la->response);
+        map_chanOrigMask[chanMaskAddr]=readReg(la->rtxn, la->dbi, regBuf);   //We'll write this by address later
+
+        //write the new channel mask
+        writeRawAddress(chanMaskAddr, chMask, la->response);
+    } //End Loop Over all Channels
+    return map_chanOrigMask;
+}
+
+void applyChanMask(std::unordered_map<uint32_t, uint32_t> map_chanOrigMask, localArgs *la)
+{
+    for(auto chanPtr = map_chanOrigMask.begin(); chanPtr != map_chanOrigMask.end(); ++chanPtr){
+        writeRawAddress( (*chanPtr).first, (*chanPtr).second, la->response);
+    }
+}
+
 void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch){
     //Get firmware version
     int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
@@ -505,12 +545,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     //invertVFATPos is for FW backwards compatiblity; if true then the vfatN =  23 - map_maskOh2vfatN[maskOh]
 
     char regBuf[200];
-    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
-    if (iFWVersion < 3){ //v3 electronics behavior
-        sprintf(regBuf,"SBIT Rate Scan is Presently only supported in V3 Electronics");
-        la->response->set_string("error",regBuf);
-        return;
-    }
+    if (fw_version_check("SBIT Rate Scan", la) < 3) return;
 
     //Hard code possible maskOh values and how they map to vfatN
     std::unordered_map<uint32_t,uint32_t> map_maskOh2vfatN;
@@ -558,23 +593,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     //If ch!=128 store the original channel mask settings
     //Then mask all other channels except for channel ch
     std::unordered_map<uint32_t, uint32_t> map_chanOrigMask; //key -> reg addr; val -> reg value
-    if( ch != 128){
-        uint32_t chanMaskAddr;
-        for(unsigned int chan=0; chan<128; ++chan){ //Loop Over All Channels
-            uint32_t chMask = 1;
-            if ( ch == chan){ //Do not mask the channel of interest
-                chMask = 0;
-            }
-
-            //store the original channel mask
-            sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan);
-            chanMaskAddr=getAddress(la->rtxn, la->dbi, regBuf, la->response);
-            map_chanOrigMask[chanMaskAddr]=readReg(la->rtxn, la->dbi, regBuf);   //We'll write this by address later
-
-            //write the new channel mask
-            writeRawAddress(chanMaskAddr, chMask, la->response);
-        } //End Loop Over all Channels
-    } //End Case: Measuring Rate for 1 channel
+    if( ch != 128) map_chanOrigMask = setSingleChanMask(ohN,vfatN,ch,la);
 
     //Get the OH Rate Monitor Address
     sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
@@ -602,11 +621,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     } //End Loop from dacMin to dacMax
 
     //Restore the original channel masks if specific channel was requested
-    if( ch != 128){
-        for(auto chanPtr = map_chanOrigMask.begin(); chanPtr != map_chanOrigMask.end(); ++chanPtr){
-            writeRawAddress( (*chanPtr).first, (*chanPtr).second, la->response);
-        }
-    } //End restore original channel masks if specific channel was requested
+    if( ch != 128) applyChanMask(map_chanOrigMask, la);
 
     //Restore the original maskOh
     writeRawAddress(ohVFATMaskAddr, maskOhOrig, la->response);
@@ -626,12 +641,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
     char regBuf[200];
 
     //Are we using v3 electronics?
-    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
-    if (iFWVersion < 3){ //v2b electronics behavior
-        sprintf(regBuf,"SBIT Rate Scan is Presently only supported in V3 Electronics");
-        la->response->set_string("error",regBuf);
-        return;
-    }
+    if (fw_version_check("SBIT Rate Scan", la) < 3) return;
 
     //Check if vfats are sync'd
     uint32_t notmask = ~vfatmask & 0xFFFFFF;
@@ -644,27 +654,12 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
 
     //If ch!=128 store the original channel mask settings
     //Then mask all other channels except for channel ch
-    std::unordered_map<uint32_t, uint32_t> map_chanOrigMask; //key -> reg addr; val -> reg value
+    std::unordered_map<uint32_t, uint32_t> map_chanOrigMask[24]; //key -> reg addr; val -> reg value
     if( ch != 128){
-        uint32_t chanMaskAddr;
         for(int vfat=0; vfat<24; ++vfat){
             //Skip this vfat if it's masked
             if ( !( (notmask >> vfat) & 0x1)) continue;
-
-            for(unsigned int chan=0; chan<128; ++chan){ //Loop Over All Channels
-                uint32_t chMask = 1;
-                if ( ch == chan){ //Do not mask the channel of interest
-                    chMask = 0;
-                }
-
-                //store the original channel mask
-                sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfat,chan);
-                chanMaskAddr=getAddress(la->rtxn, la->dbi, regBuf, la->response);
-                map_chanOrigMask[chanMaskAddr]=readReg(la->rtxn, la->dbi, regBuf);   //We'll write this by address later
-
-                //write the new channel mask
-                writeRawAddress(chanMaskAddr, chMask, la->response);
-            } //End Loop Over all Channels
+            map_chanOrigMask[vfat] = setSingleChanMask(ohN,vfat,ch,la);
         } //End loop over all vfats
     } //End Case: Measuring Rate for 1 channel
 
@@ -712,12 +707,12 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
     } //End Loop from dacMin to dacMax
 
     //Restore the original channel masks if specific channel was requested
-    if( ch != 128){
-        for(auto chanPtr = map_chanOrigMask.begin(); chanPtr != map_chanOrigMask.end(); ++chanPtr){
-            writeRawAddress( (*chanPtr).first, (*chanPtr).second, la->response);
+    if( ch != 128) {
+        for(int vfat=0; vfat<24; ++vfat){
+            if ( !( (notmask >> vfat) & 0x1)) continue;
+            applyChanMask(map_chanOrigMask[vfat], la);
         }
-    } //End restore original channel masks if specific channel was requested
-
+    }
     return;
 } //End sbitRateScanParallel(...)
 
