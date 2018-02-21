@@ -230,7 +230,7 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
     return;
 }
 
-void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra, bool useExtTrig){
+void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra, bool useExtTrig){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
@@ -247,22 +247,38 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             return;
         }
 
+        if (currentPulse && calScaleFactor > 3){
+            sprintf(regBuf,"Bad value for CFG_CAL_FS: %x, Possible values are {0b00, 0b01, 0b10, 0b11}. Exiting.",calScaleFactor);
+            la->response->set_string("error",regBuf);
+            return;
+        }
+
         //Do we turn on the calpulse for the channel = ch?
         if(useCalPulse){
-            if(ch >= 128){
+            if(ch >= 128){ //Case: OR of all channels
                 la->response->set_string("error","It doesn't make sense to calpulse all channels");
                 return;
-            }
-            else{
-                for(int vfatN = 0; vfatN < 24; vfatN++){
-                    if((notmask >> vfatN) & 0x1){
+            } //End Case: OR of all channels
+            else{ //Case: Pulse a specific channel
+                for(int vfatN = 0; vfatN < 24; vfatN++){ //Loop over all VFATs
+                    if((notmask >> vfatN) & 0x1){ //End VFAT is not masked
                         sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
                         writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
-                        writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1, la->response);
-                    }
-                }
-            }
-        }
+
+                        if(currentPulse){ //Case: cal mode current injection
+                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x2, la->response);
+
+                            //Set cal current pulse scale factor. Q = CAL DUR[s] * CAL DAC * 10nA * CAL FS[%] (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
+                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_FS", ohN, vfatN), calScaleFactor, la->response);
+                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_DUR", ohN, vfatN), 0x0, la->response);
+                        } //End Case: cal mode current injection
+                        else { //Case: cal mode voltage injection
+                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1, la->response);
+                        } //Case: cal mode voltage injection
+                    } //End VFAT is not masked
+                } //End Loop over all VFATs
+            } //End Case: Pulse a specific channel
+        } //End use calibration pulse
 
         //Get addresses
         uint32_t scanDacAddr[24];
@@ -460,6 +476,8 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
     bool useCalPulse = request->get_word("useCalPulse");
+    bool currentPulse = request->get_word("currentPulse");
+    uint32_t calScaleFactor = request->get_word("calScaleFactor");
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
@@ -470,7 +488,7 @@ void genScan(const RPCMsg *request, RPCMsg *response)
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[24*(dacMax-dacMin+1)/dacStep];
-    genScanLocal(&la, outData, ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
+    genScanLocal(&la, outData, ohN, mask, ch, useCalPulse, currentPulse, calScaleFactor, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
     response->set_word_array("data",outData,24*(dacMax-dacMin+1)/dacStep);
 
     return;
@@ -758,8 +776,10 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
-    uint32_t useCalPulse = request->get_word("useCalPulse");
-    uint32_t useExtTrig = request->get_word("useExtTrig");
+    bool useCalPulse = request->get_word("useCalPulse");
+    bool currentPulse = request->get_word("currentPulse");
+    uint32_t calScaleFactor = request->get_word("calScaleFactor");
+    bool useExtTrig = request->get_word("useExtTrig");
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
@@ -771,7 +791,7 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     uint32_t outData[128*24*(dacMax-dacMin+1)/dacStep];
     for(uint32_t ch = 0; ch < 128; ch++)
     {
-        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, useCalPulse, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
+        genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, useCalPulse, currentPulse, calScaleFactor, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
     }
     response->set_word_array("data",outData,24*128*(dacMax-dacMin+1)/dacStep);
 
