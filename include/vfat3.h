@@ -97,3 +97,64 @@ void configureVFAT3s(const RPCMsg *request, RPCMsg *response) {
     rtxn.abort();
 }
 
+void statusVFAT3sLocal(localArgs * la, uint32_t ohN) 
+{
+    std::string regs [] = {"CFG_PULSE_STRETCH ",
+                           "CFG_SYNC_LEVEL_MODE",
+                           "CFG_FP_FE",
+                           "CFG_RES_PRE",
+                           "CFG_CAP_PRE",
+                           "CFG_PT",
+                           "CFG_SEL_POL",
+                           "CFG_FORCE_EN_ZCC",
+                           "CFG_SEL_COMP_MODE",
+                           "CFG_VREF_ADC",
+                           "CFG_IREF",
+                           "CFG_THR_ARM_DAC",
+                           "CFG_LATENCY",
+                           "CFG_CAL_SEL_POL",
+                           "CFG_CAL_DAC",
+                           "CFG_CAL_MODE",
+                           "CFG_BIAS_CFD_DAC_2",
+                           "CFG_BIAS_CFD_DAC_1",
+                           "CFG_BIAS_PRE_I_BSF",
+                           "CFG_BIAS_PRE_I_BIT",
+                           "CFG_BIAS_PRE_I_BLCC",
+                           "CFG_BIAS_PRE_VREF",
+                           "CFG_BIAS_SH_I_BFCAS",
+                           "CFG_BIAS_SH_I_BDIFF",
+                           "CFG_BIAS_SH_I_BFAMP",
+                           "CFG_BIAS_SD_I_BDIFF",
+                           "CFG_BIAS_SD_I_BSF",
+                           "CFG_BIAS_SD_I_BFCAS",
+                           "CFG_RUN"};
+    std::string regName;
+
+    for(int vfatN = 0; vfatN < 24; vfatN++)
+    {
+        char regBase [100];
+        sprintf(regBase, "GEM_AMC.OH_LINKS.OH%i.VFAT%i.",ohN, vfatN);
+        for (auto &reg : regs) {
+            regName = std::string(regBase)+reg;
+            la->response->set_word(regName,readReg(la->rtxn, la->dbi,regName));
+        }
+    }
+}
+
+void statusVFAT3s(const RPCMsg *request, RPCMsg *response) {
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    uint32_t ohN = request->get_word("ohN");
+    LOGGER->log_message(LogManager::INFO, "Reeading VFAT3 status");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    statusVFAT3sLocal(&la, ohN);
+    rtxn.abort();
+}
+
+

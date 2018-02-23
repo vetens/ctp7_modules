@@ -11,5 +11,6 @@ extern "C" {
         }
         modmgr->register_method("vfat3", "configureVFAT3s", configureVFAT3s);
         modmgr->register_method("vfat3", "vfatSyncCheck", vfatSyncCheck);
+        modmgr->register_method("vfat3", "statusVFAT3s", statusVFAT3s);
     }
 }
