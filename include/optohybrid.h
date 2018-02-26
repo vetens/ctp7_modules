@@ -566,3 +566,60 @@ void stopCalPulse2AllChannels(const RPCMsg *request, RPCMsg *response){
 
     return;
 }
+
+void statusOHLocal(localArgs * la, uint32_t ohEnMask)
+{
+    std::string regs [] = {"CFG_PULSE_STRETCH ",
+                           "TRIG.CTRL.SBIT_SOT_READY",
+                           "TRIG.CTRL.SBIT_SOT_UNSTABLE",
+                           "GBT.TX.TX_READY",
+                           "GBT.RX.RX_READY",
+                           "GBT.RX.RX_VALID",
+                           "GBT.RX.CNT_LINK_ERR",
+                           "ADC.CTRL.CNT_OVERTEMP",
+                           "ADC.CTRL.CNT_VCCAUX_ALARM",
+                           "ADC.CTRL.CNT_VCCINT_ALARM",
+                           "CONTROL.RELEASE.DATE",
+                           "CONTROL.RELEASE.VERSION.MAJOR",
+                           "CONTROL.RELEASE.VERSION.MINOR",
+                           "CONTROL.RELEASE.VERSION.BUILD",
+                           "CONTROL.RELEASE.VERSION.GENERATION",
+                           "CONTROL.SEM.CNT_SEM_CRITICAL",
+                           "CONTROL.SEM.CNT_SEM_CORRECTION",
+                           "TRIG.CTRL.SOT_INVERT",
+                           "GBT.TX.CNT_RESPONSE_SENT",
+                           "GBT.RX.CNT_REQUEST_RECEIVED",
+                           "CLOCKING.CLOCKING.GBT_MMCM_LOCKED",
+                           "CLOCKING.CLOCKING.LOGIC_MMCM_LOCKED",
+                           "CLOCKING.CLOCKING.GBT_MMCM_UNLOCKED_CNT",
+                           "CLOCKING.CLOCKING.LOGIC_MMCM_UNLOCKED_CNT"};
+    std::string regName;
+
+    for(int ohN = 0; ohN < 12; ohN++) if((ohEnMask >> ohN) & 0x1)
+
+    {
+        char regBase [100];
+        sprintf(regBase, "GEM_AMC.OH.OH%i.",ohN);
+        for (auto &reg : regs) {
+            regName = std::string(regBase)+reg;
+            la->response->set_word(regName,readReg(la->rtxn, la->dbi,regName));
+        }
+    }
+}
+
+void statusOH(const RPCMsg *request, RPCMsg *response)
+{
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    uint32_t ohEnMask = request->get_word("ohEnMask");
+    LOGGER->log_message(LogManager::INFO, "Reeading OH status");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    statusOHLocal(&la, ohEnMask);
+    rtxn.abort();
+}

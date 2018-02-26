@@ -150,7 +150,7 @@ void statusVFAT3s(const RPCMsg *request, RPCMsg *response) {
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
     uint32_t ohN = request->get_word("ohN");
-    LOGGER->log_message(LogManager::INFO, "Reeading VFAT3 status");
+    LOGGER->log_message(LogManager::INFO, "Reading VFAT3 status");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     statusVFAT3sLocal(&la, ohN);

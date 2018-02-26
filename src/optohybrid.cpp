@@ -19,5 +19,6 @@ extern "C" {
         modmgr->register_method("optohybrid", "printScanConfiguration", printScanConfiguration);
         modmgr->register_method("optohybrid", "startScanModule", startScanModule);
         modmgr->register_method("optohybrid", "stopCalPulse2AllChannels", stopCalPulse2AllChannels);
+        modmgr->register_method("optohybrid", "statusOH", statusOH);
     }
 }
