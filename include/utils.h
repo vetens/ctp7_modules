@@ -65,14 +65,12 @@ void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response);
  */
 uint32_t readRawAddress(uint32_t address, RPCMsg* response);
 
-/*! \fn uint32_t getAddress(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, RPCMsg *response)
+/*! \fn uint32_t getAddress(localArgs * la, const std::string & regName)
  *  \brief Returns an address of a given register
- *  \param rtxn LMDB ransaction handle
- *  \param dbi LMDB individual database handle
+ *  \param la Local arguments structure
  *  \param regName Register name
- *  \param response RPC response message
  */
-uint32_t getAddress(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, RPCMsg *response);
+uint32_t getAddress(localArgs * la, const std::string & regName);
 
 /*! \fn void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response)
  *  \brief Writes given value to the address. Register mask is not applied
@@ -89,24 +87,20 @@ void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response);
  */
 uint32_t readAddress(lmdb::val & db_res, RPCMsg *response);
 
-/*! \fn void writeRawReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, uint32_t value, RPCMsg *response)
+/*! \fn void writeRawReg(localArgs * la, const std::string & regName, uint32_t value)
  *  \brief Writes a value to a raw register. Register mask is not applied  
- *  \param rtxn LMDB ransaction handle
- *  \param dbi LMDB individual database handle
+ *  \param la Local arguments structure
  *  \param regName Register name
  *  \param value Value to write
- *  \param response RPC response message
  */
-void writeRawReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, uint32_t value, RPCMsg *response);
+void writeRawReg(localArgs * la, const std::string & regName, uint32_t value);
 
 /*! \fn uint32_t readRawReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, RPCMsg *response)
  *  \brief Reads a value from raw register. Register mask is not applied
- *  \param rtxn LMDB ransaction handle
- *  \param dbi LMDB individual database handle
+ *  \param la Local arguments structure
  *  \param regName Register name
- *  \param response RPC response message
  */
-uint32_t readRawReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, RPCMsg *response);
+uint32_t readRawReg(localArgs * la, const std::string & regName);
 
 /*! \fn uint32_t applyMask(uint32_t data, uint32_t mask)
  *  \brief Returns the data with register mask applied
@@ -115,22 +109,19 @@ uint32_t readRawReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regNa
  */
 uint32_t applyMask(uint32_t data, uint32_t mask);
 
-/*! \fn uint32_t readReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName)
+/*! \fn uint32_t readReg(localArgs * la, const std::string & regName)
  *  \brief Reads a value from register. Register mask is applied. Will return 0xdeaddead if register is no accessible
- *  \param rtxn LMDB ransaction handle
- *  \param dbi LMDB individual database handle
+ *  \param la Local arguments structure
  *  \param regName Register name
  */
-uint32_t readReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName);
+uint32_t readReg(localArgs * la, const std::string & regName);
 
-/*! \fn void writeReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, uint32_t value, RPCMsg *response)
+/*! \fn void writeReg(localArgs * la, const std::string & regName, uint32_t value)
  *  \brief Writes a value to a register. Register mask is applied  
- *  \param rtxn LMDB ransaction handle
- *  \param dbi LMDB individual database handle
+ *  \param la Local arguments structure
  *  \param regName Register name
  *  \param value Value to write
- *  \param response RPC response message
  */
-void writeReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, uint32_t value, RPCMsg *response);
+void writeReg(localArgs * la, const std::string & regName, uint32_t value);
 
 #endif

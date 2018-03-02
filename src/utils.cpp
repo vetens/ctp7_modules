@@ -111,11 +111,11 @@ uint32_t readRawAddress(uint32_t address, RPCMsg* response){
   return data[0];
 }
 
-uint32_t getAddress(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, RPCMsg *response){
+uint32_t getAddress(localArgs * la, const std::string & regName){
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
-  found = dbi.get(rtxn,key,db_res);
+  found = la->dbi.get(la->rtxn,key,db_res);
   uint32_t address;
   if (found){
     std::vector<std::string> tmp;
@@ -125,7 +125,7 @@ uint32_t getAddress(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regNa
     address = stoi(tmp[0]);
   } else {
     LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    response->set_string("error", "Register not found");
+    la->response->set_string("error", "Register not found");
     return 0xdeaddead;
   }
   return address;
@@ -174,29 +174,29 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response) {
   return data[0];
 }
 
-void writeRawReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, uint32_t value, RPCMsg *response) {
+void writeRawReg(localArgs * la, const std::string & regName, uint32_t value) {
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
-  found = dbi.get(rtxn,key,db_res);
+  found = la->dbi.get(la->rtxn,key,db_res);
   if (found){
-    writeAddress(db_res, value, response);
+    writeAddress(db_res, value, la->response);
   } else {
   	LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    response->set_string("error", "Register not found");
+    la->response->set_string("error", "Register not found");
   }
 }
 
-uint32_t readRawReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, RPCMsg *response) {
+uint32_t readRawReg(localArgs * la, const std::string & regName) {
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
-  found = dbi.get(rtxn,key,db_res);
+  found = la->dbi.get(la->rtxn,key,db_res);
   if (found){
-    return readAddress(db_res, response);
+    return readAddress(db_res, la->response);
   } else {
   	LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    response->set_string("error", "Register not found");
+    la->response->set_string("error", "Register not found");
     return 0xdeaddead;
   }
 }
@@ -216,11 +216,11 @@ uint32_t applyMask(uint32_t data, uint32_t mask) {
   return result;
 }
 
-uint32_t readReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName) {
+uint32_t readReg(localArgs * la, const std::string & regName) {
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
-  found = dbi.get(rtxn,key,db_res);
+  found = la->dbi.get(la->rtxn,key,db_res);
   if (found){
     std::vector<std::string> tmp;
     std::string t_db_res = std::string(db_res.data());
@@ -253,11 +253,11 @@ uint32_t readReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName)
   }
 }
 
-void writeReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, uint32_t value, RPCMsg *response) {
+void writeReg(localArgs * la, const std::string & regName, uint32_t value) {
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
-  found = dbi.get(rtxn,key,db_res);
+  found = la->dbi.get(la->rtxn,key,db_res);
   if (found){
     std::vector<std::string> tmp;
     std::string t_db_res = std::string(db_res.data());
@@ -265,11 +265,11 @@ void writeReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, ui
     tmp = split(t_db_res,'|');
     uint32_t mask = stoll(tmp[2]);
     if (mask==0xFFFFFFFF) {
-      writeAddress(db_res, value, response);
+      writeAddress(db_res, value, la->response);
     } else {
-      uint32_t current_value = readAddress(db_res, response);
+      uint32_t current_value = readAddress(db_res, la->response);
       if (current_value == 0xdeaddead) {
-  	    response->set_string("error", std::string("Writing masked reg failed due to reading problem"));
+  	    la->response->set_string("error", std::string("Writing masked reg failed due to reading problem"));
   	    LOGGER->log_message(LogManager::ERROR, stdsprintf("Writing masked reg failed due to reading problem: %s", regName.c_str()));
         return;
       }
@@ -287,11 +287,11 @@ void writeReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, ui
       }
       uint32_t val_to_write = value << shift_amount;
       val_to_write = (val_to_write & mask_copy) | (current_value & ~mask_copy);
-      writeAddress(db_res, val_to_write, response);
+      writeAddress(db_res, val_to_write, la->response);
     }
   } else {
   	LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    response->set_string("error", "Register not found");
+    la->response->set_string("error", "Register not found");
   }
 }
 

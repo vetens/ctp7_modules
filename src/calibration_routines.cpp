@@ -6,7 +6,7 @@
 
 unsigned int fw_version_check(const char* caller_name, localArgs *la)
 {
-    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    int iFWVersion = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
     char regBuf[200];
     if (iFWVersion < 3){ //v2b electronics behavior
         sprintf(regBuf,"%s is Presently only supported in V3 Electronics", caller_name);
@@ -28,8 +28,8 @@ std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, uns
         }
         //store the original channel mask
         sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan);
-        chanMaskAddr=getAddress(la->rtxn, la->dbi, regBuf, la->response);
-        map_chanOrigMask[chanMaskAddr]=readReg(la->rtxn, la->dbi, regBuf);   //We'll write this by address later
+        chanMaskAddr=getAddress(la, regBuf);
+        map_chanOrigMask[chanMaskAddr]=readReg(la, regBuf);   //We'll write this by address later
 
         //write the new channel mask
         writeRawAddress(chanMaskAddr, chMask, la->response);
@@ -46,21 +46,21 @@ void applyChanMask(std::unordered_map<uint32_t, uint32_t> map_chanOrigMask, loca
 
 void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch){
     //Get firmware version
-    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    int iFWVersion = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
     if (iFWVersion == 3){ //v3 electronics behavior
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x0, la->response);
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1, la->response);
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.OH_SELECT", ohN, la->response);
+        writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x0);
+        writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1);
+        writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.OH_SELECT", ohN);
         if(ch>127)
         {
-            //writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_SELECT", 0, la->response);
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x1, la->response);
+            //writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_SELECT", 0);
+            writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x1);
         }
         else
         {
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_SELECT", ch, la->response);
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x0, la->response);
+            writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_SELECT", ch);
+            writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x0);
         }
     } //End v3 electronics behavior
     else if (iFWVersion == 1){ //v2b electronics behavior
@@ -77,14 +77,14 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable){
      */
 
     //Get firmware version
-    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    int iFWVersion = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
     if (iFWVersion == 3){ //v3 electronics behavior
         if (enable){
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1, la->response); //Internal, TTC cmds from backplane are ignored
+            writeReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1); //Internal, TTC cmds from backplane are ignored
         }
         else{
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0, la->response); //External, TTC cmds from backplane
+            writeReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0); //External, TTC cmds from backplane
         }
     } //End v3 electronics behavior
     else if (iFWVersion == 1) { //v2b electronics behavior
@@ -94,13 +94,13 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable){
         std::string contBase = "GEM_AMC.OH.OH" + sstream.str() + ".T1Controller";
 
         if (enable){ //Start
-            if ( !(readReg(la->rtxn, la->dbi, contBase + ".MONITOR"))){
-                writeReg(la->rtxn, la->dbi, contBase + ".TOGGLE", 0x1, la->response);   //Enable
+            if ( !(readReg(la, contBase + ".MONITOR"))){
+                writeReg(la, contBase + ".TOGGLE", 0x1);   //Enable
             }
         }
         else { //Stop
-            if( readReg(la->rtxn, la->dbi, contBase + ".MONITOR")){
-                writeReg(la->rtxn, la->dbi, contBase + ".TOGGLE", 0x0, la->response);   //Disable
+            if( readReg(la, contBase + ".MONITOR")){
+                writeReg(la, contBase + ".TOGGLE", 0x0);   //Disable
             }
         }
     } //End v2b electronics behavior
@@ -157,12 +157,12 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
      */
 
     //Get firmware version
-    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    int iFWVersion = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
     if (iFWVersion == 3){ //v3 electronics behavior
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.RESET", 0x1, la->response);
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_GAP", L1Ainterval, la->response);
-        writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_CALPULSE_TO_L1A_GAP", pulseDelay, la->response);
+        writeReg(la, "GEM_AMC.TTC.GENERATOR.RESET", 0x1);
+        writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_GAP", L1Ainterval);
+        writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_CALPULSE_TO_L1A_GAP", pulseDelay);
     } //End v3 electronics behavior
     else if (iFWVersion == 1){ //v2b electronics behavior
         //base reg
@@ -171,45 +171,45 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
         std::string contBase = "GEM_AMC.OH.OH" + sstream.str() + ".T1Controller";
 
         //reset the controller
-        writeReg(la->rtxn,la->dbi,contBase + ".RESET",0x1,la->response);
+        writeReg(la, contBase + ".RESET",0x1);
 
         //Set the mode
-        writeReg(la->rtxn,la->dbi,contBase + ".MODE",mode,la->response);
+        writeReg(la, contBase + ".MODE",mode);
         LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for mode 0x%x (0x%x)",
                     ohN,mode,
-                    readReg(la->rtxn, la->dbi, contBase + ".MODE")
+                    readReg(la, contBase + ".MODE")
                     )
                 );
 
         if (mode == 0){
-            writeReg(la->rtxn, la->dbi, contBase + ".TYPE", type, la->response);
+            writeReg(la, contBase + ".TYPE", type);
             LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for type 0x%x (0x%x)",
                         ohN,type,
-                        readReg(la->rtxn, la->dbi, contBase + ".TYPE")
+                        readReg(la, contBase + ".TYPE")
                         )
                     );
         }
         if (mode == 1){
-            writeReg(la->rtxn, la->dbi, contBase + ".DELAY", pulseDelay, la->response);
+            writeReg(la, contBase + ".DELAY", pulseDelay);
             LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for delay %i (%i)",
                         ohN,pulseDelay,
-                        readReg(la->rtxn, la->dbi, contBase + ".DELAY")
+                        readReg(la, contBase + ".DELAY")
                         )
                     );
         }
         if (mode != 2){
-            writeReg(la->rtxn, la->dbi, contBase + ".INTERVAL", L1Ainterval, la->response);
+            writeReg(la, contBase + ".INTERVAL", L1Ainterval);
             LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for interval %i (%i)",
                         ohN,L1Ainterval,
-                        readReg(la->rtxn, la->dbi, contBase + ".INTERVAL")
+                        readReg(la, contBase + ".INTERVAL")
                         )
                     );
         }
 
-        writeReg(la->rtxn, la->dbi, contBase + ".NUMBER", nPulses, la->response);
+        writeReg(la, contBase + ".NUMBER", nPulses);
         LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for nsignals %i (%i)",
                     ohN,nPulses,
-                    readReg(la->rtxn, la->dbi, contBase + ".NUMBER")
+                    readReg(la, contBase + ".NUMBER")
                     )
                 );
 
@@ -275,7 +275,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
     uint32_t notmask = ~mask & 0xFFFFFF;
 
     //Get firmware version
-    int iFWVersion = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    int iFWVersion = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
     if (iFWVersion == 3){ //v3 electronics behavior
         uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
@@ -303,17 +303,17 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                 for(int vfatN = 0; vfatN < 24; vfatN++){ //Loop over all VFATs
                     if((notmask >> vfatN) & 0x1){ //End VFAT is not masked
                         sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-                        writeReg(la->rtxn, la->dbi, regBuf, 0x1, la->response);
+                        writeReg(la, regBuf, 0x1);
 
                         if(currentPulse){ //Case: cal mode current injection
-                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x2, la->response);
+                            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x2);
 
                             //Set cal current pulse scale factor. Q = CAL DUR[s] * CAL DAC * 10nA * CAL FS[%] (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
-                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_FS", ohN, vfatN), calScaleFactor, la->response);
-                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_DUR", ohN, vfatN), 0x0, la->response);
+                            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_FS", ohN, vfatN), calScaleFactor);
+                            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_DUR", ohN, vfatN), 0x0);
                         } //End Case: cal mode current injection
                         else { //Case: cal mode voltage injection
-                            writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1, la->response);
+                            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1);
                         } //Case: cal mode voltage injection
                     } //End VFAT is not masked
                 } //End Loop over all VFATs
@@ -323,23 +323,23 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         //Get addresses
         uint32_t scanDacAddr[24];
         uint32_t daqMonAddr[24];
-        uint32_t l1CntAddr = getAddress(la->rtxn, la->dbi, "GEM_AMC.TTC.CMD_COUNTERS.L1A", la->response);
+        uint32_t l1CntAddr = getAddress(la, "GEM_AMC.TTC.CMD_COUNTERS.L1A");
         for(int vfatN = 0; vfatN < 24; vfatN++)
         {
             sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
-            scanDacAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+            scanDacAddr[vfatN] = getAddress(la, regBuf);
             sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
-            daqMonAddr[vfatN] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+            daqMonAddr[vfatN] = getAddress(la, regBuf);
         }
 
         //TTC Config
         if(useExtTrig){
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0, la->response);
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.CNT_RESET", 0x1, la->response);
+            writeReg(la, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0);
+            writeReg(la, "GEM_AMC.TTC.CTRL.CNT_RESET", 0x1);
         }
         else{
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts, la->response);
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1, la->response);
+            writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", nevts);
+            writeReg(la, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1);
         }
 
         //Configure VFAT_DAQ_MONITOR
@@ -351,17 +351,17 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             //Write the scan reg value
             for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
             {
-                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str()), dacVal, la->response);
+                writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str()), dacVal);
             }
 
             //Reset and enable the VFAT_DAQ_MONITOR
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1, la->response);
-            writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x1, la->response);
+            writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1);
+            writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x1);
 
             //Start the triggers
             if(useExtTrig){
-                writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.CNT_RESET", 0x1, la->response);
-                writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x1, la->response);
+                writeReg(la, "GEM_AMC.TTC.CTRL.CNT_RESET", 0x1);
+                writeReg(la, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x1);
 
                 uint32_t l1aCnt = 0;
                 while(l1aCnt < nevts){
@@ -369,13 +369,13 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                     std::this_thread::sleep_for(std::chrono::microseconds(200));
                 }
 
-                writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0, la->response);
+                writeReg(la, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0);
                 l1aCnt = readRawAddress(l1CntAddr, la->response);
             }
             else{
-                writeReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1, la->response);
-                if(readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.ENABLE")){ //TTC Commands from TTC.GENERATOR
-                    while(readReg(la->rtxn, la->dbi, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING")){
+                writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1);
+                if(readReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE")){ //TTC Commands from TTC.GENERATOR
+                    while(readReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING")){
                         std::this_thread::sleep_for(std::chrono::microseconds(50));
                     }
                 } //End TTC Commands from TTC.GENERATOR
@@ -391,10 +391,10 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                 LOGGER->log_message(LogManager::DEBUG, stdsprintf("%s Value: %i; Readback Val: %i; Nhits: %i; Nev: %i; CFG_THR_ARM: %i",
                              scanReg.c_str(),
                              dacVal,
-                             readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str())),
-                             readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.CHANNEL_FIRE_COUNT",vfatN)),
-                             readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN)),
-                             readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_THR_ARM_DAC",ohN,vfatN,scanReg.c_str()))
+                             readReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str())),
+                             readReg(la, stdsprintf("GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.CHANNEL_FIRE_COUNT",vfatN)),
+                             readReg(la, stdsprintf("GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN)),
+                             readReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_THR_ARM_DAC",ohN,vfatN,scanReg.c_str()))
                     )
                 );
             } //End Loop over vfats
@@ -406,8 +406,8 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             {
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
                 if(ch < 128){
-                    writeReg(la->rtxn, la->dbi, regBuf, 0x0, la->response);
-                    writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x0, la->response);
+                    writeReg(la, regBuf, 0x0);
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x0);
                 }
             }
         }
@@ -468,8 +468,8 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             else{
                 for(int vfat=0; vfat<24; ++vfat){
                     if ( (notmask >> vfat) & 0x1){
-                        trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
-                        writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal+64, la->response);
+                        trimVal = (0x3f & readReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
+                        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal+64);
                     }
                 }
             }
@@ -482,8 +482,8 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         if(useCalPulse){
             for(int vfat=0; vfat<24; ++vfat){
                 if ( (notmask >> vfat) & 0x1){
-                    trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
-                    writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal, la->response);
+                    trimVal = (0x3f & readReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal);
                 }
             }
         }
@@ -597,22 +597,22 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 
     //Get the OH Rate Monitor Address
     sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
-    uint32_t ohTrigRateAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    uint32_t ohTrigRateAddr = getAddress(la, regBuf);
 
     //Store the original OH VFAT Mask, and then reset it
     sprintf(regBuf,"GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN);
-    uint32_t ohVFATMaskAddr = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    uint32_t ohVFATMaskAddr = getAddress(la, regBuf);
     uint32_t maskOhOrig = readRawAddress(ohVFATMaskAddr, la->response);   //We'll write this later
     writeRawAddress(ohVFATMaskAddr, maskOh, la->response);
 
     //Take the VFATs out of slow control only mode
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0, la->response);
+    writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
 
     //Loop from dacMin to dacMax in steps of dacStep
     for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
-        //writeRawAddress(scanDacAddr, dacVal, la->response);
+        //writeRawAddress(scanDacAddr, dacVal);
         sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
-        writeReg(la->rtxn, la->dbi, regBuf, dacVal, la->response);
+        writeReg(la, regBuf, dacVal);
         std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
 
         int idx = (dacVal-dacMin)/dacStep;
@@ -666,18 +666,18 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
     //Get the SBIT Rate Monitor Address
     uint32_t ohTrigRateAddr[25]; //idx 0->23 VFAT counters; idx 24 overall rate
     sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
-    ohTrigRateAddr[24] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+    ohTrigRateAddr[24] = getAddress(la, regBuf);
     for(int vfat=0; vfat<24; ++vfat){
         sprintf(regBuf,"GEM_AMC.OH.OH%i.TRIG.CNT.VFAT%i_SBITS",ohN,vfat);
-        ohTrigRateAddr[vfat] = getAddress(la->rtxn, la->dbi, regBuf, la->response);
+        ohTrigRateAddr[vfat] = getAddress(la, regBuf);
     } //End Loop over all VFATs
 
     //Take the VFATs out of slow control only mode
-    writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0, la->response);
+    writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
 
     //Prep the SBIT counters
-    writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0, la->response); //reset all counters after SBIT_CNT_TIME_MAX
-    writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98, la->response); //count for 1 second
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98); //count for 1 second
 
     //Loop from dacMin to dacMax in steps of dacStep
     for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
@@ -685,11 +685,11 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
         for(int vfat=0; vfat<24; ++vfat){
             if ( !( (notmask >> vfat) & 0x1)) continue;
             sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfat,scanReg.c_str());
-            writeReg(la->rtxn, la->dbi, regBuf, dacVal, la->response);
+            writeReg(la, regBuf, dacVal);
         } //End Loop Over all VFATs
 
         //Reset the counters
-        writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CNT.RESET",ohN), 0x1, la->response);
+        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CNT.RESET",ohN), 0x1);
 
         //Wait just over 1 second
         std::this_thread::sleep_for(std::chrono::milliseconds(1005));

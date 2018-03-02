@@ -7,8 +7,8 @@ uint32_t vfatSyncCheckLocal(localArgs * la, uint32_t ohN)
     {
         char regBase [100];
         sprintf(regBase, "GEM_AMC.OH_LINKS.OH%i.VFAT%i",ohN, vfatN);
-        bool linkGood = readReg(la->rtxn, la->dbi, std::string(regBase)+".LINK_GOOD");
-        uint32_t linkErrors = readReg(la->rtxn, la->dbi, std::string(regBase)+".SYNC_ERR_CNT");
+        bool linkGood = readReg(la, std::string(regBase)+".LINK_GOOD");
+        uint32_t linkErrors = readReg(la, std::string(regBase)+".SYNC_ERR_CNT");
         goodVFATs = goodVFATs | ((linkGood && (linkErrors == 0)) << vfatN);
     }
 
@@ -73,7 +73,7 @@ void configureVFAT3sLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask) {
             else 
             {
                 regName = reg_basename + dacName;
-                writeReg(la->rtxn, la->dbi, regName, dacVal, la->response);
+                writeReg(la, regName, dacVal);
             }
         }
     }
@@ -135,7 +135,7 @@ void statusVFAT3sLocal(localArgs * la, uint32_t ohN)
         sprintf(regBase, "GEM_AMC.OH_LINKS.OH%i.VFAT%i.",ohN, vfatN);
         for (auto &reg : regs) {
             regName = std::string(regBase)+reg;
-            la->response->set_word(regName,readReg(la->rtxn, la->dbi,regName));
+            la->response->set_word(regName,readReg(la,regName));
         }
     }
 }

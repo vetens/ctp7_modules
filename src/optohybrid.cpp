@@ -1,38 +1,37 @@
 #include "optohybrid.h"
 
-void broadcastWriteLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std::string reg_to_write, uint32_t val_to_write, RPCMsg * response, uint32_t mask) {
-  uint32_t fw_maj = readReg(rtxn, dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+void broadcastWriteLocal(localArgs * la, uint32_t ohN, std::string regName, uint32_t value, uint32_t mask) {
+  uint32_t fw_maj = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
   if (fw_maj == 1) {
-    std::string reg_basename = "GEM_AMC.OH.OH";
-    reg_basename += oh_number;
-    reg_basename += ".GEB.Broadcast";
-    std::string regName;
+    char regBase [100];
+    sprintf(regBase, "GEM_AMC.OH.OH%i.GEB.Broadcast",ohN);
+
+    std::string t_regName;
 
     //Reset broadcast module
-    regName = reg_basename + ".Reset";
-    writeRawReg(rtxn, dbi, regName, 0, response);
+    t_regName = std::string(regBase) + ".Reset";
+    writeRawReg(la, t_regName, 0);
     //Set broadcast mask
-    regName = reg_basename + ".Mask";
-    writeRawReg(rtxn, dbi, regName, mask, response);
+    t_regName = std::string(regBase) + ".Mask";
+    writeRawReg(la, t_regName, mask);
     //Issue broadcast write request
-    regName = reg_basename + ".Request." + reg_to_write;
-    writeRawReg(rtxn, dbi, regName, val_to_write, response);
+    t_regName = std::string(regBase) + ".Request." + regName;
+    writeRawReg(la, t_regName, value);
     //Wait until broadcast write finishes
-    regName = reg_basename + ".Running";
-    while (unsigned int t_res = readRawReg(rtxn, dbi, regName, response))
+    t_regName = std::string(regBase) + ".Running";
+    while (unsigned int t_res = readRawReg(la, t_regName))
     {
       if (t_res == 0xdeaddead) break;
       usleep(1000);
     }
   } else if (fw_maj == 3) {
-    std::string reg_basename = "GEM_AMC.OH.OH";
-    reg_basename += oh_number;
-    reg_basename += ".GEB.VFAT";
-    std::string regName;
-    for (int i=0; i<24; i++){
-      if (!((mask >> i)&0x1)) {
-        regName = reg_basename + std::to_string(i)+"."+reg_to_write;
-        writeReg(rtxn, dbi, regName, val_to_write, response);
+    std::string t_regName;
+    for (int vfatN=0; vfatN<24; vfatN++){
+      if (!((mask >> vfatN)&0x1)) {
+        char regBase [100];
+        sprintf(regBase, "GEM_AMC.OH.OH%i.GEB.VFATi%i.",ohN, vfatN);
+        t_regName = std::string(regBase)+regName;
+        writeReg(la, t_regName, value);
       }
     }
   } else {
@@ -48,37 +47,37 @@ void broadcastWrite(const RPCMsg *request, RPCMsg *response) {
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  std::string reg_to_write = request->get_string("reg_name");
-  uint32_t val_to_write = request->get_word("value");
+  std::string regName = request->get_string("reg_name");
+  uint32_t value = request->get_word("value");
   uint32_t mask = request->get_key_exists("mask")?request->get_word("mask"):0xFF000000;
-  std::string oh_number = std::to_string(request->get_word("oh_number"));
-  broadcastWriteLocal(rtxn, dbi, oh_number, reg_to_write, val_to_write, response, mask);
+  uint32_t ohN = request->get_word("ohN");
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  broadcastWriteLocal(&la, ohN, regName, value, mask);
   rtxn.abort();
 }
 
-void broadcastReadLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std::string reg_to_read, RPCMsg * response, uint32_t mask) {
-  uint32_t fw_maj = readReg(rtxn, dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
-  std::string reg_basename = "GEM_AMC.OH.OH";
-  reg_basename += oh_number;
+void broadcastReadLocal(localArgs * la, uint32_t ohN, std::string regName, uint32_t mask) {
+  uint32_t fw_maj = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+  char regBase [100];
   if (fw_maj == 1) {
-    reg_basename += ".GEB.VFATS.VFAT";
+    sprintf(regBase,"GEM_AMC.OH.OH%i.GEB.VFATS.VFAT",ohN);
   } else if (fw_maj == 3) {
-    reg_basename += ".GEB.VFAT";
+    sprintf(regBase,"GEM_AMC.OH.OH%i.GEB.VFAT",ohN);
    } else {
     LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
-    response->set_string("error", "Unexpected value for system release major!");
+    la->response->set_string("error", "Unexpected value for system release major!");
   }
-  std::string regName;
+  std::string t_regName;
   uint32_t data[24];
   for (int i=0; i<24; i++){
     if ((mask >> i)&0x1) data[i] = 0;
     else {
-      regName = reg_basename + std::to_string(i)+"."+reg_to_read;
-      data[i] = readReg(rtxn, dbi, regName);
-      if (data[i] == 0xdeaddead) response->set_string("error",stdsprintf("Error reading register %s",regName.c_str()));
+      t_regName = std::string(regBase) + std::to_string(i)+"."+regName;
+      data[i] = readReg(la, t_regName);
+      if (data[i] == 0xdeaddead) la->response->set_string("error",stdsprintf("Error reading register %s",t_regName.c_str()));
     }
   }
-  response->set_word_array("data", data, 24);
+  la->response->set_word_array("data", data, 24);
 }
 
 void broadcastRead(const RPCMsg *request, RPCMsg *response) {
@@ -89,31 +88,33 @@ void broadcastRead(const RPCMsg *request, RPCMsg *response) {
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  std::string reg_to_read = request->get_string("reg_name");
+  std::string regName = request->get_string("reg_name");
   uint32_t mask = request->get_key_exists("mask")?request->get_word("mask"):0xFF000000;
-  std::string oh_number = std::to_string(request->get_word("oh_number"));
-  broadcastReadLocal(rtxn, dbi, oh_number, reg_to_read, response, mask);
+  uint32_t ohN = request->get_word("ohN");
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  broadcastReadLocal(&la, ohN, regName, mask);
   rtxn.abort();
 }
 
 // Set default values to VFAT parameters. VFATs will remain in sleep mode
-void biasAllVFATsLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, RPCMsg *response, uint32_t mask) {
+void biasAllVFATsLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
   for (auto & it:vfat_parameters)
   {
-    broadcastWriteLocal(rtxn, dbi, oh_number, it.first, it.second, response, mask);
+    broadcastWriteLocal(la, ohN, it.first, it.second, mask);
   }
 }
 
-void setAllVFATsToRunModeLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, RPCMsg * response, uint32_t mask) {
-  broadcastWriteLocal(rtxn, dbi, oh_number, "ContReg0", 0x37, response, mask);
+void setAllVFATsToRunModeLocal(localArgs * la, uint32_t ohN, RPCMsg * response, uint32_t mask) {
+  broadcastWriteLocal(la, ohN, "ContReg0", 0x37, mask);
 }
 
-void setAllVFATsToSleepModeLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, RPCMsg * response, uint32_t mask) {
-  broadcastWriteLocal(rtxn, dbi, oh_number, "ContReg0", 0x36, response, mask);
+void setAllVFATsToSleepModeLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
+  broadcastWriteLocal(la, ohN, "ContReg0", 0x36, mask);
 }
 
-void loadVT1Local(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std::string config_file, RPCMsg * response, uint32_t vt1) {
-  std::string reg_basename = "GEM_AMC.OH.OH" + oh_number;
+void loadVT1Local(localArgs * la, uint32_t ohN, std::string config_file, uint32_t vt1) {
+  char regBase [100];
+  sprintf(regBase,"GEM_AMC.OH.OH%i",ohN);
   uint32_t vfatN, trimRange;
   std::string line, regName;
   // Check if there's a config file. If yes, set the thresholds and trim range according to it, otherwise st only thresholds (equal on all chips) to provided vt1 value
@@ -125,21 +126,22 @@ void loadVT1Local(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std:
     {
       std::stringstream iss(line);
       if (!(iss >> vfatN >> vt1 >> trimRange)) {
-  		  LOGGER->log_message(LogManager::ERROR, "ERROR READING SETTINGS");
-        response->set_string("error", "Error reading settings");
+        LOGGER->log_message(LogManager::ERROR, "ERROR READING SETTINGS");
+        la->response->set_string("error", "Error reading settings");
         break;
       } else {
-        regName = reg_basename + ".GEB.VFATS.VFAT" + std::to_string(vfatN)+".VThreshold1";
+        char regBase [100];
+        sprintf(regBase,"GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VThreshold1",ohN, vfatN);
         //LOGGER->log_message(LogManager::INFO, stdsprintf("WRITING 0x%8x to REG: %s", vt1, regName.c_str()));
-        writeRawReg(rtxn, dbi, regName, vt1, response);
-        regName = reg_basename + ".GEB.VFATS.VFAT" + std::to_string(vfatN)+".ContReg3";
+        writeRawReg(la, std::string(regName), vt1);
+        sprintf(regBase,"GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.ContReg3",ohN, vfatN);
         //LOGGER->log_message(LogManager::INFO, stdsprintf("WRITING 0x%8x to REG: %s", trimRange, regName.c_str()));
-        writeRawReg(rtxn, dbi, regName, trimRange, response);
+        writeRawReg(la, regName, trimRange);
       }
     }
   } else {
     LOGGER->log_message(LogManager::INFO, "CONFIG FILE NOT FOUND");
-    broadcastWriteLocal(rtxn, dbi, oh_number, "VThreshold1", vt1, response);
+    broadcastWriteLocal(la, ohN, "VThreshold1", vt1);
   }
 }
 
@@ -151,15 +153,15 @@ void loadVT1(const RPCMsg *request, RPCMsg *response) {
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  std::string oh_number = request->get_string("oh_number");
+  uint32_t ohN = request->get_word("ohN");
   std::string config_file = request->get_key_exists("thresh_config_filename")?request->get_string("thresh_config_filename"):"";
   uint32_t vt1 = request->get_key_exists("vt1")?request->get_word("vt1"):0x64;
-  loadVT1Local(rtxn, dbi, oh_number, config_file, response, vt1);
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  loadVT1Local(&la, ohN, config_file, vt1);
   rtxn.abort();
 }
 
-void loadTRIMDACLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std::string config_file, RPCMsg * response) {
-  std::string reg_basename = "GEM_AMC.OH.OH" + oh_number + ".GEB.VFATS.VFAT";
+void loadTRIMDACLocal(localArgs * la, uint32_t ohN, std::string config_file) {
   std::ifstream infile(config_file);
   std::string line, regName;
   uint32_t vfatN, vfatCH, trim, mask;
@@ -169,11 +171,13 @@ void loadTRIMDACLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, 
     std::stringstream iss(line);
     if (!(iss >> vfatN >> vfatCH >> trim >> mask)) {
 		  LOGGER->log_message(LogManager::ERROR, "ERROR READING SETTINGS");
-      response->set_string("error", "Error reading settings");
+      la->response->set_string("error", "Error reading settings");
       break;
     } else {
-      regName = reg_basename + std::to_string(vfatN)+".VFATChannels.ChanReg" + std::to_string(vfatCH);
-      writeRawReg(rtxn, dbi, regName, trim + 32*mask, response);
+      char regBase [100];
+      sprintf(regBase,"GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN, vfatN, vfatCH);
+      regName = std::string(regBase);
+      writeRawReg(la, regName, trim + 32*mask);
     }
   }
 }
@@ -186,9 +190,10 @@ void loadTRIMDAC(const RPCMsg *request, RPCMsg *response) {
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  std::string oh_number = request->get_string("oh_number");
+  uint32_t ohN = request->get_word("ohN");
   std::string config_file = request->get_string("trim_config_filename");//"/mnt/persistent/texas/test/chConfig_GEMINIm01L1.txt";
-  loadTRIMDACLocal(rtxn, dbi, oh_number, config_file, response);
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  loadTRIMDACLocal(&la, ohN, config_file);
   rtxn.abort();
 }
 
@@ -200,17 +205,18 @@ void configureVFATs(const RPCMsg *request, RPCMsg *response) {
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  std::string oh_number = request->get_string("oh_number");
+  uint32_t ohN = request->get_word("ohN");
   std::string trim_config_file = request->get_string("trim_config_filename");//"/mnt/persistent/texas/test/chConfig_GEMINIm01L1.txt";
   std::string thresh_config_file = request->get_key_exists("thresh_config_filename")?request->get_string("thresh_config_filename"):"";
   uint32_t vt1 = request->get_key_exists("vt1")?request->get_word("vt1"):0x64;
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   LOGGER->log_message(LogManager::INFO, "BIAS VFATS");
-  biasAllVFATsLocal(rtxn, dbi, oh_number, response);
+  biasAllVFATsLocal(&la, ohN);
   LOGGER->log_message(LogManager::INFO, "LOAD VT1 VFATS");
-  loadVT1Local(rtxn, dbi, oh_number, thresh_config_file, response, vt1);
+  loadVT1Local(&la, ohN, thresh_config_file, vt1);
   LOGGER->log_message(LogManager::INFO, "LOAD TRIM VFATS");
-  loadTRIMDACLocal(rtxn, dbi, oh_number, trim_config_file, response);
-  if (request->get_key_exists("set_run")) setAllVFATsToRunModeLocal(rtxn, dbi, oh_number, response);
+  loadTRIMDACLocal(&la, ohN, trim_config_file);
+  if (request->get_key_exists("set_run")) setAllVFATsToRunModeLocal(&la, ohN);
   rtxn.abort();
 }
 
@@ -235,28 +241,28 @@ void configureScanModuleLocal(localArgs * la, uint32_t ohN, uint32_t vfatN, uint
     (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
     // check if another scan is running
-    if (readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS") > 0) {
+    if (readReg(la, scanBase + ".MONITOR.STATUS") > 0) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("%s: Scan is already running, not starting a new scan", scanBase.c_str()));
       la->response->set_string("error", "Scan is already running, not starting a new scan");
       return;
     }
 
     // reset scan module
-    writeRawReg(la->rtxn, la->dbi, scanBase + ".RESET", 0x1, la->response);
+    writeRawReg(la, scanBase + ".RESET", 0x1);
 
     // write scan parameters
-    writeReg(la->rtxn, la->dbi, scanBase + ".MODE", scanmode, la->response);
+    writeReg(la, scanBase + ".MODE", scanmode);
     if (useUltra){
-        writeReg(la->rtxn, la->dbi, scanBase + ".MASK", mask, la->response);
+        writeReg(la, scanBase + ".MASK", mask);
     }
     else{
-        writeReg(la->rtxn, la->dbi, scanBase + ".CHIP", vfatN, la->response);
+        writeReg(la, scanBase + ".CHIP", vfatN);
     }
-    writeReg(la->rtxn, la->dbi, scanBase + ".CHAN", ch, la->response);
-    writeReg(la->rtxn, la->dbi, scanBase + ".NTRIGS", nevts, la->response);
-    writeReg(la->rtxn, la->dbi, scanBase + ".MIN", dacMin, la->response);
-    writeReg(la->rtxn, la->dbi, scanBase + ".MAX", dacMax, la->response);
-    writeReg(la->rtxn, la->dbi, scanBase + ".STEP", dacStep, la->response);
+    writeReg(la, scanBase + ".CHAN", ch);
+    writeReg(la, scanBase + ".NTRIGS", nevts);
+    writeReg(la, scanBase + ".MIN", dacMin);
+    writeReg(la, scanBase + ".MAX", dacMax);
+    writeReg(la, scanBase + ".STEP", dacStep);
 
     return;
 } //End configureScanModuleLocal(...)
@@ -341,7 +347,7 @@ void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
 
     stdsprintf(scanBase.c_str());
     for(auto regIter = map_regValues.begin(); regIter != map_regValues.end(); ++regIter){
-        (*regIter).second = readReg(la->rtxn, la->dbi, (*regIter).first);
+        (*regIter).second = readReg(la, (*regIter).first);
         stdsprintf("FW %s   : %d",(*regIter).first.c_str(), (*regIter).second);
         if ( (*regIter).second == 0xdeaddead) la->response->set_string("error",stdsprintf("Error reading register %s", (*regIter).first.c_str()));
     }
@@ -381,27 +387,27 @@ void startScanModuleLocal(localArgs * la, uint32_t ohN, bool useUltra){
     (useUltra)?scanBase += ".ULTRA":scanBase += ".THLAT";
 
     // check if another scan is running
-    if (readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS") > 0) {
+    if (readReg(la, scanBase + ".MONITOR.STATUS") > 0) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("%s: Scan is already running, not starting a new scan", scanBase.c_str()));
       la->response->set_string("error", "Scan is already running, not starting a new scan");
       return;
     }
 
     //Check if there was an error in the config
-    if (readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.ERROR") > 0 ){
+    if (readReg(la, scanBase + ".MONITOR.ERROR") > 0 ){
         LOGGER->log_message(LogManager::WARNING, stdsprintf("OH %i: Error in scan configuration, not starting a new scans",ohN));
         la->response->set_string("error","Error in scan configuration");
         return;
     }
 
     //Start the scan
-    writeReg(la->rtxn, la->dbi, scanBase + ".START", 0x1, la->response);
-    if (readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.ERROR")
-            || !(readReg(la->rtxn, la->dbi,  scanBase + ".MONITOR.STATUS")))
+    writeReg(la, scanBase + ".START", 0x1);
+    if (readReg(la, scanBase + ".MONITOR.ERROR")
+            || !(readReg(la,  scanBase + ".MONITOR.STATUS")))
     {
         LOGGER->log_message(LogManager::WARNING, stdsprintf("OH %i: Scan failed to start",ohN));
-        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tERROR Code:\t %i",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.ERROR")));
-        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tSTATUS Code:\t %i",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS")));
+        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tERROR Code:\t %i",readReg(la, scanBase + ".MONITOR.ERROR")));
+        LOGGER->log_message(LogManager::WARNING, stdsprintf("\tSTATUS Code:\t %i",readReg(la, scanBase + ".MONITOR.STATUS")));
     }
 
     return;
@@ -429,7 +435,7 @@ void startScanModule(const RPCMsg *request, RPCMsg *response){
     return;
 } //End startScanModule(...)
 
-void getUltraScanResultsLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep){
+void getUltraScanResultsLocal(localArgs * la, uint32_t *outData, uint32_t ohN, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep){
     std::stringstream sstream;
     sstream<<ohN;
     std::string strOhN = sstream.str();
@@ -438,51 +444,51 @@ void getUltraScanResultsLocal(localArgs *la, uint32_t *outData, uint32_t ohN, ui
     std::string scanBase = "GEM_AMC.OH.OH" + strOhN + ".ScanController.ULTRA";
 
     //Get L1A Count & num events
-    uint32_t ohnL1A_0 =  readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
-    uint32_t ohnL1A   =  readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
-    uint32_t numtrigs = readReg(la->rtxn, la->dbi, scanBase + ".NTRIGS");
+    uint32_t ohnL1A_0 =  readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
+    uint32_t ohnL1A   =  readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
+    uint32_t numtrigs = readReg(la, scanBase + ".NTRIGS");
 
     //Print latency counts
     bool bIsLatency = false;
-    if( readReg(la->rtxn, la->dbi, scanBase + ".MODE") == 2){
+    if( readReg(la, scanBase + ".MODE") == 2){
         bIsLatency = true;
 
         stdsprintf(
                 "At Link %i: %d/%d L1As processed, %d%% done",
                     ohN,
-                    readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0,
+                    readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0,
                     nevts*numtrigs,
-                    (readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0)*100./(nevts*numtrigs)
+                    (readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0)*100./(nevts*numtrigs)
                 );
     }
 
     //Check if the scan is still running
-    while(readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS") > 0){
+    while(readReg(la, scanBase + ".MONITOR.STATUS") > 0){
         stdsprintf("OH %i: Ultra scan still running (0x%x), not returning results",ohN,
-                    readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS"));
+                    readReg(la, scanBase + ".MONITOR.STATUS"));
         if (bIsLatency){
-            if( (readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A ) > numtrigs){
+            if( (readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A ) > numtrigs){
                 stdsprintf(
                         "At Link %i: %d/%d L1As processed, %d%% done",
                             ohN,
-                            readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0,
+                            readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0,
                             nevts*numtrigs,
-                            (readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0)*100./(nevts*numtrigs)
+                            (readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A") - ohnL1A_0)*100./(nevts*numtrigs)
                         );
-                ohnL1A   =  readReg(la->rtxn, la->dbi, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
+                ohnL1A   =  readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
             }
         }
         sleep(0.1);
     }
 
     LOGGER->log_message(LogManager::DEBUG, "OH " + strOhN + ": getUltraScanResults(...)");
-    LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan status (0x%08x)\n",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.STATUS")));
-    LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan results available (0x%06x)",readReg(la->rtxn, la->dbi, scanBase + ".MONITOR.READY")));
+    LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan status (0x%08x)\n",readReg(la, scanBase + ".MONITOR.STATUS")));
+    LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan results available (0x%06x)",readReg(la, scanBase + ".MONITOR.READY")));
 
     for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
         for(int vfatN = 0; vfatN < 24; ++vfatN){
             int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
-            outData[idx] = readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%i.ScanController.ULTRA.RESULTS.VFAT%i",ohN,vfatN));
+            outData[idx] = readReg(la, stdsprintf("GEM_AMC.OH.OH%i.ScanController.ULTRA.RESULTS.VFAT%i",ohN,vfatN));
             LOGGER->log_message(LogManager::DEBUG, stdsprintf("\tUltra scan results: outData[%i] = (%i, %i)",idx,(outData[idx]&0xff000000)>>24,(outData[idx]&0xffffff)));
         }
     }
@@ -515,15 +521,15 @@ void getUltraScanResults(const RPCMsg *request, RPCMsg *response){
 
 void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch_min, uint32_t ch_max){
     //Get FW release
-    uint32_t fw_maj = readReg(la->rtxn, la->dbi, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    uint32_t fw_maj = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
     if (fw_maj == 1){
         uint32_t trimVal=0;
         for(int vfatN=0; vfatN<24; ++vfatN){
             if ((mask >> vfatN) & 0x1) continue; //skip masked VFATs
             for(uint32_t chan=ch_min; chan<ch_max; ++chan){
-                trimVal = (0x3f & readReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan)));
-                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan),trimVal, la->response);
+                trimVal = (0x3f & readReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan)));
+                writeReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan),trimVal);
                 if(chan>127){
                     LOGGER->log_message(LogManager::ERROR, stdsprintf("OH %d: Chan %d greater than possible chan_max %d",ohN,chan,ch_max));
                 }
@@ -534,7 +540,7 @@ void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
         for(int vfatN = 0; vfatN < 24; vfatN++){
             if ((mask >> vfatN) & 0x1) continue; //skip masked VFATs
             for(uint32_t chan=ch_min; chan<ch_max; ++chan){
-                writeReg(la->rtxn, la->dbi, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFAT%d.VFAT_CHANNELS.CHANNEL%d.CALPULSE_ENABLE", ohN, vfatN, chan), 0x0, la->response);
+                writeReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFAT%d.VFAT_CHANNELS.CHANNEL%d.CALPULSE_ENABLE", ohN, vfatN, chan), 0x0);
             }
         }
     }
@@ -599,7 +605,7 @@ void statusOHLocal(localArgs * la, uint32_t ohEnMask){
         sprintf(regBase, "GEM_AMC.OH.OH%i.",ohN);
         for (auto &reg : regs) {
             regName = std::string(regBase)+reg;
-            la->response->set_word(regName,readReg(la->rtxn, la->dbi,regName));
+            la->response->set_word(regName,readReg(la,regName));
         }
     }
 }
