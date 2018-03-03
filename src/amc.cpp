@@ -1,5 +1,14 @@
+/*! \file amc.cpp
+ *  \brief AMC methods for RPC modules
+ *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
+ */
+
 #include "utils.h"
 
+/*! \fn void getmonTTCmainLocal(localArgs * la)
+ *  \brief Local version of getmonTTCmain
+ *  \param la Local arguments
+ */
 void getmonTTCmainLocal(localArgs * la)
 {
   LOGGER->log_message(LogManager::INFO, "Called getmonTTCmainLocal");
@@ -10,6 +19,11 @@ void getmonTTCmainLocal(localArgs * la)
   la->response->set_word("L1A_RATE",readReg(la,"GEM_AMC.TTC.L1A_RATE"));
 }
 
+/*! \fn void getmonTTCmain(const RPCMsg *request, RPCMsg *response)
+ *  \brief Reads a set of TTC monitoring registers
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
 void getmonTTCmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -24,6 +38,11 @@ void getmonTTCmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+/*! \fn void getmonTRIGGERmainLocal(localArgs * la, int NOH)
+ *  \brief Local version of getmonTRIGGERmain
+ *  \param la Local arguments
+ *  \param NOH Number of optohybrids in FW
+ */
 void getmonTRIGGERmainLocal(localArgs * la, int NOH)
 {
   std::string t1,t2;
@@ -35,6 +54,11 @@ void getmonTRIGGERmainLocal(localArgs * la, int NOH)
   }
 }
 
+/*! \fn void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
+ *  \brief Reads a set of trigger monitoring registers
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
 void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -50,6 +74,11 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+/*! \fn void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
+ *  \brief Local version of getmonTRIGGEROHmain
+ *  \param la Local arguments
+ *  \param NOH Number of optohybrids in FW
+ */
 void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
 {
   std::string t1,t2;
@@ -63,6 +92,11 @@ void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
   }
 }
 
+/*! \fn void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
+ *  \brief Reads a set of trigger monitoring registers at the OH
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
 void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -78,6 +112,10 @@ void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+/*! \fn void getmonDAQmainLocal(localArgs * la)
+ *  \brief Local version of getmonDAQmain
+ *  \param la Local arguments
+ */
 void getmonDAQmainLocal(localArgs * la)
 {
   la->response->set_word("DAQ_ENABLE",readReg(la,"GEM_AMC.DAQ.CONTROL.DAQ_ENABLE"));
@@ -91,6 +129,11 @@ void getmonDAQmainLocal(localArgs * la)
   la->response->set_word("TTS_STATE",readReg(la,"GEM_AMC.DAQ.STATUS.TTS_STATE"));
 }
 
+/*! \fn void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
+ *  \brief Reads a set of DAQ monitoring registers
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
 void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -105,6 +148,11 @@ void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+/*! \fn void getmonDAQOHmainLocal(localArgs * la, int NOH)
+ *  \brief Local version of getmonDAQOHmain
+ *  \param la Local arguments
+ *  \param NOH Number of optohybrids in FW
+ */
 void getmonDAQOHmainLocal(localArgs * la, int NOH)
 {
   std::string t1,t2;
@@ -130,6 +178,11 @@ void getmonDAQOHmainLocal(localArgs * la, int NOH)
   }
 }
 
+/*! \fn void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
+ *  \brief Reads a set of DAQ monitoring registers at the OH
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
 void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -145,6 +198,11 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+/*! \fn void getmonOHmainLocal(localArgs * la, int NOH)
+ *  \brief Local version of getmonOHmain
+ *  \param la Local arguments
+ *  \param NOH Number of optohybrids in FW
+ */
 void getmonOHmainLocal(localArgs * la, int NOH)
 {
   std::string t1,t2;
@@ -173,6 +231,11 @@ void getmonOHmainLocal(localArgs * la, int NOH)
   }
 }
 
+/*! \fn void getmonOHmain(const RPCMsg *request, RPCMsg *response)
+ *  \brief Reads a set of OH monitoring registers at the OH
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
 void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();

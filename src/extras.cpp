@@ -1,8 +1,18 @@
+/*! \file extras.cpp
+ *  \brief Extra register operations methods for RPC modules
+ *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
+ */
+
 #include "moduleapi.h"
 #include <libmemsvc.h>
 
-memsvc_handle_t memsvc;
+memsvc_handle_t memsvc; /// \var global memory service handle required for registers read/write operations
 
+/*! \fn void mblockread(const RPCMsg *request, RPCMsg *response)
+ *  \brief Sequentially reads a block of values from the same raw register address. Register mask is not applied
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
 void mblockread(const RPCMsg *request, RPCMsg *response) {
   uint32_t count = request->get_word("count");
   uint32_t addr = request->get_word("address");
@@ -17,6 +27,12 @@ void mblockread(const RPCMsg *request, RPCMsg *response) {
   }
 	response->set_word_array("data", data, count);
 }
+
+/*! \fn void mlistread(const RPCMsg *request, RPCMsg *response)
+ *  \brief Reads a list of raw addresses
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
 void mlistread(const RPCMsg *request, RPCMsg *response) {
   uint32_t count = request->get_word("count");
   uint32_t addr[count];
