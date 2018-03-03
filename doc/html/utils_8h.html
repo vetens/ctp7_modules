@@ -146,9 +146,9 @@ std::string&#160;</td><td class="memItemRight" valign="bottom"><b>serialize</b> 
 <tr class="memitem:aa802dc0f9d31953affecaa25c10f740c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8h.html#aa802dc0f9d31953affecaa25c10f740c">writeRawReg</a> (<a class="el" href="structlocalArgs.html">localArgs</a> *la, const std::string &amp;regName, uint32_t value)</td></tr>
 <tr class="memdesc:aa802dc0f9d31953affecaa25c10f740c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes a value to a raw register. Register mask is not applied.  <a href="#aa802dc0f9d31953affecaa25c10f740c">More...</a><br/></td></tr>
 <tr class="separator:aa802dc0f9d31953affecaa25c10f740c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1780ad8fcff3ea8009cfbb54632fb1f9"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a1780ad8fcff3ea8009cfbb54632fb1f9"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>readRawReg</b> (<a class="el" href="structlocalArgs.html">localArgs</a> *la, const std::string &amp;regName)</td></tr>
-<tr class="separator:a1780ad8fcff3ea8009cfbb54632fb1f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af878131dcd8c0a78d31d28918bf529fa"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8h.html#af878131dcd8c0a78d31d28918bf529fa">readRawReg</a> (<a class="el" href="structlocalArgs.html">localArgs</a> *la, const std::string &amp;regName)</td></tr>
+<tr class="memdesc:af878131dcd8c0a78d31d28918bf529fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads a value from raw register. Register mask is not applied.  <a href="#af878131dcd8c0a78d31d28918bf529fa">More...</a><br/></td></tr>
+<tr class="separator:af878131dcd8c0a78d31d28918bf529fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6e75f9a10bd5f5ce0c9329ebfb7ba03b"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8h.html#a6e75f9a10bd5f5ce0c9329ebfb7ba03b">applyMask</a> (uint32_t data, uint32_t mask)</td></tr>
 <tr class="memdesc:a6e75f9a10bd5f5ce0c9329ebfb7ba03b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the data with register mask applied.  <a href="#a6e75f9a10bd5f5ce0c9329ebfb7ba03b">More...</a><br/></td></tr>
 <tr class="separator:a6e75f9a10bd5f5ce0c9329ebfb7ba03b"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -303,6 +303,41 @@ memsvc_handle_t&#160;</td><td class="memItemRight" valign="bottom"><b>memsvc</b>
   <table class="params">
     <tr><td class="paramname">address</td><td>Register address </td></tr>
     <tr><td class="paramname">response</td><td>RPC response message </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="af878131dcd8c0a78d31d28918bf529fa"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t uint32_t readRawReg </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structlocalArgs.html">localArgs</a> *&#160;</td>
+          <td class="paramname"><em>la</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>regName</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Reads a value from raw register. Register mask is not applied. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">la</td><td>Local arguments structure </td></tr>
+    <tr><td class="paramname">regName</td><td>Register name </td></tr>
   </table>
   </dd>
 </dl>

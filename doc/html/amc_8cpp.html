@@ -115,8 +115,8 @@ Functions</h2></td></tr>
 <tr class="memitem:afd44d32f294bf224b9d7b48d7ec8127a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="amc_8cpp.html#afd44d32f294bf224b9d7b48d7ec8127a">getmonTRIGGEROHmainLocal</a> (<a class="el" href="structlocalArgs.html">localArgs</a> *la, int NOH)</td></tr>
 <tr class="memdesc:afd44d32f294bf224b9d7b48d7ec8127a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Local version of getmonTRIGGEROHmain.  <a href="#afd44d32f294bf224b9d7b48d7ec8127a">More...</a><br/></td></tr>
 <tr class="separator:afd44d32f294bf224b9d7b48d7ec8127a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3a60b576865459230b6204ca0956537d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a3a60b576865459230b6204ca0956537d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>getmonTRIGGEROHmain</b> (const <a class="el" href="classwisc_1_1RPCMsg.html">RPCMsg</a> *request, <a class="el" href="classwisc_1_1RPCMsg.html">RPCMsg</a> *response)</td></tr>
+<tr class="memitem:a3a60b576865459230b6204ca0956537d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="amc_8cpp.html#a3a60b576865459230b6204ca0956537d">getmonTRIGGEROHmain</a> (const <a class="el" href="classwisc_1_1RPCMsg.html">RPCMsg</a> *request, <a class="el" href="classwisc_1_1RPCMsg.html">RPCMsg</a> *response)</td></tr>
+<tr class="memdesc:a3a60b576865459230b6204ca0956537d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads a set of trigger monitoring registers at the OH.  <a href="#a3a60b576865459230b6204ca0956537d">More...</a><br/></td></tr>
 <tr class="separator:a3a60b576865459230b6204ca0956537d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e5c27f89db34b46b1dd5796f1beb3b0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="amc_8cpp.html#a3e5c27f89db34b46b1dd5796f1beb3b0">getmonDAQmainLocal</a> (<a class="el" href="structlocalArgs.html">localArgs</a> *la)</td></tr>
 <tr class="memdesc:a3e5c27f89db34b46b1dd5796f1beb3b0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Local version of getmonDAQmain.  <a href="#a3e5c27f89db34b46b1dd5796f1beb3b0">More...</a><br/></td></tr>
@@ -377,7 +377,6 @@ int&#160;</td><td class="memItemRight" valign="bottom"><b>module_activity_color<
 </div><div class="memdoc">
 
 <p>Reads a set of trigger monitoring registers. </p>
-<p>Reads a set of trigger monitoring registers at the OH.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">request</td><td>RPC request message </td></tr>
@@ -417,6 +416,41 @@ int&#160;</td><td class="memItemRight" valign="bottom"><b>module_activity_color<
   <table class="params">
     <tr><td class="paramname">la</td><td>Local arguments </td></tr>
     <tr><td class="paramname">NOH</td><td>Number of optohybrids in FW </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="a3a60b576865459230b6204ca0956537d"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void getmonTRIGGEROHmain </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classwisc_1_1RPCMsg.html">RPCMsg</a> *&#160;</td>
+          <td class="paramname"><em>request</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classwisc_1_1RPCMsg.html">RPCMsg</a> *&#160;</td>
+          <td class="paramname"><em>response</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Reads a set of trigger monitoring registers at the OH. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">request</td><td>RPC request message </td></tr>
+    <tr><td class="paramname">response</td><td>RPC response message </td></tr>
   </table>
   </dd>
 </dl>

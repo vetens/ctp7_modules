@@ -13,6 +13,7 @@ var searchData=
   ['getmonohmainlocal',['getmonOHmainLocal',['../amc_8cpp.html#ad540f6a24cef747346a56224c09fb032',1,'amc.cpp']]],
   ['getmontriggermain',['getmonTRIGGERmain',['../amc_8cpp.html#a33f30606e8407409a726894dd63328ea',1,'amc.cpp']]],
   ['getmontriggermainlocal',['getmonTRIGGERmainLocal',['../amc_8cpp.html#a7851c4c3694f95b1f523ada5aeaf41b1',1,'amc.cpp']]],
+  ['getmontriggerohmain',['getmonTRIGGEROHmain',['../amc_8cpp.html#a3a60b576865459230b6204ca0956537d',1,'amc.cpp']]],
   ['getmontriggerohmainlocal',['getmonTRIGGEROHmainLocal',['../amc_8cpp.html#afd44d32f294bf224b9d7b48d7ec8127a',1,'amc.cpp']]],
   ['getmonttcmain',['getmonTTCmain',['../amc_8cpp.html#a9e70026fabb78d65a2734b9fa47b5781',1,'amc.cpp']]],
   ['getmonttcmainlocal',['getmonTTCmainLocal',['../amc_8cpp.html#a14b2e8fb595e1aa58284587bcdf9c1d2',1,'amc.cpp']]]

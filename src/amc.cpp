@@ -92,7 +92,7 @@ void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
   }
 }
 
-/*! \fn void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
+/*! \fn void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
  *  \brief Reads a set of trigger monitoring registers at the OH
  *  \param request RPC request message
  *  \param response RPC response message

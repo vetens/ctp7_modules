@@ -95,7 +95,7 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response);
  */
 void writeRawReg(localArgs * la, const std::string & regName, uint32_t value);
 
-/*! \fn uint32_t readRawReg(lmdb::txn & rtxn, lmdb::dbi & dbi, const std::string & regName, RPCMsg *response)
+/*! \fn uint32_t uint32_t readRawReg(localArgs * la, const std::string & regName)
  *  \brief Reads a value from raw register. Register mask is not applied
  *  \param la Local arguments structure
  *  \param regName Register name
