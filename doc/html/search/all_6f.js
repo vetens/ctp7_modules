@@ -8,5 +8,6 @@ var searchData=
   ['operator_20mdb_5ftxn_20_2a',['operator MDB_txn *',['../classlmdb_1_1txn.html#a26c38bcad620ba73a11d9f82600bdb19',1,'lmdb::txn']]],
   ['operator_20mdb_5fval_20_2a',['operator MDB_val *',['../classlmdb_1_1val.html#ae0bc76fcec937d8b3ee47a2887bfe2a2',1,'lmdb::val']]],
   ['operator_3d',['operator=',['../classlmdb_1_1val.html#ae80bbe66a203286a39407156efed4136',1,'lmdb::val::operator=()'],['../classlmdb_1_1env.html#a76b0b8f918354a72acd98f71c1dc40d2',1,'lmdb::env::operator=()'],['../classlmdb_1_1txn.html#a5065a24ae00631a2152b85af044254a2',1,'lmdb::txn::operator=()'],['../classlmdb_1_1dbi.html#a2f439ead9b8e54883acef5daada15cdf',1,'lmdb::dbi::operator=()'],['../classlmdb_1_1cursor.html#abd45223fbeabb10bf2e8896ef80e019d',1,'lmdb::cursor::operator=()']]],
+  ['optohybrid_2eh',['optohybrid.h',['../optohybrid_8h.html',1,'']]],
   ['origin',['origin',['../classlmdb_1_1error.html#ad674edd6d9fd366577678fbe1c89bfa8',1,'lmdb::error']]]
 ];

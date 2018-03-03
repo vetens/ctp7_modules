@@ -16,5 +16,6 @@ var searchData=
   ['getmontriggerohmain',['getmonTRIGGEROHmain',['../amc_8cpp.html#a3a60b576865459230b6204ca0956537d',1,'amc.cpp']]],
   ['getmontriggerohmainlocal',['getmonTRIGGEROHmainLocal',['../amc_8cpp.html#afd44d32f294bf224b9d7b48d7ec8127a',1,'amc.cpp']]],
   ['getmonttcmain',['getmonTTCmain',['../amc_8cpp.html#a9e70026fabb78d65a2734b9fa47b5781',1,'amc.cpp']]],
-  ['getmonttcmainlocal',['getmonTTCmainLocal',['../amc_8cpp.html#a14b2e8fb595e1aa58284587bcdf9c1d2',1,'amc.cpp']]]
+  ['getmonttcmainlocal',['getmonTTCmainLocal',['../amc_8cpp.html#a14b2e8fb595e1aa58284587bcdf9c1d2',1,'amc.cpp']]],
+  ['getultrascanresults',['getUltraScanResults',['../optohybrid_8h.html#abb57500a83d49e304f1d04162ab35b8d',1,'optohybrid.cpp']]]
 ];

@@ -1,4 +1,4 @@
-/*! \file vfat3.h
+/*! \file optohybrid.h
  *  \brief RPC module for optohybrid methods
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
  *  \author Cameron Bravo <cbravo135@gmail.com>

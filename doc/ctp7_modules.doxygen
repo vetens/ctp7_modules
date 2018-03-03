@@ -733,7 +733,9 @@ WARN_LOGFILE           =
 # spaces.
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = $(CTP7_MOD_ROOT)/README.md $(CTP7_MOD_ROOT)/include $(CTP7_MOD_ROOT)/src
+INPUT                  = $(CTP7_MOD_ROOT)/README.md \
+                         $(CTP7_MOD_ROOT)/include \
+                         $(CTP7_MOD_ROOT)/src
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
