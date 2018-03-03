@@ -177,11 +177,11 @@ void ttcGenToggle(const RPCMsg *request, RPCMsg *response)
 /*! \fn void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type, uint32_t pulseDelay, uint32_t L1Ainterval, uint32_t nPulses, bool enable)
  *  \brief Configures TTC generator. Local callable version of ttcGenConf
  *
- *  1. v3  electronics behavior:
+ *  - **v3**  electronics behavior:
  *    * pulseDelay (only for enable = true), delay between CalPulse and L1A
  *    * L1Ainterval (only for enable = true), how often to repeat signals
  *    * enable = true (false) ignore (take) ttc commands from backplane for this AMC (affects all links)
- *  2. v2b electronics behavior:
+ *  - **v2b** electronics behavior:
  *    * Configure the T1 controller
  *    * mode: 
  *      * 0 (Single T1 signal),
