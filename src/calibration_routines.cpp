@@ -1,7 +1,7 @@
 /*! \file calibration_routines.cpp
  *  \brief Calibration routines
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
- *  \author Brin Dorney <brian.l.dorney@cern.ch>
+ *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
 #include <chrono>

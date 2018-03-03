@@ -2,7 +2,7 @@
  *  \brief RPC module for VFAT3 methods
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
  *  \author Cameron Bravo <cbravo135@gmail.com>
- *  \author Brin Dorney <brian.l.dorney@cern.ch>
+ *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
 #ifndef VFAT3_H
