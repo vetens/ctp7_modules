@@ -11,7 +11,7 @@
 #include "vfat_parameters.h"
 #include <unistd.h>
 
-/*! \fn void broadcastWriteLocal(lmdb::txn & rtxn, lmdb::dbi & dbi, std::string oh_number, std::string reg_to_write, uint32_t val_to_write, RPCMsg * response, uint32_t mask = 0xFF000000)
+/*! \fn void broadcastWriteLocal(localArgs * la, uint32_t ohN, std::string regName, uint32_t value, uint32_t mask = 0xFF000000)
  *  \brief Local callable version of broadcastWrite
  *  \param la Local arguments structure
  *  \param ohN Optohybrid optical link number 
@@ -21,7 +21,7 @@
  *  \return Bitmask of sync'ed VFATs
  */
 void broadcastWriteLocal(localArgs * la, uint32_t ohN, std::string regName, uint32_t value, uint32_t mask = 0xFF000000);
-/*! \fn void broadcastWrite(const CMsg *request, RPCMsg *response)
+/*! \fn void broadcastWrite(const RPCMsg *request, RPCMsg *response)
  *  \brief Performs broadcast write a given regiser on all the VFAT chips of a given optohybrid 
  *  \param request RPC response message
  *  \param response RPC response message
@@ -171,7 +171,7 @@ void startScanModuleLocal(localArgs * la, uint32_t ohN, bool useUltra);
  */
 void startScanModule(const RPCMsg *request, RPCMsg *response);
 
-/* \fn void getUltraScanResultsLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep)
+/*! \fn void getUltraScanResultsLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep)
  *  \brief Local callable version of getUltraScanResults
  *  \param la Local arguments structure
  *  \param outData Pointer to output data array
@@ -189,7 +189,7 @@ void getUltraScanResultsLocal(localArgs *la, uint32_t *outData, uint32_t ohN, ui
  */
 void getUltraScanResults(const RPCMsg *request, RPCMsg *response);
 
-/* \fn void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch_min, uint32_t ch_max)
+/*! \fn void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch_min, uint32_t ch_max)
  *  \brief Local callable version of stopCalPulse2AllChannels
  *  \param la Local arguments structure
  *  \param ohN Optohybrid optical link number 
