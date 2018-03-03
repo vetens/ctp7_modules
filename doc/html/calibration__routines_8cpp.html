@@ -806,24 +806,33 @@ Brin Dorney <a href="#" onclick="location.href='mai'+'lto:'+'bri'+'an'+'.l.'+'do
 
 <p>Configures TTC generator. </p>
 <ul>
-<li>v3 electronics behavior:</li>
+<li><b>v3</b> electronics behavior:<ul>
 <li>pulseDelay (only for enable = true), delay between CalPulse and L1A</li>
 <li>L1Ainterval (only for enable = true), how often to repeat signals</li>
 <li>enable = true (false) ignore (take) ttc commands from backplane for this AMC (affects all links)</li>
-<li>v2b electronics behavior:</li>
+</ul>
+</li>
+<li><b>v2b</b> electronics behavior:<ul>
 <li>Configure the T1 controller</li>
-<li>mode: 0 (Single T1 signal),</li>
+<li>mode:<ul>
+<li>0 (Single T1 signal),</li>
 <li>1 (CalPulse followed by L1A),</li>
 <li>2 (pattern)</li>
-<li>type (only for mode 0, type of T1 signal to send):</li>
+</ul>
+</li>
+<li>type (only for mode 0, type of T1 signal to send):<ul>
 <li>0 L1A</li>
 <li>1 CalPulse</li>
 <li>2 Resync</li>
 <li>3 BC0</li>
+</ul>
+</li>
 <li>pulseDelay (only for mode 1), delay between CalPulse and L1A</li>
 <li>L1Ainterval (only for mode 0,1), how often to repeat signals</li>
 <li>nPulses how many signals to send (0 is continuous)</li>
 <li>enable = true (false) start (stop) the T1Controller for link ohN</li>
+</ul>
+</li>
 </ul>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
