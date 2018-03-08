@@ -20,7 +20,7 @@ void vfatSyncCheck(const RPCMsg *request, RPCMsg *response)
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
     std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
     env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
@@ -50,6 +50,7 @@ void configureVFAT3sLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask) {
         return;
     }
 
+    LOGGER->log_message(LogManager::INFO, "Load configuration settings");
     for(uint32_t vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
     {
         std::string configFileBase = "/mnt/persistent/gemdaq/vfat3/config_OH"+std::to_string(ohN)+"_VFAT"+std::to_string(vfatN)+".txt";
@@ -83,14 +84,12 @@ void configureVFAT3s(const RPCMsg *request, RPCMsg *response) {
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
     std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
     env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
     uint32_t ohN = request->get_word("ohN");
     uint32_t vfatMask = request->get_word("vfatMask");
-    LOGGER->log_message(LogManager::INFO, "Load VFAT configuration");
-
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     configureVFAT3sLocal(&la, ohN, vfatMask);
     rtxn.abort();
@@ -144,7 +143,7 @@ void statusVFAT3s(const RPCMsg *request, RPCMsg *response) {
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
     std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"address_table.mdb/data.mdb";
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
     env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
