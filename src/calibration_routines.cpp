@@ -99,7 +99,7 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch)
 /*! \fn void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
  *  \brief Enables the TTC commands from backplane. Local callable version of ttcGenToggle
  *
- *  * v3  electronics: enable = true (false) ignore (take) ttc commands from backplane for this AMC
+ *  * v3  electronics: enable = true (false) turn on CTP7 internal TTC generator and ignore ttc commands from backplane for this AMC (turn off CTP7 internal TTC generator and take ttc commands from backplane link)
  *  * v2b electronics: enable = true (false) start (stop) the T1Controller for link ohN
  *
  *  \param la Local arguments structure
@@ -113,10 +113,10 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
         case 3: //v3 electronics behavior
         {
             if (enable){
-                writeReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1); //Internal, TTC cmds from backplane are ignored
+                writeReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1); //Internal TTC generator enabled, TTC cmds from backplane are ignored
             }
             else{
-                writeReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0); //External, TTC cmds from backplane
+                writeReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0); //Internal TTC generator disabled, TTC cmds from backplane
             }
         }//End v3 electronics behavior
         case 1: //v2b electronics behavior
@@ -149,7 +149,7 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
 /*! \fn void ttcGenToggle(const RPCMsg *request, RPCMsg *response)
  *  \brief Enables the TTC commands from backplane
  *
- *  * v3  electronics: enable = true (false) ignore (take) ttc commands from backplane for this AMC
+ *  * v3  electronics: enable = true (false) turn on CTP7 internal TTC generator and ignore ttc commands from backplane for this AMC (turn off CTP7 internal TTC generator and take ttc commands from backplane link)
  *  * v2b electronics: enable = true (false) start (stop) the T1Controller for link ohN
  *
  *  \param request RPC request message
@@ -180,7 +180,7 @@ void ttcGenToggle(const RPCMsg *request, RPCMsg *response)
  *  - **v3**  electronics behavior:
  *    * pulseDelay (only for enable = true), delay between CalPulse and L1A
  *    * L1Ainterval (only for enable = true), how often to repeat signals
- *    * enable = true (false) ignore (take) ttc commands from backplane for this AMC (affects all links)
+ *    * enable = true (false) turn on CTP7 internal TTC generator and ignore ttc commands from backplane for this AMC (turn off CTP7 internal TTC generator and take ttc commands from backplane link)
  *  - **v2b** electronics behavior:
  *    * Configure the T1 controller
  *    * mode: 
@@ -704,7 +704,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     uint32_t ohTrigRateAddr = getAddress(la, regBuf);
 
     //Store the original OH VFAT Mask, and then reset it
-    sprintf(regBuf,"GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN);
+    sprintf(regBuf,"GEM_AMC.OH.OH%i.FPGA.TRIG.CTRL.VFAT_MASK",ohN);
     uint32_t ohVFATMaskAddr = getAddress(la, regBuf);
     uint32_t maskOhOrig = readRawAddress(ohVFATMaskAddr, la->response);   //We'll write this later
     writeRawAddress(ohVFATMaskAddr, maskOh, la->response);
@@ -788,7 +788,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
     sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
     ohTrigRateAddr[24] = getAddress(la, regBuf);
     for(int vfat=0; vfat<24; ++vfat){
-        sprintf(regBuf,"GEM_AMC.OH.OH%i.TRIG.CNT.VFAT%i_SBITS",ohN,vfat);
+        sprintf(regBuf,"GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.VFAT%i_SBITS",ohN,vfat);
         ohTrigRateAddr[vfat] = getAddress(la, regBuf);
     } //End Loop over all VFATs
 
@@ -796,8 +796,8 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
     writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
 
     //Prep the SBIT counters
-    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
-    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98); //count for 1 second
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98); //count for 1 second
 
     //Loop from dacMin to dacMax in steps of dacStep
     for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
@@ -809,7 +809,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
         } //End Loop Over all VFATs
 
         //Reset the counters
-        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CNT.RESET",ohN), 0x1);
+        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.RESET",ohN), 0x1);
 
         //Wait just over 1 second
         std::this_thread::sleep_for(std::chrono::milliseconds(1005));
