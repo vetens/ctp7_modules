@@ -83,11 +83,23 @@ void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
 {
   std::string t1,t2;
   for (int i = 0; i < NOH; i++){
-    t1 = stdsprintf("OH%s.LINK0_NOT_VALID_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_NOT_VALID_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(i).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.LINK1_NOT_VALID_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_NOT_VALID_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK1_MISSED_COMMA_CNT",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_MISSED_COMMA_CNT",std::to_string(i).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.LINK0_OVERFLOW_CNT",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_OVERFLOW_CNT",std::to_string(i).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.LINK1_OVERFLOW_CNT",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_OVERFLOW_CNT",std::to_string(i).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.LINK0_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.LINK1_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
     la->response->set_word(t1,readReg(la,t2));
   }
 }
