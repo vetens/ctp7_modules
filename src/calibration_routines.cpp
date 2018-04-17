@@ -461,7 +461,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                 }
 
                 //Stop the DAQ monitor counters from incrementing
-                writeReg(la->rtxn, la->dbi, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x0, la->response);
+                writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x0);
 
                 //Read the DAQ Monitor counters
                 for(int vfatN = 0; vfatN < 24; vfatN++){

@@ -123,7 +123,7 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
             std::string strBaseNode = stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i",ohN,vfatN,chan);
 
             //Channel mask
-            writeReg(la->rtxn, la->dbi, stdsprintf("%s.MASK",strBaseNode.c_str()), masks[idx], la->response);
+            writeReg(la, stdsprintf("%s.MASK",strBaseNode.c_str()), masks[idx]);
             if (masks[idx] > 0){ //We write the mask, and then if the mask is not zero skip the channel
                 continue;
             }
@@ -134,13 +134,13 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
                 la->response->set_string("error",regBuf);
                 return;
             }
-            writeReg(la->rtxn, la->dbi, stdsprintf("%s.ARM_TRIM_AMPLITUDE",strBaseNode.c_str()), trimARM[idx], la->response);
+            writeReg(la, stdsprintf("%s.ARM_TRIM_AMPLITUDE",strBaseNode.c_str()), trimARM[idx]);
 
             //ARM trim polarity
-            writeReg(la->rtxn, la->dbi, stdsprintf("%s.ARM_TRIM_POLARITY",strBaseNode.c_str()), trimARMPol[idx], la->response);
+            writeReg(la, stdsprintf("%s.ARM_TRIM_POLARITY",strBaseNode.c_str()), trimARMPol[idx]);
 
             //Cal enable
-            writeReg(la->rtxn, la->dbi, stdsprintf("%s.CALPULSE_ENABLE",strBaseNode.c_str()), calEnable[idx], la->response);
+            writeReg(la, stdsprintf("%s.CALPULSE_ENABLE",strBaseNode.c_str()), calEnable[idx]);
 
             //ZCC trim
             if ( trimZCC[idx] > 0x7F || trimZCC[idx] < 0x0){
@@ -148,10 +148,10 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
                 la->response->set_string("error",regBuf);
                 return;
             }
-            writeReg(la->rtxn, la->dbi, stdsprintf("%s.ZCC_TRIM_AMPLITUDE",strBaseNode.c_str()), trimZCC[idx], la->response);
+            writeReg(la, stdsprintf("%s.ZCC_TRIM_AMPLITUDE",strBaseNode.c_str()), trimZCC[idx]);
 
             //ZCC trim polarity
-            writeReg(la->rtxn, la->dbi, stdsprintf("%s.ZCC_TRIM_POLARITY",strBaseNode.c_str()), trimZCCPol[idx], la->response);
+            writeReg(la, stdsprintf("%s.ZCC_TRIM_POLARITY",strBaseNode.c_str()), trimZCCPol[idx]);
         } //End Loop over channels
     } //End Loop over VFATs
 
