@@ -118,6 +118,7 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
             else{
                 writeReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0); //Internal TTC generator disabled, TTC cmds from backplane
             }
+            break;
         }//End v3 electronics behavior
         case 1: //v2b electronics behavior
         {
@@ -136,10 +137,12 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
                     writeReg(la, contBase + ".TOGGLE", 0x0);   //Disable
                 }
             }
+            break;
         }//End v2b electronics behavior
         default:
         {
             LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+            break;
         }
     }
 
@@ -210,13 +213,14 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
 {
     //Check firmware version
     switch(fw_version_check("ttcGenToggle", la)) {
-        case 3: //v3 electronics behavior
+        case 0x3: //v3 electronics behavior
         {
             writeReg(la, "GEM_AMC.TTC.GENERATOR.RESET", 0x1);
             writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_GAP", L1Ainterval);
             writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_CALPULSE_TO_L1A_GAP", pulseDelay);
+            break;
         }//End v3 electronics behavior
-        case 1: //v2b electronics behavior
+        case 0x1: //v2b electronics behavior
         {
             //base reg
             std::stringstream sstream;
@@ -265,12 +269,12 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
                         readReg(la, contBase + ".NUMBER")
                         )
                     );
-
-            //ttcGenToggleLocal(la, ohN, enable);
+            break;
         }//End v2b electronics behavior
         default:
         {
             LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+            break;
         }
     }
 
@@ -493,6 +497,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                     }
                 }
             }
+            break;
         }//End v3 electronics behavior
         case 1: //v2b electronics behavior
         {
@@ -573,10 +578,12 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
             //Get scan results
             getUltraScanResultsLocal(la, outData, ohN, nevts, dacMin, dacMax, dacStep);
+            break;
         }//End v2b electronics behavior
         default:
         {
             LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+            break;
         }
     }
 
