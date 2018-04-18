@@ -76,6 +76,11 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 
 /*! \fn void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
  *  \brief Local version of getmonTRIGGEROHmain
+ *  * LINK{0,1}_SBIT_OVERFLOW_CNT -- this is an interesting counter to monitor from operations perspective, but is not related to the health of the link itself. Rather it shows how many times OH had too many clusters which it couldn't fit into the 8 cluster per BX bandwidth. If this counter is going up it just means that OH is seeing a very high hit occupancy, which could be due to high radiation background, or thresholds configured too low.
+ *
+ *  The other 3 counters reflect the health of the optical links:
+ *  * LINK{0,1}_OVERFLOW_CNT and LINK{0,1}_UNDERFLOW_CNT going up indicate a clocking issue, specifically they go up when the frequency of the clock on the OH doesn't match the frequency on the CTP7. Given that CTP7 is providing the clock to OH, this in principle should not happen unless the OH is sending complete garbage and thus the clock cannot be recovered on CTP7 side, or the bit-error rate is insanely high, or the fiber is just disconnected, or OH is off. In other words, this indicates a critical problem.
+ *  * LINK{0,1}_MISSED_COMMA_CNT also monitors the health of the link, but it's more sensitive, because it can go up due to isolated single bit errors. With radiation around, this might count one or two counts in a day or two. But if it starts running away, that would indicate a real problem, but in this case most likely the overflow and underflow counters would also see it.
  *  \param la Local arguments
  *  \param NOH Number of optohybrids in FW
  */
@@ -94,6 +99,12 @@ void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
     la->response->set_word(t1,readReg(la,t2));
     t1 = stdsprintf("OH%s.LINK1_OVERFLOW_CNT",std::to_string(i).c_str());
     t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_OVERFLOW_CNT",std::to_string(i).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.LINK0_UNDERFLOW_CNT",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_UNDERFLOW_CNT",std::to_string(i).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.LINK1_UNDERFLOW_CNT",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_UNDERFLOW_CNT",std::to_string(i).c_str());
     la->response->set_word(t1,readReg(la,t2));
     t1 = stdsprintf("OH%s.LINK0_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
     t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
