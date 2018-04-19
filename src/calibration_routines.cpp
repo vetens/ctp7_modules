@@ -30,7 +30,7 @@ unsigned int fw_version_check(const char* caller_name, localArgs *la)
 /*! \fn std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, unsigned int ch, localArgs *la)
  *  \brief Unmask the channel of interest and masks all the other
  *  \param ohN Optical link number
- *  \param vfatN VFAT position 
+ *  \param vfatN VFAT position
  *  \param ch Channel of interest
  *  \param la Local arguments structure
  *  \return Original channel mask in a form of an unordered map <chanMaskAddr, mask>
@@ -118,6 +118,7 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
             else{
                 writeReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x0); //Internal TTC generator disabled, TTC cmds from backplane
             }
+            break;
         }//End v3 electronics behavior
         case 1: //v2b electronics behavior
         {
@@ -136,10 +137,12 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
                     writeReg(la, contBase + ".TOGGLE", 0x0);   //Disable
                 }
             }
+            break;
         }//End v2b electronics behavior
         default:
         {
             LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+            break;
         }
     }
 
@@ -183,7 +186,7 @@ void ttcGenToggle(const RPCMsg *request, RPCMsg *response)
  *    * enable = true (false) turn on CTP7 internal TTC generator and ignore ttc commands from backplane for this AMC (turn off CTP7 internal TTC generator and take ttc commands from backplane link)
  *  - **v2b** electronics behavior:
  *    * Configure the T1 controller
- *    * mode: 
+ *    * mode:
  *      * 0 (Single T1 signal),
  *      * 1 (CalPulse followed by L1A),
  *      * 2 (pattern)
@@ -210,13 +213,14 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
 {
     //Check firmware version
     switch(fw_version_check("ttcGenToggle", la)) {
-        case 3: //v3 electronics behavior
+        case 0x3: //v3 electronics behavior
         {
             writeReg(la, "GEM_AMC.TTC.GENERATOR.RESET", 0x1);
             writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_GAP", L1Ainterval);
             writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_CALPULSE_TO_L1A_GAP", pulseDelay);
+            break;
         }//End v3 electronics behavior
-        case 1: //v2b electronics behavior
+        case 0x1: //v2b electronics behavior
         {
             //base reg
             std::stringstream sstream;
@@ -265,12 +269,12 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
                         readReg(la, contBase + ".NUMBER")
                         )
                     );
-
-            //ttcGenToggleLocal(la, ohN, enable);
+            break;
         }//End v2b electronics behavior
         default:
         {
             LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+            break;
         }
     }
 
@@ -289,7 +293,7 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
  *    * enable = true (false) ignore (take) ttc commands from backplane for this AMC (affects all links)
  *  - **v2b** electronics behavior:
  *    * Configure the T1 controller
- *    * mode: 
+ *    * mode:
  *      * 0 (Single T1 signal),
  *      * 1 (CalPulse followed by L1A),
  *      * 2 (pattern)
@@ -339,12 +343,12 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
  *  \param ch Channel of interest
  *  \param useCalPulse Use  calibration pulse if true
  *  \param currentPulse Selects whether to use current or volage pulse
- *  \param calScaleFactor 
+ *  \param calScaleFactor
  *  \param nevts Number of events per calibration point
  *  \param dacMin Minimal value of scan variable
  *  \param dacMax Maximal value of scan variable
  *  \param dacStep Scan variable change step
- *  \param scanReg DAC register to scan over name 
+ *  \param scanReg DAC register to scan over name
  *  \param useUltra Set to 1 in order to use the ultra scan
  *  \param useExtTrig Set to 1 in order to use the backplane triggers
  */
@@ -460,7 +464,10 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                     } //End TTC Commands from TTC.GENERATOR
                 }
 
+                //Stop the DAQ monitor counters from incrementing
+                writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x0);
 
+                //Read the DAQ Monitor counters
                 for(int vfatN = 0; vfatN < 24; vfatN++){
                     if ( !( (notmask >> vfatN) & 0x1)) continue;
 
@@ -490,6 +497,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                     }
                 }
             }
+            break;
         }//End v3 electronics behavior
         case 1: //v2b electronics behavior
         {
@@ -570,10 +578,12 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
             //Get scan results
             getUltraScanResultsLocal(la, outData, ohN, nevts, dacMin, dacMax, dacStep);
+            break;
         }//End v2b electronics behavior
         default:
         {
             LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+            break;
         }
     }
 
@@ -632,18 +642,18 @@ void genScan(const RPCMsg *request, RPCMsg *response)
  *  * Each measured point will take waitTime milliseconds (recommond between 1000->3000)
  *  * The measurement is performed for all channels (ch=128) or a specific channel (0 <= ch <= 127)
  *  * invertVFATPos is for FW backwards compatiblity; if true then the vfatN =  23 - map_maskOh2vfatN[maskOh]
- *  
+ *
  *  \param la Local arguments structure
- *  \param outDataDacVal 
+ *  \param outDataDacVal
  *  \param outDataTrigRate
- *  \param ohN Optohybrid optical link number 
+ *  \param ohN Optohybrid optical link number
  *  \param maskOh VFAT mask, should only have one unmasked chip
  *  \param invertVFATPos is for FW backwards compatiblity; if true then the vfatN =  23 - map_maskOh2vfatN[maskOh]
- *  \param ch Channel of interest 
+ *  \param ch Channel of interest
  *  \param dacMin Minimal value of scan variable
  *  \param dacMax Maximal value of scan variable
  *  \param dacStep Scan variable change step
- *  \param scanReg DAC register to scan over name 
+ *  \param scanReg DAC register to scan over name
  *  \waitTime Measurement duration per point
  */
 void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRate, uint32_t ohN, uint32_t maskOh, bool invertVFATPos, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t waitTime)
@@ -743,18 +753,18 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
  *  * For the overall y-value (e.g. rate) will be stored in outDataTrigRateOverall
  *  * Each measured point will take one second
  *  * The measurement is performed for all channels (ch=128) or a specific channel (0 <= ch <= 127)
- *   
+ *
  *  \param la Local arguments structure
- *  \param outDataDacVal 
+ *  \param outDataDacVal
  *  \param outDataTrigRatePerVFAT
  *  \param outDataTrigRateOverall
- *  \param ohN Optohybrid optical link number 
- *  \param vfatMask VFAT mask 
- *  \param ch Channel of interest 
+ *  \param ohN Optohybrid optical link number
+ *  \param vfatMask VFAT mask
+ *  \param ch Channel of interest
  *  \param dacMin Minimal value of scan variable
  *  \param dacMax Maximal value of scan variable
  *  \param dacStep Scan variable change step
- *  \param scanReg DAC register to scan over name 
+ *  \param scanReg DAC register to scan over name
  */
 void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ohN, uint32_t vfatmask, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg)
 {
@@ -837,7 +847,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
 } //End sbitRateScanParallel(...)
 
 /*! \fn void sbitRateScan(const RPCMsg *request, RPCMsg *response)
- *  \brief SBIT rate scan. See the local callable methods documentation for details 
+ *  \brief SBIT rate scan. See the local callable methods documentation for details
  *  \param request RPC response message
  *  \param response RPC response message
  */
@@ -882,7 +892,7 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
 } //End sbitRateScan(...)
 
 /*! \fn void genChannelScan(const RPCMsg *request, RPCMsg *response)
- *  \brief Generic per channel scan. See the local callable methods documentation for details 
+ *  \brief Generic per channel scan. See the local callable methods documentation for details
  *  \param request RPC response message
  *  \param response RPC response message
  */
