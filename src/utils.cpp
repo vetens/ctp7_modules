@@ -6,6 +6,7 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
   std::string gem_path = std::getenv("GEM_PATH");
   std::string lmdb_data_file = gem_path+"/address_table.mdb/data.mdb";
   std::string lmdb_lock_file = gem_path+"/address_table.mdb/lock.mdb";
+  std::string lmdb_area_file = gem_path+"/address_table.mdb";
   xhal::utils::XHALXMLParser * m_parser = new xhal::utils::XHALXMLParser(at_xml.c_str());
   try
   {
@@ -29,7 +30,7 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
 
   auto env = lmdb::env::create();
   env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  env.open(lmdb_data_file.c_str(), 0, 0664);
+  env.open(lmdb_area_file.c_str(), 0, 0664);
 
   LOGGER->log_message(LogManager::INFO, "LMDB ENV OPEN");
 
