@@ -100,6 +100,7 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
     uint32_t notmask = ~vfatMask & 0xFFFFFF;
 
     char regBuf[200];
+    LOGGER->log_message(LogManager::INFO, "Load channel register settings");
     for(int vfatN=0; vfatN < 24; ++vfatN){
         // Check if vfat is masked
         if(!((notmask >> vfatN) & 0x1)){
@@ -123,6 +124,7 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
             std::string strBaseNode = stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i",ohN,vfatN,chan);
 
             //Channel mask
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting %s.MASK VFAT%i chan %i",strBaseNode.c_str(),vfatN,chan));
             writeReg(la, stdsprintf("%s.MASK",strBaseNode.c_str()), masks[idx]);
             if (masks[idx] > 0){ //We write the mask, and then if the mask is not zero skip the channel
                 continue;
@@ -134,12 +136,15 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
                 la->response->set_string("error",regBuf);
                 return;
             }
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting ARM_TRIM_AMPLITUDE VFAT%i chan %i",vfatN,chan));
             writeReg(la, stdsprintf("%s.ARM_TRIM_AMPLITUDE",strBaseNode.c_str()), trimARM[idx]);
 
             //ARM trim polarity
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting ARM_TRIM_POLARITY VFAT%i chan %i",vfatN,chan));
             writeReg(la, stdsprintf("%s.ARM_TRIM_POLARITY",strBaseNode.c_str()), trimARMPol[idx]);
 
             //Cal enable
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting CALPULSE_ENABLE VFAT%i chan %i",vfatN,chan));
             writeReg(la, stdsprintf("%s.CALPULSE_ENABLE",strBaseNode.c_str()), calEnable[idx]);
 
             //ZCC trim
@@ -148,9 +153,11 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
                 la->response->set_string("error",regBuf);
                 return;
             }
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting ZCC_TRIM_AMPLITUDE VFAT%i chan %i",vfatN,chan));
             writeReg(la, stdsprintf("%s.ZCC_TRIM_AMPLITUDE",strBaseNode.c_str()), trimZCC[idx]);
 
             //ZCC trim polarity
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting ZCC_TRIM_POLARITY VFAT%i chan %i",vfatN,chan));
             writeReg(la, stdsprintf("%s.ZCC_TRIM_POLARITY",strBaseNode.c_str()), trimZCCPol[idx]);
         } //End Loop over channels
     } //End Loop over VFATs
