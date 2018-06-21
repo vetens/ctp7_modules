@@ -161,7 +161,9 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
 void setChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    env.open("/mnt/persistent/texas/address_table.mdb", 0, 0664);
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
     LOGGER->log_message(LogManager::INFO, "Setting VFAT3 Channel Registers");
