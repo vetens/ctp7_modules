@@ -43,6 +43,22 @@ void configureVFAT3sLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask);
  */
 void configureVFAT3s(const RPCMsg *request, RPCMsg *response);
 
+/*! \fn void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t *chanRegData)
+ *  \brief reads all channel registers for unmasked vfats and stores values in chanRegData
+ *  \param la Local arguments structure
+ *  \param ohN Optical link
+ *  \param mask VFAT mask
+ *  \param chanRegData pointer to the container holding channel registers; expected to be an array of 3072 channels with idx = vfatN * 128 + chan
+ */
+void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t *chanRegData);
+
+/*! \fn void setChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response);
+  + *  \brief reads all vfat3 channel registers from host machine
+  + *  \param request RPC request message
+  + *  \param response RPC responce message
+  + */
+void getChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response);
+
 /*! \fn void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMask, uint32_t *calEnable, uint32_t *masks, uint32_t *trimARM, uint32_t *trimARMPol, uint32_t *trimZCC, uint32_t *trimZCCPol);
   + *  \brief writes all vfat3 channel registers from AMC
   + *  \param ohN Optohybrid optical link number

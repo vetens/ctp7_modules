@@ -1,3 +1,12 @@
+/*! \file vfat3.cpp
+ *  \brief RPC module for VFAT3 methods
+ *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
+ *  \author Cameron Bravo <cbravo135@gmail.com>
+ *  \author Brian Dorney <brian.l.dorney@cern.ch>
+ */
+
+#include <chrono>
+#include <thread>
 #include "vfat3.h"
 
 uint32_t vfatSyncCheckLocal(localArgs * la, uint32_t ohN)
@@ -95,12 +104,35 @@ void configureVFAT3s(const RPCMsg *request, RPCMsg *response) {
     rtxn.abort();
 }
 
-void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMask, uint32_t *calEnable, uint32_t *masks, uint32_t *trimARM, uint32_t *trimARMPol, uint32_t *trimZCC, uint32_t *trimZCCPol){
+void getChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    LOGGER->log_message(LogManager::INFO, "Getting VFAT3 Channel Registers");
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t vfatMask = request->get_word("vfatMask");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    uint32_t chanRegData[24*128];
+
+    getChannelRegistersVFAT3Local(&la, ohN, vfatMask, chanRegData);
+
+    response->set_word_array("chanRegData",chanRegData,24*128);
+
+    return;
+} //End getChannelRegistersVFAT3()
+
+void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t vfatMask, uint32_t *chanRegData){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~vfatMask & 0xFFFFFF;
 
     char regBuf[200];
-    LOGGER->log_message(LogManager::INFO, "Load channel register settings");
+    LOGGER->log_message(LogManager::INFO, "Read channel register settings");
     for(int vfatN=0; vfatN < 24; ++vfatN){
         // Check if vfat is masked
         if(!((notmask >> vfatN) & 0x1)){
@@ -116,49 +148,75 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
         }
 
         //Loop over the channels
+        uint32_t chanAddr;
         for(int chan=0; chan < 128; ++chan){
             //Deterime the idx
             int idx = vfatN*128 + chan;
 
-            //Set the base node
-            std::string strBaseNode = stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i",ohN,vfatN,chan);
+            //Get the address
+            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i",ohN,vfatN,chan);
+            chanAddr = getAddress(la, regBuf);
 
-            //Channel mask
-            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting %s.MASK VFAT%i chan %i",strBaseNode.c_str(),vfatN,chan));
-            writeReg(la, stdsprintf("%s.MASK",strBaseNode.c_str()), masks[idx]);
-            if (masks[idx] > 0){ //We write the mask, and then if the mask is not zero skip the channel
-                continue;
-            }
+            //Build the channel register
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Reading channel register for VFAT%i chan %i",vfatN,chan));
+            chanRegData[idx] = readRawAddress(chanAddr, la->response);
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+        } //End Loop over channels
+    } //End Loop over VFATs
 
-            //ARM trim
-            if ( trimARM[idx] > 0x7F || trimARM[idx] < 0x0){
-                sprintf(regBuf,"arming comparator trim value must be positive in range [0x0,0x7F]. Value given for VFAT%i chan %i: %x",vfatN,chan,trimARM[idx]);
+    return;
+} //end getChannelRegistersVFAT3Local()
+
+void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMask, uint32_t *calEnable, uint32_t *masks, uint32_t *trimARM, uint32_t *trimARMPol, uint32_t *trimZCC, uint32_t *trimZCCPol){
+    //Determine the inverse of the vfatmask
+    uint32_t notmask = ~vfatMask & 0xFFFFFF;
+
+    char regBuf[200];
+    LOGGER->log_message(LogManager::INFO, "Write channel register settings");
+    for(int vfatN=0; vfatN < 24; ++vfatN){
+        // Check if vfat is masked
+        if(!((notmask >> vfatN) & 0x1)){
+            continue;
+        } //End check if VFAT is masked
+
+        // Check if vfatN is sync'd
+        uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
+        if( !( (goodVFATs >> vfatN ) & 0x1 ) ){
+            sprintf(regBuf,"The requested VFAT is not synced; goodVFATs: %x\t requested VFAT: %i; maskOh: %x", goodVFATs, vfatN, vfatMask);
+            la->response->set_string("error",regBuf);
+            return;
+        }
+
+        //Loop over the channels
+        uint32_t chanAddr;
+        uint32_t chanRegVal;
+        for(int chan=0; chan < 128; ++chan){
+            //Deterime the idx
+            int idx = vfatN*128 + chan;
+
+            //Get the address
+            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i",ohN,vfatN,chan);
+            chanAddr = getAddress(la, regBuf);
+
+            //Check trim values make sense
+            if ( trimARM[idx] > 0x3F || trimARM[idx] < 0x0){
+                sprintf(regBuf,"arming comparator trim value must be positive in range [0x0,0x3F]. Value given for VFAT%i chan %i: %x",vfatN,chan,trimARM[idx]);
                 la->response->set_string("error",regBuf);
                 return;
             }
-            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting ARM_TRIM_AMPLITUDE VFAT%i chan %i",vfatN,chan));
-            writeReg(la, stdsprintf("%s.ARM_TRIM_AMPLITUDE",strBaseNode.c_str()), trimARM[idx]);
-
-            //ARM trim polarity
-            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting ARM_TRIM_POLARITY VFAT%i chan %i",vfatN,chan));
-            writeReg(la, stdsprintf("%s.ARM_TRIM_POLARITY",strBaseNode.c_str()), trimARMPol[idx]);
-
-            //Cal enable
-            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting CALPULSE_ENABLE VFAT%i chan %i",vfatN,chan));
-            writeReg(la, stdsprintf("%s.CALPULSE_ENABLE",strBaseNode.c_str()), calEnable[idx]);
-
-            //ZCC trim
-            if ( trimZCC[idx] > 0x7F || trimZCC[idx] < 0x0){
-                sprintf(regBuf,"zero crossing comparator trim value must be positive in range [0x0,0x7F]. Value given for VFAT%i chan %i: %x",vfatN,chan,trimZCC[idx]);
+            if ( trimZCC[idx] > 0x3F || trimZCC[idx] < 0x0){
+                sprintf(regBuf,"zero crossing comparator trim value must be positive in range [0x0,0x3F]. Value given for VFAT%i chan %i: %x",vfatN,chan,trimZCC[idx]);
                 la->response->set_string("error",regBuf);
                 return;
             }
-            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting ZCC_TRIM_AMPLITUDE VFAT%i chan %i",vfatN,chan));
-            writeReg(la, stdsprintf("%s.ZCC_TRIM_AMPLITUDE",strBaseNode.c_str()), trimZCC[idx]);
 
-            //ZCC trim polarity
-            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting ZCC_TRIM_POLARITY VFAT%i chan %i",vfatN,chan));
-            writeReg(la, stdsprintf("%s.ZCC_TRIM_POLARITY",strBaseNode.c_str()), trimZCCPol[idx]);
+            //Build the channel register
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Setting channel register for VFAT%i chan %i",vfatN,chan));
+            chanRegVal = (calEnable[idx] << 15) + (masks[idx] << 14) + \
+                         (trimZCCPol[idx] << 13) + (trimZCC[idx] << 7) + \
+                         (trimARMPol[idx] << 6) + (trimARM[idx]);
+            writeRawAddress(chanAddr, chanRegVal, la->response);
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
         } //End Loop over channels
     } //End Loop over VFATs
 
