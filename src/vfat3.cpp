@@ -327,8 +327,9 @@ extern "C" {
             return; // Do not register our functions, we depend on memsvc.
         }
         modmgr->register_method("vfat3", "configureVFAT3s", configureVFAT3s);
-        modmgr->register_method("vfat3", "vfatSyncCheck", vfatSyncCheck);
+        modmgr->register_method("vfat3", "getChannelRegistersVFAT3", getChannelRegistersVFAT3);
         modmgr->register_method("vfat3", "setChannelRegistersVFAT3", setChannelRegistersVFAT3);
         modmgr->register_method("vfat3", "statusVFAT3s", statusVFAT3s);
+        modmgr->register_method("vfat3", "vfatSyncCheck", vfatSyncCheck);
     }
 }
