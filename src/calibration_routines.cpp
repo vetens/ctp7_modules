@@ -83,39 +83,56 @@ void applyChanMask(std::unordered_map<uint32_t, uint32_t> map_chanOrigMask, loca
     }
 }
 
-/*! \fn void confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, bool currentPulse, uint32_t calScaleFactor)
- *  \brief Configures the calibration pulse for channel ch on all VFATs of ohN that are not in mask
+/*! \fn void confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, bool toggleOn, bool currentPulse, uint32_t calScaleFactor)
+ *  \brief Configures the calibration pulse for channel ch on all VFATs of ohN that are not in mask to either be on (toggleOn==true) or off (toggleOn==false).  If ch == 128 and toggleOn == False will write the CALPULSE_ENABLE bit for all channels of all vfats that are not masked on ohN to 0x0.
  *  \param la Local arguments structure
  *  \param ohN Optical link number
  *  \param mask VFAT mask
  *  \param ch Channel of interest
+ *  \param toggleOn if true (false) turns the calibration pulse on (off) for channel ch
  *  \param currentPulse Selects whether to use current or volage pulse
  *  \param calScaleFactor Scale factor for the calibration pulse height (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
  */
-bool confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, bool currentPulse, uint32_t calScaleFactor){
+bool confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, bool toggleOn, bool currentPulse, uint32_t calScaleFactor){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
-    if(ch >= 128){ //Case: OR of all channels
+    if(ch >= 128 && toggleOn == true){ //Case: Bad Config, asked for OR of all channels
         la->response->set_string("error","confCalPulseLocal(): I was told to calpulse all channels which doesn't make sense");
         return false;
-    } //End Case: OR of all channels
+    } //End Case: Bad Config, asked for OR of all channels
+    else if(ch == 128 && toggleOn == false){ //Case: Turn cal pusle off for all channels
+        for(int vfatN = 0; vfatN < 24; vfatN++){ //Loop over all VFATs
+            if((notmask >> vfatN) & 0x1){ //End VFAT is not masked
+                for(int chan=0; chan < 128; ++chan){ //Loop Over all Channels
+                    sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, chan);
+                    writeReg(la, regBuf, 0x0);
+                } //End Loop Over all Channels
+                writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x0);
+            } //End VFAT is not masked
+        } //End Loop over all VFATs
+    } //End Case: Turn cal pulse off for all channels
     else{ //Case: Pulse a specific channel
         for(int vfatN = 0; vfatN < 24; vfatN++){ //Loop over all VFATs
             if((notmask >> vfatN) & 0x1){ //End VFAT is not masked
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-                writeReg(la, regBuf, 0x1);
+                if(toggleOn == true){ //Case: turn calpulse on
+                    writeReg(la, regBuf, 0x1);
+                    if(currentPulse){ //Case: cal mode current injection
+                        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x2);
 
-                if(currentPulse){ //Case: cal mode current injection
-                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x2);
-
-                    //Set cal current pulse scale factor. Q = CAL DUR[s] * CAL DAC * 10nA * CAL FS[%] (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
-                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_FS", ohN, vfatN), calScaleFactor);
-                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_DUR", ohN, vfatN), 0x0);
-                } //End Case: cal mode current injection
-                else { //Case: cal mode voltage injection
-                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1);
-                } //Case: cal mode voltage injection
+                        //Set cal current pulse scale factor. Q = CAL DUR[s] * CAL DAC * 10nA * CAL FS[%] (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
+                        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_FS", ohN, vfatN), calScaleFactor);
+                        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_DUR", ohN, vfatN), 0x0);
+                    } //End Case: cal mode current injection
+                    else { //Case: cal mode voltage injection
+                        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1);
+                    } //Case: cal mode voltage injection
+                } //End Case: Turn calpulse on
+                else{ //Case: Turn calpulse off
+                    writeReg(la, regBuf, 0x0);
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x0);
+                } //End Case: Turn calpulse off
             } //End VFAT is not masked
         } //End Loop over all VFATs
     } //End Case: Pulse a specific channel
@@ -441,7 +458,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
             //Do we turn on the calpulse for the channel = ch?
             if(useCalPulse){
-                if (confCalPulseLocal(la, ohN, mask, ch, currentPulse, calScaleFactor) == false){
+                if (confCalPulseLocal(la, ohN, mask, ch, true, currentPulse, calScaleFactor) == false){
                     return; //Calibration pulse is not configured correctly
                 }
             } //End use calibration pulse
@@ -531,13 +548,8 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
             //If the calpulse for channel ch was turned on, turn it off
             if(useCalPulse){
-                for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
-                {
-                    sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-                    if(ch < 128){
-                        writeReg(la, regBuf, 0x0);
-                        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x0);
-                    }
+                if (confCalPulseLocal(la, ohN, mask, ch, false, currentPulse, calScaleFactor) == false){
+                    return; //Calibration pulse is not configured correctly
                 }
             }
             break;
