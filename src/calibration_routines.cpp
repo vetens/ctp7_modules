@@ -63,7 +63,7 @@ std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, uns
         //store the original channel mask
         sprintf(regBuf, "GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan);
         chanMaskAddr=getAddress(la, regBuf);
-        map_chanOrigMask[chanMaskAddr]=readReg(la, regBuf);   //We'll write this by address later
+        map_chanOrigMask[chanMaskAddr]=readReg(la, regBuf);
 
         //write the new channel mask
         writeRawAddress(chanMaskAddr, chMask, la->response);
@@ -82,6 +82,46 @@ void applyChanMask(std::unordered_map<uint32_t, uint32_t> map_chanOrigMask, loca
         writeRawAddress( (*chanPtr).first, (*chanPtr).second, la->response);
     }
 }
+
+/*! \fn void confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, bool currentPulse, uint32_t calScaleFactor)
+ *  \brief Configures the calibration pulse for channel ch on all VFATs of ohN that are not in mask
+ *  \param la Local arguments structure
+ *  \param ohN Optical link number
+ *  \param mask VFAT mask
+ *  \param ch Channel of interest
+ *  \param currentPulse Selects whether to use current or volage pulse
+ *  \param calScaleFactor Scale factor for the calibration pulse height (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
+ */
+bool confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, bool currentPulse, uint32_t calScaleFactor){
+    //Determine the inverse of the vfatmask
+    uint32_t notmask = ~mask & 0xFFFFFF;
+
+    if(ch >= 128){ //Case: OR of all channels
+        la->response->set_string("error","confCalPulseLocal(): I was told to calpulse all channels which doesn't make sense");
+        return false;
+    } //End Case: OR of all channels
+    else{ //Case: Pulse a specific channel
+        for(int vfatN = 0; vfatN < 24; vfatN++){ //Loop over all VFATs
+            if((notmask >> vfatN) & 0x1){ //End VFAT is not masked
+                sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
+                writeReg(la, regBuf, 0x1);
+
+                if(currentPulse){ //Case: cal mode current injection
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x2);
+
+                    //Set cal current pulse scale factor. Q = CAL DUR[s] * CAL DAC * 10nA * CAL FS[%] (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_FS", ohN, vfatN), calScaleFactor);
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_DUR", ohN, vfatN), 0x0);
+                } //End Case: cal mode current injection
+                else { //Case: cal mode voltage injection
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1);
+                } //Case: cal mode voltage injection
+            } //End VFAT is not masked
+        } //End Loop over all VFATs
+    } //End Case: Pulse a specific channel
+
+    return true;
+} //End confCalPulseLocal
 
 /*! \fn void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch)
  *  \brief Configures DAQ monitor. Local version only
@@ -110,8 +150,8 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch)
                 writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x0);
             }
             break;
-        }// end v3 electronics behavior 
-        default: 
+        }// end v3 electronics behavior
+        default:
         {
             LOGGER->log_message(LogManager::ERROR, "dacMonConf is only supported in V3 electronics");
             sprintf(regBuf,"dacMonConf is only supported in V3 electronics");
@@ -123,7 +163,7 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch)
 }
 
 /*! \fn void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
- *  \brief Enables the TTC commands from backplane. Local callable version of ttcGenToggle
+ *  \brief Toggles the TTC Generator. Local callable version of ttcGenToggle
  *
  *  * v3  electronics: enable = true (false) turn on CTP7 internal TTC generator and ignore ttc commands from backplane for this AMC (turn off CTP7 internal TTC generator and take ttc commands from backplane link)
  *  * v2b electronics: enable = true (false) start (stop) the T1Controller for link ohN
@@ -175,7 +215,7 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
 } //End ttcGenToggleLocal(...)
 
 /*! \fn void ttcGenToggle(const RPCMsg *request, RPCMsg *response)
- *  \brief Enables the TTC commands from backplane
+ *  \brief Toggles the TTC Generator
  *
  *  * v3  electronics: enable = true (false) turn on CTP7 internal TTC generator and ignore ttc commands from backplane for this AMC (turn off CTP7 internal TTC generator and take ttc commands from backplane link)
  *  * v2b electronics: enable = true (false) start (stop) the T1Controller for link ohN
@@ -237,7 +277,7 @@ void ttcGenToggle(const RPCMsg *request, RPCMsg *response)
 void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type, uint32_t pulseDelay, uint32_t L1Ainterval, uint32_t nPulses, bool enable)
 {
     //Check firmware version
-    switch(fw_version_check("ttcGenToggle", la)) {
+    switch(fw_version_check("ttcGenConf", la)) {
         case 0x3: //v3 electronics behavior
         {
             writeReg(la, "GEM_AMC.TTC.GENERATOR.RESET", 0x1);
@@ -381,7 +421,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
     uint32_t notmask = ~mask & 0xFFFFFF;
 
     //Check firmware version
-    switch(fw_version_check("ttcGenToggle", la)) {
+    switch(fw_version_check("genScanLocal", la)) {
         case 3: //v3 electronics behavior
         {
             uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
@@ -401,29 +441,9 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
             //Do we turn on the calpulse for the channel = ch?
             if(useCalPulse){
-                if(ch >= 128){ //Case: OR of all channels
-                    la->response->set_string("error","It doesn't make sense to calpulse all channels");
-                    return;
-                } //End Case: OR of all channels
-                else{ //Case: Pulse a specific channel
-                    for(int vfatN = 0; vfatN < 24; vfatN++){ //Loop over all VFATs
-                        if((notmask >> vfatN) & 0x1){ //End VFAT is not masked
-                            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-                            writeReg(la, regBuf, 0x1);
-
-                            if(currentPulse){ //Case: cal mode current injection
-                                writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x2);
-
-                                //Set cal current pulse scale factor. Q = CAL DUR[s] * CAL DAC * 10nA * CAL FS[%] (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
-                                writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_FS", ohN, vfatN), calScaleFactor);
-                                writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_DUR", ohN, vfatN), 0x0);
-                            } //End Case: cal mode current injection
-                            else { //Case: cal mode voltage injection
-                                writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x1);
-                            } //Case: cal mode voltage injection
-                        } //End VFAT is not masked
-                    } //End Loop over all VFATs
-                } //End Case: Pulse a specific channel
+                if (confCalPulseLocal(la, ohN, mask, ch, currentPulse, calScaleFactor) == false){
+                    return; //Calibration pulse is not configured correctly
+                }
             } //End use calibration pulse
 
             //Get addresses
@@ -765,7 +785,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 
             break;
         }//End v3 electronics behavior
-        default: 
+        default:
         {
             LOGGER->log_message(LogManager::ERROR, "sbitRateScan is only supported in V3 electronics");
             sprintf(regBuf,"sbitRateScan is only supported in V3 electronics");
@@ -877,7 +897,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             }
             break;
         }//End v3 electronics behavior
-        default: 
+        default:
         {
             LOGGER->log_message(LogManager::ERROR, "sbitRateScan is only supported in V3 electronics");
             sprintf(regBuf,"sbitRateScan is only supported in V3 electronics");
@@ -932,6 +952,44 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
 
     return;
 } //End sbitRateScan(...)
+
+/*! \fn void sbitMonitorLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t nPulsesOrTime, uint32_t pulseRate)
+ *  \brief
+ *  \param la Local arguments structure
+ *  \param outData pointer to the results of the scan
+ *  \param ohN Optical link
+ *  \param mask VFAT mask
+ *  \param ch Channel of interest
+ *  \param useCalPulse Use  calibration pulse if true
+ *  \param currentPulse Selects whether to use current or volage pulse
+ *  \param calScaleFactor
+ *  \param nPulsesOrTime the number of cal pulses to inject (useCalPulse == true) or the time to acquire data for (useCalPulse == false)
+ *  \param pulseRate the rate of pulses to send in Hz
+ */
+void sbitMonitorLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t nPulsesOrTime, uint32_t pulseRate){
+    //Determine the inverse of the vfatmask
+    uint32_t notmask = ~mask & 0xFFFFFF;
+
+    char regBuf[200];
+    if( fw_version_check("sbitMonitor", la) < 3){
+        LOGGER->log_message(LogManager::ERROR, "sbitMonitor is only supported in V3 electronics");
+        sprintf(regBuf,"sbitMonitor is only supported in V3 electronics");
+        la->response->set_string("error",regBuf);
+        break;
+    }
+
+    uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
+    if( (notmask & goodVFATs) != notmask){
+        sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
+        la->response->set_string("error",regBuf);
+        return;
+    }
+
+    if(useCalPulse){
+
+    } //End use the calibration pulse
+
+}
 
 /*! \fn void genChannelScan(const RPCMsg *request, RPCMsg *response)
  *  \brief Generic per channel scan. See the local callable methods documentation for details
