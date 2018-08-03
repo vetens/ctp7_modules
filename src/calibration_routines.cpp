@@ -4,11 +4,13 @@
  *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
+#include <math.h>
 #include <chrono>
 #include <pthread.h>
 #include "optohybrid.h"
 #include <thread>
 #include "vfat3.h"
+#include "utils.h"
 
 /*! \fn unsigned int fw_version_check(const char* caller_name, localArgs *la)
  *  \brief Returns AMC FW version
@@ -965,27 +967,27 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
     return;
 } //End sbitRateScan(...)
 
-/*! \fn void sbitMonitorLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t nPulsesOrTime, uint32_t pulseRate)
- *  \brief
+/*! \fn void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t nevts, uint32_t L1Ainterval, uint32_t pulseDelay)
+ *  \brief With all but one channel masked, pulses a given channel, and then checks which sbits are seen by the CTP7, repeats for all channels; reports the (vfat,chan) pulsed and (vfat,sbit) observed where sbit=chan*2; additionally reports if the cluster was valid
  *  \param la Local arguments structure
- *  \param outData pointer to the results of the scan
+ *  \param outData pointer to an array of size (24*128*8*nevts) which stores the results of the scan, bits [0,7] channel pulsed; bits [8:15] sbit observed; bits [16:20] vfat pulsed; bits [21,25] vfat observed, bit 26 isValid
  *  \param ohN Optical link
  *  \param mask VFAT mask
- *  \param ch Channel of interest
- *  \param useCalPulse Use  calibration pulse if true
  *  \param currentPulse Selects whether to use current or volage pulse
  *  \param calScaleFactor
- *  \param nPulsesOrTime the number of cal pulses to inject (useCalPulse == true) or the time to acquire data for (useCalPulse == false)
- *  \param pulseRate the rate of pulses to send in Hz
+ *  \param nevts the number of cal pulses to inject per channel
+ *  \param L1Ainterval How often to repeat signals (only for enable = true)
+ *  \param pulseDelay delay between CalPulse and L1A
  */
-void sbitMonitorLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t nPulsesOrTime, uint32_t pulseRate){
+void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t nevts, uint32_t L1Ainterval, uint32_t pulseDelay){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
+    //uint32_t nUnmaskedVFATs = 24 - getNumNonzeroBits(mask);
 
     char regBuf[200];
-    if( fw_version_check("sbitMonitor", la) < 3){
-        LOGGER->log_message(LogManager::ERROR, "sbitMonitor is only supported in V3 electronics");
-        sprintf(regBuf,"sbitMonitor is only supported in V3 electronics");
+    if( fw_version_check("checkSbitMappingWithCalPulse", la) < 3){
+        LOGGER->log_message(LogManager::ERROR, "checkSbitMappingWithCalPulse is only supported in V3 electronics");
+        sprintf(regBuf,"checkSbitMappingWithCalPulse is only supported in V3 electronics");
         la->response->set_string("error",regBuf);
         break;
     }
@@ -997,11 +999,153 @@ void sbitMonitorLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t m
         return;
     }
 
-    if(useCalPulse){
+    //Get current channel register data, mask all channels and disable calpulse
+    uint32_t chanRegData_orig[3072]; //original channel register data
+    uint32_t chanRegData_tmp[3072]; //temporary channel register data
+    getChannelRegistersVFAT3Local(la, ohN, mask, chanRegData_orig);
+    for(int idx=0; idx < 3072; ++idx){
+        chanRegData_tmp[idx]=chanRegData_orig[idx]+(0x1 << 14); //set channel mask to true
+        chanRegData_tmp[idx]=chanRegData_tmp[idx]-(0x1 << 15); //disable calpulse
+    }
+    setChannelRegistersVFAT3SimpleLocal(la, ohN, mask, chanRegData_tmp);
 
-    } //End use the calibration pulse
+    //Setup TTC Generator
+    //uint32_t L1Ainterval = int(40079000 / pulseRate);
+    ttcGenConf(la, ohN, 0, 0, pulseDelay, L1Ainterval, nevts, true);
+    writeReg(la, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1);
+    writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", 0x1); //One pulse at a time
+    uint32_t addrTtcStart = getAddress(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_START");
 
-}
+    //Set all chips out of run mode
+    broadcastWriteLocal(la, ohN, "CFG_RUN", 0x0, mask);
+
+    //Setup the sbit monitor
+    writeReg(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.OH_SELECT", ohN);
+    uint32_t addrSbitMonReset=getAddress(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.RESET");
+    uint32_t addrSbitCluster[0];
+    for(int iCluster=0; iCluster < 8; ++iCluster){
+        sprintf(regBuf, "GEM_AMC.TRIGGER.SBIT_MONITOR.CLUSTER%i"%iCluster);
+        addrSbitCluster[iCluster] = getAddress(la, regBuf);
+    }
+
+    //Get Trigger addresses
+    uint32_t addTrgCntReset = getAddress(la,"GEM_AMC.TRIGGER.CTRL.CNT_RESET");
+
+    //Monitor which sbit is seen when sending a calupluse
+    for(int vfatN=0; vfatN < 24; ++vfatN){ //Loop over all vfats
+        //Skip masked vfats
+        if((notmask >> vfatN) & 0x0){
+            continue;
+        }
+
+        //mask all other vfats from trigger
+        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK"%(ohN)), 0xffffff & ~(1 << (vfatN)));
+
+        //Place this vfat into run mode
+        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN, vfatN), 0x1);
+
+        for(int chan=0; chan < 128; ++chan){ //Loop over all channels
+            //unmask this channel
+            //May want to move this inside the pulse block?
+            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan), 0x0);
+
+            //Turn on the calpulse for this channel
+            if (confCalPulseLocal(la, ohN, ((0x1)<<vfatN), chan, false, currentPulse, calScaleFactor) == false){
+                return; //Calibration pulse is not configured correctly
+            }
+
+            //Start Pulsing
+            for(int iPulse=0; iPulse < nevts; ++iPulse){ //Pulse this channel
+                //Reset monitors
+                writeRawAddress(addrSbitMonReset, 0x1, la->response);
+
+                //Start the TTC Generator
+                writeRawAddress(addrTtcStart, 0x1, la->response);
+
+                //Sleep for 1000 us + pulseDelay * 25 ns * (0.001 us / ns)
+                std::this_thread::sleep_for(std::chrono::microseconds(1000+ceil(pulseDelay*25*0.001)));
+
+                //Check clusers
+                for(int cluster=0; cluster<8; ++cluster){
+                    int idx=vfatN*chan*cluster*iPulse; //Array index
+
+                    uint32_t thisCluster = readRawAddress(addrSbitCluster[cluster], la->response);
+                    //clusterVal +=  (this_cluster) << (cluster*16)
+                    uint32_t address = (thisCluster & 0x7ff);
+                    isValid = (address < 1536);
+                    if (isValid){ //Case: Valid Cluster
+                        //nValidClusters[ch] += 1;
+                        uint32_t hwVfatPos = int(address / 64); //Note: hwVfatPos != vfatN
+                        uint32_t partition = int(hwVfatPos / 3);
+                        uint32_t column = hwVfatPos % 3;
+
+                        outData[idx] = (0x1 << 26) + \
+                                       ((column * 8 + (7-partition)) << 21) + \
+                                       (vfatN << 16) + \
+                                       ((address % 64) << 8) + \
+                                       chan;
+                    } //End Case: Valid Cluster
+                    else{ //Case: Cluster is not valid
+                        outData[idx] = (0x0 << 26) + \
+                                       (31 << 21) + \ //use vfatN = 31 for non valid case (e.g. 0x1F, overflow for those bits)
+                                       (vfatN << 16) + \
+                                       ((address % 64) << 8) + \
+                                       chan;
+                    } //End Case: Cluster is not valid
+                } //End Loop over clusters
+            } //End Pulses for this channel
+
+            //mask this channel
+            //may want to move this inside the pulse block?
+            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan), 0x1);
+        } //End Loop over all channels
+
+        //Place this vfat out of run mode
+        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN, vfatN), 0x0);
+    } //End Loop over all VFATs
+
+    //turn off TTC Generator
+    ttcGenToggleLocal(la, ohN, false);
+
+    //Return channel register settings to their original values
+    setChannelRegistersVFAT3SimpleLocal(la, ohN, mask, chanRegData_orig);
+
+    //Set trigger vfat mask for this OH back to 0
+    writeReg(la, sprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK"%(ohN)), 0x0);
+
+    return;
+} //End checkSbitMappingWithCalPulseLocal(...)
+
+/*! \fn void checkSbitMappingWithCalPulse(const RPCMsg *request, RPCMsg *response)
+ *  \brief Checks the sbit mapping using the calibration pulse. See the local callable methods documentation for details
+ *  \param request RPC response message
+ *  \param response RPC response message
+ */
+void checkSbitMappingWithCalPulse(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t mask = request->get_word("mask");
+    bool currentPulse = request->get_word("currentPulse");
+    uint32_t calScaleFactor = request->get_word("calScaleFactor");
+    uint32_t nevts = request->get_word("nevts");
+    uint32_t L1Ainterval = request->get_word("L1Ainterval");
+    uint32_t pulseDelay = request->get_word("pulseDelay");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    uint32_t outData[24*128*8*nevts];
+    checkSbitMappingWithCalPulseLocal(la,outData, ohN, mask, currentPulse, calScaleFactor, nevts, L1Ainterval, pulseDelay);
+
+    response->set_word_array("data",outData,24*128*8*nevts);
+
+    return;
+} //End checkSbitMappingWithCalPulse()
 
 /*! \fn void genChannelScan(const RPCMsg *request, RPCMsg *response)
  *  \brief Generic per channel scan. See the local callable methods documentation for details
