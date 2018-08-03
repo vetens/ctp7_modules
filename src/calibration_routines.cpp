@@ -99,6 +99,7 @@ bool confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, 
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
+    char regBuf[200];
     if(ch >= 128 && toggleOn == true){ //Case: Bad Config, asked for OR of all channels
         la->response->set_string("error","confCalPulseLocal(): I was told to calpulse all channels which doesn't make sense");
         return false;
@@ -466,13 +467,10 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             } //End use calibration pulse
 
             //Get addresses
-            uint32_t scanDacAddr[24];
             uint32_t daqMonAddr[24];
             uint32_t l1CntAddr = getAddress(la, "GEM_AMC.TTC.CMD_COUNTERS.L1A");
             for(int vfatN = 0; vfatN < 24; vfatN++)
             {
-                sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
-                scanDacAddr[vfatN] = getAddress(la, regBuf);
                 sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
                 daqMonAddr[vfatN] = getAddress(la, regBuf);
             }
@@ -781,7 +779,6 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 
             //Loop from dacMin to dacMax in steps of dacStep
             for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
-                //writeRawAddress(scanDacAddr, dacVal);
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
                 writeReg(la, regBuf, dacVal);
                 std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
@@ -989,7 +986,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
         LOGGER->log_message(LogManager::ERROR, "checkSbitMappingWithCalPulse is only supported in V3 electronics");
         sprintf(regBuf,"checkSbitMappingWithCalPulse is only supported in V3 electronics");
         la->response->set_string("error",regBuf);
-        break;
+        return;
     }
 
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
@@ -1011,7 +1008,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
 
     //Setup TTC Generator
     //uint32_t L1Ainterval = int(40079000 / pulseRate);
-    ttcGenConf(la, ohN, 0, 0, pulseDelay, L1Ainterval, nevts, true);
+    ttcGenConfLocal(la, ohN, 0, 0, pulseDelay, L1Ainterval, nevts, true);
     writeReg(la, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1);
     writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", 0x1); //One pulse at a time
     uint32_t addrTtcStart = getAddress(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_START");
@@ -1022,14 +1019,14 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     //Setup the sbit monitor
     writeReg(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.OH_SELECT", ohN);
     uint32_t addrSbitMonReset=getAddress(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.RESET");
-    uint32_t addrSbitCluster[0];
+    uint32_t addrSbitCluster[8];
     for(int iCluster=0; iCluster < 8; ++iCluster){
-        sprintf(regBuf, "GEM_AMC.TRIGGER.SBIT_MONITOR.CLUSTER%i"%iCluster);
+        sprintf(regBuf, "GEM_AMC.TRIGGER.SBIT_MONITOR.CLUSTER%i",iCluster);
         addrSbitCluster[iCluster] = getAddress(la, regBuf);
     }
 
     //Get Trigger addresses
-    uint32_t addTrgCntReset = getAddress(la,"GEM_AMC.TRIGGER.CTRL.CNT_RESET");
+    //uint32_t addTrgCntReset = getAddress(la,"GEM_AMC.TRIGGER.CTRL.CNT_RESET");
 
     //Monitor which sbit is seen when sending a calupluse
     for(int vfatN=0; vfatN < 24; ++vfatN){ //Loop over all vfats
@@ -1039,7 +1036,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
         }
 
         //mask all other vfats from trigger
-        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK"%(ohN)), 0xffffff & ~(1 << (vfatN)));
+        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN), 0xffffff & ~(1 << (vfatN)));
 
         //Place this vfat into run mode
         writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN, vfatN), 0x1);
@@ -1055,15 +1052,15 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
             }
 
             //Start Pulsing
-            for(int iPulse=0; iPulse < nevts; ++iPulse){ //Pulse this channel
+            for(unsigned int iPulse=0; iPulse < nevts; ++iPulse){ //Pulse this channel
                 //Reset monitors
                 writeRawAddress(addrSbitMonReset, 0x1, la->response);
 
                 //Start the TTC Generator
                 writeRawAddress(addrTtcStart, 0x1, la->response);
 
-                //Sleep for 1000 us + pulseDelay * 25 ns * (0.001 us / ns)
-                std::this_thread::sleep_for(std::chrono::microseconds(1000+ceil(pulseDelay*25*0.001)));
+                //Sleep for 200 us + pulseDelay * 25 ns * (0.001 us / ns)
+                std::this_thread::sleep_for(std::chrono::microseconds(200+int(ceil(pulseDelay*25*0.001))));
 
                 //Check clusers
                 for(int cluster=0; cluster<8; ++cluster){
@@ -1072,25 +1069,18 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
                     uint32_t thisCluster = readRawAddress(addrSbitCluster[cluster], la->response);
                     //clusterVal +=  (this_cluster) << (cluster*16)
                     uint32_t address = (thisCluster & 0x7ff);
-                    isValid = (address < 1536);
+                    uint32_t isValid = (address < 1536);
                     if (isValid){ //Case: Valid Cluster
                         //nValidClusters[ch] += 1;
                         uint32_t hwVfatPos = int(address / 64); //Note: hwVfatPos != vfatN
                         uint32_t partition = int(hwVfatPos / 3);
                         uint32_t column = hwVfatPos % 3;
 
-                        outData[idx] = (0x1 << 26) + \
-                                       ((column * 8 + (7-partition)) << 21) + \
-                                       (vfatN << 16) + \
-                                       ((address % 64) << 8) + \
-                                       chan;
+                        outData[idx] = (0x1 << 26) + ((column * 8 + (7-partition)) << 21) + (vfatN << 16) + ((address % 64) << 8) + chan;
                     } //End Case: Valid Cluster
                     else{ //Case: Cluster is not valid
-                        outData[idx] = (0x0 << 26) + \
-                                       (31 << 21) + \ //use vfatN = 31 for non valid case (e.g. 0x1F, overflow for those bits)
-                                       (vfatN << 16) + \
-                                       ((address % 64) << 8) + \
-                                       chan;
+                        //use observed vfatN = 31 and observed sbit = 255 for not valid case (e.g. overflow for those bits)
+                        outData[idx] = (0x0 << 26) + (31 << 21) + (vfatN << 16) + (255 << 8) + chan;
                     } //End Case: Cluster is not valid
                 } //End Loop over clusters
             } //End Pulses for this channel
@@ -1111,7 +1101,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     setChannelRegistersVFAT3SimpleLocal(la, ohN, mask, chanRegData_orig);
 
     //Set trigger vfat mask for this OH back to 0
-    writeReg(la, sprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK"%(ohN)), 0x0);
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN), 0x0);
 
     return;
 } //End checkSbitMappingWithCalPulseLocal(...)
@@ -1140,7 +1130,7 @@ void checkSbitMappingWithCalPulse(const RPCMsg *request, RPCMsg *response){
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[24*128*8*nevts];
-    checkSbitMappingWithCalPulseLocal(la,outData, ohN, mask, currentPulse, calScaleFactor, nevts, L1Ainterval, pulseDelay);
+    checkSbitMappingWithCalPulseLocal(&la, outData, ohN, mask, currentPulse, calScaleFactor, nevts, L1Ainterval, pulseDelay);
 
     response->set_word_array("data",outData,24*128*8*nevts);
 
