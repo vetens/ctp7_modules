@@ -93,8 +93,20 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response) {
   rtxn.abort();
 }
 
+uint32_t getNumNonzeroBits(uint32_t value){
+    //See: https://stackoverflow.com/questions/4244274/how-do-i-count-the-number-of-zero-bits-in-an-integer
+    uint32_t numNonzeroBits=0;
+    for(size_t i=0; i < CHAR_BIT * sizeof value; ++i){
+        if ((value & (1 << i)) == 1){
+            numNonzeroBits++;
+        }
+    }
+
+    return numNonzeroBits;
+} //End numNonzeroBits()
+
 void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response){
-  uint32_t data[1]; 
+  uint32_t data[1];
   data[0] = value;
   if (memsvc_write(memsvc, address, 1, data) != 0) {
   	response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
@@ -154,11 +166,11 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response) {
   uint32_t data[1];
   uint32_t address = stoi(tmp[0]);
   int n_current_tries = 0;
-  while (true) 
+  while (true)
   {
-      if (memsvc_read(memsvc, address, 1, data) != 0) 
+      if (memsvc_read(memsvc, address, 1, data) != 0)
       {
-          if (n_current_tries < 9) 
+          if (n_current_tries < 9)
           {
               n_current_tries++;
               LOGGER->log_message(LogManager::ERROR, stdsprintf("Reading reg %08X failed %i times.", address, n_current_tries));
@@ -206,7 +218,7 @@ uint32_t applyMask(uint32_t data, uint32_t mask) {
   uint32_t result = data & mask;
   for (int i = 0; i < 32; i++)
   {
-    if (mask & 1) 
+    if (mask & 1)
     {
       break;
     }else {
@@ -274,11 +286,11 @@ void writeReg(localArgs * la, const std::string & regName, uint32_t value) {
   	    LOGGER->log_message(LogManager::ERROR, stdsprintf("Writing masked reg failed due to reading problem: %s", regName.c_str()));
         return;
       }
-      int shift_amount = 0; 
+      int shift_amount = 0;
       uint32_t mask_copy = mask;
       for (int i = 0; i < 32; i++)
       {
-        if (mask & 1) 
+        if (mask & 1)
         {
           break;
         } else {
