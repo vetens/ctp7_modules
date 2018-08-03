@@ -708,7 +708,7 @@ void genScan(const RPCMsg *request, RPCMsg *response)
  *  \param dacMax Maximal value of scan variable
  *  \param dacStep Scan variable change step
  *  \param scanReg DAC register to scan over name
- *  \waitTime Measurement duration per point
+ *  \waitTime Measurement duration per point in milliseconds
  */
 void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRate, uint32_t ohN, uint32_t maskOh, bool invertVFATPos, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t waitTime)
 {
@@ -967,7 +967,7 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
 /*! \fn void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t nevts, uint32_t L1Ainterval, uint32_t pulseDelay)
  *  \brief With all but one channel masked, pulses a given channel, and then checks which sbits are seen by the CTP7, repeats for all channels; reports the (vfat,chan) pulsed and (vfat,sbit) observed where sbit=chan*2; additionally reports if the cluster was valid
  *  \param la Local arguments structure
- *  \param outData pointer to an array of size (24*128*8*nevts) which stores the results of the scan, bits [0,7] channel pulsed; bits [8:15] sbit observed; bits [16:20] vfat pulsed; bits [21,25] vfat observed, bit 26 isValid
+ *  \param outData pointer to an array of size (24*128*8*nevts) which stores the results of the scan, bits [0,7] channel pulsed; bits [8:15] sbit observed; bits [16:20] vfat pulsed; bits [21,25] vfat observed; bit 26 isValid; bits [27,29] are the cluster size
  *  \param ohN Optical link
  *  \param mask VFAT mask
  *  \param currentPulse Selects whether to use current or volage pulse
@@ -1032,6 +1032,10 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
         addrSbitCluster[iCluster] = getAddress(la, regBuf);
     }
 
+    int posPerEvt=8; //8 clusters will be readout per injected calpulse
+    int posPerChan=nevts*posPerEvt;
+    int posPerVFAT=128*posPerChan;
+
     //Monitor which sbit is seen when sending a calupluse
     for(int vfatN=0; vfatN < 24; ++vfatN){ //Loop over all vfats
         //Skip masked vfats
@@ -1068,23 +1072,25 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
 
                 //Check clusers
                 for(int cluster=0; cluster<8; ++cluster){
-                    int idx=vfatN*chan*cluster*iPulse; //Array index
+                    int idx = vfatN * posPerVFAT + chan * posPerChan + iPulse * posPerEvt + cluster; //Array index
 
+                    //bits [10:0] is the address of the cluster
+                    //bits [14:12] is the cluster size
+                    //bits 15 and 11 are not used
                     uint32_t thisCluster = readRawAddress(addrSbitCluster[cluster], la->response);
-                    //clusterVal +=  (this_cluster) << (cluster*16)
                     uint32_t address = (thisCluster & 0x7ff);
-                    uint32_t isValid = (address < 1536);
+                    uint32_t isValid = (address < 0x7fa); //If there's no sbit this should point to an invalid address, 0x7fa
                     if (isValid){ //Case: Valid Cluster
-                        //nValidClusters[ch] += 1;
+                        uint32_t clusterSize = (thisCluster & 0x7000);
                         uint32_t hwVfatPos = int(address / 64); //Note: hwVfatPos != vfatN
                         uint32_t partition = int(hwVfatPos / 3);
                         uint32_t column = hwVfatPos % 3;
 
-                        outData[idx] = (0x1 << 26) + ((column * 8 + (7-partition)) << 21) + (vfatN << 16) + ((address % 64) << 8) + chan;
+                        outData[idx] = (clusterSize << 27) + (0x1 << 26) + ((column * 8 + (7-partition)) << 21) + (vfatN << 16) + ((address % 64) << 8) + chan;
                     } //End Case: Valid Cluster
                     else{ //Case: Cluster is not valid
                         //use observed vfatN = 31 and observed sbit = 255 for not valid case (e.g. overflow for those bits)
-                        outData[idx] = (0x0 << 26) + (31 << 21) + (vfatN << 16) + (255 << 8) + chan;
+                        outData[idx] = (0x0 << 27) + (0x0 << 26) + (31 << 21) + (vfatN << 16) + (255 << 8) + chan;
                     } //End Case: Cluster is not valid
                 } //End Loop over clusters
             } //End Pulses for this channel
@@ -1141,7 +1147,23 @@ void checkSbitMappingWithCalPulse(const RPCMsg *request, RPCMsg *response){
     return;
 } //End checkSbitMappingWithCalPulse()
 
-void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t waitTime, uint32_t pulseRate, uint32_t pulseDelay){
+/*! \fn void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, uint32_t *outDataFPGAClusterCntRate, uint32_t *outDataVFATSBits, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t waitTime, uint32_t pulseRate, uint32_t pulseDelay)
+ * \brief With all but one channel masked, pulses a given channel, and then checks the rate of sbits seen by the OH FPGA and CTP7, repeats for all channels; reports the rate observed
+ *
+ *  \param la Local arguments structure
+ *  \param outDataCTP7Rate pointer to an array storing the value of GEM_AMC.TRIGGER.OHX.TRIGGER_RATE for X = ohN; array size 3072 elements, idx = 128 * vfat + chan
+ *  \param outDataFPGAClusterCntRate as outDataCTP7Rate but for the value of GEM_AMC.OH.OHX.FPGA.TRIG.CNT.CLUSTER_COUNT
+ *  \param outDataVFATSBits as outDataCTP7Rate but for the value of GEM_AMC.OH.OHX.FPGA.TRIG.CNT.VFATY_SBITS for X = ohN and Y the vfat number (following the array idx rule above)
+ *  \param ohN Optical link
+ *  \param mask VFAT mask
+ *  \param currentPulse Selects whether to use current or volage pulse
+ *  \param calScaleFactor
+ *  \waitTime Measurement duration per point in milliseconds
+ *  \param pulseRate rate of calpulses to be sent in Hz
+ *  \param pulseDelay delay between CalPulse and L1A
+ *
+ */
+void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, uint32_t *outDataFPGAClusterCntRate, uint32_t *outDataVFATSBits, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t waitTime, uint32_t pulseRate, uint32_t pulseDelay){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
@@ -1237,7 +1259,10 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t o
             std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
 
             //Read All Trigger Registers
-            //need to come up with a clever container for this
+            uint32_t idx = 128*vfatN + chan;
+            outDataCTP7Rate[idx]=readRawAddress(ohTrigRateAddr[25], la->response);
+            outDataFPGAClusterCntRate[idx]=readRawAddress(ohTrigRateAddr[24], la->response);
+            outDataVFATSBits[idx]=readRawAddress(ohTrigRateAddr[vfatN], la->response);
 
             //Reset the TTC Generator
             writeRawAddress(addrTtcReset, 0x1, la->response);
@@ -1261,6 +1286,41 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t o
 
     return;
 } //End checkSbitRateWithCalPulseLocal()
+
+/*! \fn void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response)
+ *  \brief Checks the sbit rate using the calibration pulse. See the local callable methods documentation for details
+ *  \param request RPC response message
+ *  \param response RPC response message
+ */
+void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t mask = request->get_word("mask");
+    bool currentPulse = request->get_word("currentPulse");
+    uint32_t calScaleFactor = request->get_word("calScaleFactor");
+    uint32_t waitTime = request->get_word("waitTime");
+    uint32_t pulseRate = request->get_word("pulseRate");
+    uint32_t pulseDelay = request->get_word("pulseDelay");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    uint32_t outDataCTP7Rate[24*128];
+    uint32_t outDataFPGAClusterCntRate[24*128];
+    uint32_t outDataVFATSBits[24*128];
+    checkSbitRateWithCalPulseLocal(&la, outDataCTP7Rate, outDataFPGAClusterCntRate, outDataVFATSBits, ohN, mask, currentPulse, calScaleFactor, waitTime, pulseRate, pulseDelay);
+
+    response->set_word_array("outDataCTP7Rate",outDataCTP7Rate,24*128);
+    response->set_word_array("outDataFPGAClusterCntRate",outDataFPGAClusterCntRate,24*128);
+    response->set_word_array("outDataVFATSBits",outDataVFATSBits,24*128);
+
+    return;
+} //End checkSbitRateWithCalPulse()
 
 /*! \fn void genChannelScan(const RPCMsg *request, RPCMsg *response)
  *  \brief Generic per channel scan. See the local callable methods documentation for details
@@ -1315,6 +1375,7 @@ extern "C" {
             return; // Do not register our functions, we depend on memsvc.
         }
         modmgr->register_method("calibration_routines", "checkSbitMappingWithCalPulse", checkSbitMappingWithCalPulse);
+        modmgr->register_method("calibration_routines", "checkSbitRateWithCalPulse", checkSbitMappingWithCalPulse);
         modmgr->register_method("calibration_routines", "genScan", genScan);
         modmgr->register_method("calibration_routines", "genChannelScan", genChannelScan);
         modmgr->register_method("calibration_routines", "sbitRateScan", sbitRateScan);
