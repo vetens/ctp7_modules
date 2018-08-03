@@ -189,7 +189,6 @@ void setChannelRegistersVFAT3SimpleLocal(localArgs * la, uint32_t ohN, uint32_t 
 
         //Loop over the channels
         uint32_t chanAddr;
-        uint32_t chanRegVal;
         for(int chan=0; chan < 128; ++chan){
             //Deterime the idx
             int idx = vfatN*128 + chan;
@@ -275,7 +274,7 @@ void setChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response){
     uint32_t vfatMask = request->get_word("vfatMask");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-    if (request.get_key_exists("simple")){
+    if (request->get_key_exists("simple")){
         uint32_t chanRegData[3072];
 
         request->get_word_array("chanRegData",chanRegData);
