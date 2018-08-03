@@ -979,7 +979,6 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
 void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t nevts, uint32_t L1Ainterval, uint32_t pulseDelay){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
-    //uint32_t nUnmaskedVFATs = 24 - getNumNonzeroBits(mask);
 
     char regBuf[200];
     if( fw_version_check("checkSbitMappingWithCalPulse", la) < 3){
@@ -996,6 +995,12 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
         return;
     }
 
+    if (currentPulse && calScaleFactor > 3){
+        sprintf(regBuf,"Bad value for CFG_CAL_FS: %x, Possible values are {0b00, 0b01, 0b10, 0b11}. Exiting.",calScaleFactor);
+        la->response->set_string("error",regBuf);
+        return;
+    }
+
     //Get current channel register data, mask all channels and disable calpulse
     uint32_t chanRegData_orig[3072]; //original channel register data
     uint32_t chanRegData_tmp[3072]; //temporary channel register data
@@ -1007,7 +1012,6 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     setChannelRegistersVFAT3SimpleLocal(la, ohN, mask, chanRegData_tmp);
 
     //Setup TTC Generator
-    //uint32_t L1Ainterval = int(40079000 / pulseRate);
     ttcGenConfLocal(la, ohN, 0, 0, pulseDelay, L1Ainterval, nevts, true);
     writeReg(la, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1);
     writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", 0x1); //One pulse at a time
@@ -1015,6 +1019,9 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
 
     //Set all chips out of run mode
     broadcastWriteLocal(la, ohN, "CFG_RUN", 0x0, mask);
+
+    //Take the VFATs out of slow control only mode
+    writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
 
     //Setup the sbit monitor
     writeReg(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.OH_SELECT", ohN);
@@ -1024,9 +1031,6 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
         sprintf(regBuf, "GEM_AMC.TRIGGER.SBIT_MONITOR.CLUSTER%i",iCluster);
         addrSbitCluster[iCluster] = getAddress(la, regBuf);
     }
-
-    //Get Trigger addresses
-    //uint32_t addTrgCntReset = getAddress(la,"GEM_AMC.TRIGGER.CTRL.CNT_RESET");
 
     //Monitor which sbit is seen when sending a calupluse
     for(int vfatN=0; vfatN < 24; ++vfatN){ //Loop over all vfats
@@ -1137,6 +1141,127 @@ void checkSbitMappingWithCalPulse(const RPCMsg *request, RPCMsg *response){
     return;
 } //End checkSbitMappingWithCalPulse()
 
+void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t waitTime, uint32_t pulseRate, uint32_t pulseDelay){
+    //Determine the inverse of the vfatmask
+    uint32_t notmask = ~mask & 0xFFFFFF;
+
+    char regBuf[200];
+    if( fw_version_check("checkSbitRateWithCalPulse", la) < 3){
+        LOGGER->log_message(LogManager::ERROR, "checkSbitRateWithCalPulse is only supported in V3 electronics");
+        sprintf(regBuf,"checkSbitRateWithCalPulse is only supported in V3 electronics");
+        la->response->set_string("error",regBuf);
+        return;
+    }
+
+    uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
+    if( (notmask & goodVFATs) != notmask){
+        sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
+        la->response->set_string("error",regBuf);
+        return;
+    }
+
+    if (currentPulse && calScaleFactor > 3){
+        sprintf(regBuf,"Bad value for CFG_CAL_FS: %x, Possible values are {0b00, 0b01, 0b10, 0b11}. Exiting.",calScaleFactor);
+        la->response->set_string("error",regBuf);
+        return;
+    }
+
+    //Get current channel register data, mask all channels and disable calpulse
+    uint32_t chanRegData_orig[3072]; //original channel register data
+    uint32_t chanRegData_tmp[3072]; //temporary channel register data
+    getChannelRegistersVFAT3Local(la, ohN, mask, chanRegData_orig);
+    for(int idx=0; idx < 3072; ++idx){
+        chanRegData_tmp[idx]=chanRegData_orig[idx]+(0x1 << 14); //set channel mask to true
+        chanRegData_tmp[idx]=chanRegData_tmp[idx]-(0x1 << 15); //disable calpulse
+    }
+    setChannelRegistersVFAT3SimpleLocal(la, ohN, mask, chanRegData_tmp);
+
+    //Setup TTC Generator
+    uint32_t L1Ainterval = int(40079000 / pulseRate);
+    uint32_t addrTtcReset = getAddress(la, "GEM_AMC.TTC.GENERATOR.RESET");
+    uint32_t addrTtcStart = getAddress(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_START");
+
+    //Get Trigger addresses
+    uint32_t ohTrigRateAddr[26]; //idx 0->23 VFAT counters; idx 24 rate measured by OH FPGA; idx 25 rate measured by CTP7
+    for(int vfat=0; vfat<24; ++vfat){
+        ohTrigRateAddr[vfat] = getAddress(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.VFAT%i_SBITS",ohN,vfat));
+    } //End Loop over all VFATs
+    ohTrigRateAddr[24] = getAddress(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.CLUSTER_COUNT",ohN));
+    ohTrigRateAddr[25] = getAddress(la, stdsprintf("GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN));
+    uint32_t addTrgCntResetOH = getAddress(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.RESET",ohN));
+    uint32_t addTrgCntResetCTP7 = getAddress(la,"GEM_AMC.TRIGGER.CTRL.CNT_RESET");
+
+    //Set all chips out of run mode
+    broadcastWriteLocal(la, ohN, "CFG_RUN", 0x0, mask);
+
+    //Take the VFATs out of slow control only mode
+    writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
+
+    //Prep the SBIT counters
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98); //count for 1 second
+
+    for(int vfatN=0; vfatN < 24; ++vfatN){
+        //Skip masked vfats
+        if((notmask >> vfatN) & 0x0){
+            continue;
+        }
+
+        //mask all other vfats from trigger
+        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN), 0xffffff & ~(1 << (vfatN)));
+
+        //Place this vfat into run mode
+        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN, vfatN), 0x1);
+
+        for(int chan=0; chan < 128; ++chan){ //Loop over all channels
+            //unmask this channel
+            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan), 0x0);
+
+            //Turn on the calpulse for this channel
+            if (confCalPulseLocal(la, ohN, ((0x1)<<vfatN), chan, false, currentPulse, calScaleFactor) == false){
+                return; //Calibration pulse is not configured correctly
+            }
+
+            //Reset counters
+            writeRawAddress(addTrgCntResetOH, 0x1, la->response);
+            writeRawAddress(addTrgCntResetCTP7, 0x1, la->response);
+            //also use daq monitor here...?
+
+            //Start the TTC Generator
+            ttcGenConfLocal(la, ohN, 0, 0, pulseDelay, L1Ainterval, 0, true);
+            writeReg(la, "GEM_AMC.TTC.GENERATOR.SINGLE_RESYNC", 0x1);
+            writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_COUNT", 0x0); //Continue until stopped
+            writeRawAddress(addrTtcStart, 0x1, la->response);
+
+            //Sleep for waitTime of milliseconds
+            std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+
+            //Read All Trigger Registers
+            //need to come up with a clever container for this
+
+            //Reset the TTC Generator
+            writeRawAddress(addrTtcReset, 0x1, la->response);
+
+            //mask this channel
+            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan), 0x1);
+        } //End Loop over all channels
+
+        //Place this vfat out of run mode
+        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN, vfatN), 0x0);
+    } //End Loop over all vfats
+
+    //turn off TTC Generator
+    ttcGenToggleLocal(la, ohN, false);
+
+    //Return channel register settings to their original values
+    setChannelRegistersVFAT3SimpleLocal(la, ohN, mask, chanRegData_orig);
+
+    //Set trigger vfat mask for this OH back to 0
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN), 0x0);
+
+    return;
+} //End checkSbitRateWithCalPulseLocal()
+
 /*! \fn void genChannelScan(const RPCMsg *request, RPCMsg *response)
  *  \brief Generic per channel scan. See the local callable methods documentation for details
  *  \param request RPC response message
@@ -1189,6 +1314,7 @@ extern "C" {
             LOGGER->log_message(LogManager::ERROR, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
         }
+        modmgr->register_method("calibration_routines", "checkSbitMappingWithCalPulse", checkSbitMappingWithCalPulse);
         modmgr->register_method("calibration_routines", "genScan", genScan);
         modmgr->register_method("calibration_routines", "genChannelScan", genChannelScan);
         modmgr->register_method("calibration_routines", "sbitRateScan", sbitRateScan);
