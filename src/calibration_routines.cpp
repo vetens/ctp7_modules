@@ -1375,7 +1375,7 @@ extern "C" {
             return; // Do not register our functions, we depend on memsvc.
         }
         modmgr->register_method("calibration_routines", "checkSbitMappingWithCalPulse", checkSbitMappingWithCalPulse);
-        modmgr->register_method("calibration_routines", "checkSbitRateWithCalPulse", checkSbitMappingWithCalPulse);
+        modmgr->register_method("calibration_routines", "checkSbitRateWithCalPulse", checkSbitRateWithCalPulse);
         modmgr->register_method("calibration_routines", "genScan", genScan);
         modmgr->register_method("calibration_routines", "genChannelScan", genChannelScan);
         modmgr->register_method("calibration_routines", "sbitRateScan", sbitRateScan);
