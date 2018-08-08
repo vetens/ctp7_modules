@@ -1039,7 +1039,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     //Monitor which sbit is seen when sending a calupluse
     for(int vfatN=0; vfatN < 24; ++vfatN){ //Loop over all vfats
         //Skip masked vfats
-        if((notmask >> vfatN) & 0x0){
+        if((notmask >> vfatN) & 0x1){
             continue;
         }
 
