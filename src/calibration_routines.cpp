@@ -1039,7 +1039,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     //Monitor which sbit is seen when sending a calupluse
     for(int vfatN=0; vfatN < 24; ++vfatN){ //Loop over all vfats
         //Skip masked vfats
-        if((notmask >> vfatN) & 0x1){
+        if(!((notmask >> vfatN) & 0x1)){
             continue;
         }
 
@@ -1055,7 +1055,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
             writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan), 0x0);
 
             //Turn on the calpulse for this channel
-            if (confCalPulseLocal(la, ohN, ((0x1)<<vfatN), chan, false, currentPulse, calScaleFactor) == false){
+            if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, false, currentPulse, calScaleFactor) == false){
                 return; //Calibration pulse is not configured correctly
             }
 
