@@ -1043,13 +1043,22 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
             continue;
         }
 
+        //Debugging
+        if(vfatN != 4){
+            continue;
+        }
+
         //mask all other vfats from trigger
-        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN), 0xffffff & ~(1 << (vfatN)));
+        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CTRL.VFAT_MASK",ohN), 0xffffff & ~(1 << (vfatN)));
 
         //Place this vfat into run mode
         writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN, vfatN), 0x1);
 
         for(int chan=0; chan < 128; ++chan){ //Loop over all channels
+            if(chan != 10){
+                continue;
+            }
+
             //unmask this channel
             //May want to move this inside the pulse block?
             writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan), 0x0);
@@ -1078,20 +1087,13 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
                     //bits [14:12] is the cluster size
                     //bits 15 and 11 are not used
                     uint32_t thisCluster = readRawAddress(addrSbitCluster[cluster], la->response);
-                    uint32_t address = (thisCluster & 0x7ff);
-                    uint32_t isValid = (address < 0x7fa); //If there's no sbit this should point to an invalid address, 0x7fa
-                    if (isValid){ //Case: Valid Cluster
-                        uint32_t clusterSize = (thisCluster & 0x7000);
-                        uint32_t hwVfatPos = int(address / 64); //Note: hwVfatPos != vfatN
-                        uint32_t partition = int(hwVfatPos / 3);
-                        uint32_t column = hwVfatPos % 3;
+                    int clusterSize = (thisCluster & 0x7000);
+                    uint32_t sbitAddress = (thisCluster & 0x7ff);
+                    bool isValid = (sbitAddress < 1536); //Possible values are [0,(24*64)-1]
+                    int vfatObserved = 7-int(sbitAddress/192)+int((sbitAddress%192)/64)*8;
+                    int sbitObserved = sbitAddress % 64;
 
-                        outData[idx] = (clusterSize << 27) + (0x1 << 26) + ((column * 8 + (7-partition)) << 21) + (vfatN << 16) + ((address % 64) << 8) + chan;
-                    } //End Case: Valid Cluster
-                    else{ //Case: Cluster is not valid
-                        //use observed vfatN = 31 and observed sbit = 255 for not valid case (e.g. overflow for those bits)
-                        outData[idx] = (0x0 << 27) + (0x0 << 26) + (31 << 21) + (vfatN << 16) + (255 << 8) + chan;
-                    } //End Case: Cluster is not valid
+                    outData[idx] = (clusterSize << 27) + (isValid << 26) + (vfatObserved << 21) + (vfatN << 16) + (sbitObserved << 8) + chan;
                 } //End Loop over clusters
             } //End Pulses for this channel
 
@@ -1111,7 +1113,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     setChannelRegistersVFAT3SimpleLocal(la, ohN, mask, chanRegData_orig);
 
     //Set trigger vfat mask for this OH back to 0
-    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN), 0x0);
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CTRL.VFAT_MASK",ohN), 0x0);
 
     return;
 } //End checkSbitMappingWithCalPulseLocal(...)
@@ -1225,12 +1227,12 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
 
     for(int vfatN=0; vfatN < 24; ++vfatN){
         //Skip masked vfats
-        if((notmask >> vfatN) & 0x0){
+        if(!((notmask >> vfatN) & 0x1)){
             continue;
         }
 
         //mask all other vfats from trigger
-        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN), 0xffffff & ~(1 << (vfatN)));
+        writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CTRL.VFAT_MASK",ohN), 0xffffff & ~(1 << (vfatN)));
 
         //Place this vfat into run mode
         writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN, vfatN), 0x1);
@@ -1240,7 +1242,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
             writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan), 0x0);
 
             //Turn on the calpulse for this channel
-            if (confCalPulseLocal(la, ohN, ((0x1)<<vfatN), chan, false, currentPulse, calScaleFactor) == false){
+            if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, false, currentPulse, calScaleFactor) == false){
                 return; //Calibration pulse is not configured correctly
             }
 
@@ -1282,7 +1284,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
     setChannelRegistersVFAT3SimpleLocal(la, ohN, mask, chanRegData_orig);
 
     //Set trigger vfat mask for this OH back to 0
-    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.TRIG.CTRL.VFAT_MASK",ohN), 0x0);
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CTRL.VFAT_MASK",ohN), 0x0);
 
     return;
 } //End checkSbitRateWithCalPulseLocal()
