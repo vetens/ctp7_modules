@@ -1244,7 +1244,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
     //Prep the SBIT counters
     LOGGER->log_message(LogManager::INFO, stdsprintf("Preping SBIT Counters for ohN %i", ohN));
     writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
-    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98); //count for 1 second
+    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98*int(waitTime/1000) ); //count for a number of BX's specified by waitTime
 
     if(!((notmask >> vfatN) & 0x1)){
         la->response->set_string("error",stdsprintf("The vfat of interest %i should not be part of the vfats to be masked: %x",vfatN, mask));
