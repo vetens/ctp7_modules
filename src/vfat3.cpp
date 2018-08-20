@@ -167,6 +167,43 @@ void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t vfatMas
     return;
 } //end getChannelRegistersVFAT3Local()
 
+void setChannelRegistersVFAT3SimpleLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask, uint32_t *chanRegData){
+    //Determine the inverse of the vfatmask
+    uint32_t notmask = ~vfatMask & 0xFFFFFF;
+
+    char regBuf[200];
+    LOGGER->log_message(LogManager::INFO, "Write channel register settings");
+    for(int vfatN=0; vfatN < 24; ++vfatN){
+        // Check if vfat is masked
+        if(!((notmask >> vfatN) & 0x1)){
+            continue;
+        } //End check if VFAT is masked
+
+        // Check if vfatN is sync'd
+        uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
+        if( !( (goodVFATs >> vfatN ) & 0x1 ) ){
+            sprintf(regBuf,"The requested VFAT is not synced; goodVFATs: %x\t requested VFAT: %i; maskOh: %x", goodVFATs, vfatN, vfatMask);
+            la->response->set_string("error",regBuf);
+            return;
+        }
+
+        //Loop over the channels
+        uint32_t chanAddr;
+        for(int chan=0; chan < 128; ++chan){
+            //Deterime the idx
+            int idx = vfatN*128 + chan;
+
+            //Get the address
+            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i",ohN,vfatN,chan);
+            chanAddr = getAddress(la, regBuf);
+            writeRawAddress(chanAddr, chanRegData[idx], la->response);
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+        } //End Loop over channels
+    } //End Loop over VFATs
+
+    return;
+} //End setChannelRegistersVFAT3SimpleLocal()
+
 void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMask, uint32_t *calEnable, uint32_t *masks, uint32_t *trimARM, uint32_t *trimARMPol, uint32_t *trimZCC, uint32_t *trimZCCPol){
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~vfatMask & 0xFFFFFF;
@@ -236,23 +273,31 @@ void setChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response){
     uint32_t ohN = request->get_word("ohN");
     uint32_t vfatMask = request->get_word("vfatMask");
 
-    uint32_t calEnable[3072];
-    uint32_t masks[3072];
-    uint32_t trimARM[3072];
-    uint32_t trimARMPol[3072];
-    uint32_t trimZCC[3072];
-    uint32_t trimZCCPol[3072];
-
-    request->get_word_array("calEnable",calEnable);
-    request->get_word_array("masks",masks);
-    request->get_word_array("trimARM",trimARM);
-    request->get_word_array("trimARMPol",trimARMPol);
-    request->get_word_array("trimZCC",trimZCC);
-    request->get_word_array("trimZCCPol",trimZCCPol);
-
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    if (request->get_key_exists("simple")){
+        uint32_t chanRegData[3072];
 
-    setChannelRegistersVFAT3Local(&la, ohN, vfatMask, calEnable, masks, trimARM, trimARMPol, trimZCC, trimZCCPol);
+        request->get_word_array("chanRegData",chanRegData);
+
+        setChannelRegistersVFAT3SimpleLocal(&la, ohN, vfatMask, chanRegData);
+    } //End Case: user provided a single array
+    else{ //Case: user provided multiple arrays
+        uint32_t calEnable[3072];
+        uint32_t masks[3072];
+        uint32_t trimARM[3072];
+        uint32_t trimARMPol[3072];
+        uint32_t trimZCC[3072];
+        uint32_t trimZCCPol[3072];
+
+        request->get_word_array("calEnable",calEnable);
+        request->get_word_array("masks",masks);
+        request->get_word_array("trimARM",trimARM);
+        request->get_word_array("trimARMPol",trimARMPol);
+        request->get_word_array("trimZCC",trimZCC);
+        request->get_word_array("trimZCCPol",trimZCCPol);
+
+        setChannelRegistersVFAT3Local(&la, ohN, vfatMask, calEnable, masks, trimARM, trimARMPol, trimZCC, trimZCCPol);
+    } //End Case: user provided multiple arrays
 
     return;
 } //End setChannelRegistersVFAT3()
