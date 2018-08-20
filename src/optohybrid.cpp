@@ -56,7 +56,7 @@ void broadcastWrite(const RPCMsg *request, RPCMsg *response) {
   rtxn.abort();
 }
 
-void broadcastReadLocal(localArgs * la, uint32_t ohN, std::string regName, uint32_t mask) {
+void broadcastReadLocal(localArgs * la, uint32_t * outData, uint32_t ohN, std::string regName, uint32_t mask) {
   uint32_t fw_maj = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
   char regBase [100];
   if (fw_maj == 1) {
@@ -68,16 +68,15 @@ void broadcastReadLocal(localArgs * la, uint32_t ohN, std::string regName, uint3
     la->response->set_string("error", "Unexpected value for system release major!");
   }
   std::string t_regName;
-  uint32_t data[24];
   for (int i=0; i<24; i++){
-    if ((mask >> i)&0x1) data[i] = 0;
+    if ((mask >> i)&0x1) outData[i] = 0;
     else {
       t_regName = std::string(regBase) + std::to_string(i)+"."+regName;
-      data[i] = readReg(la, t_regName);
-      if (data[i] == 0xdeaddead) la->response->set_string("error",stdsprintf("Error reading register %s",t_regName.c_str()));
+      outData[i] = readReg(la, t_regName);
+      if (outData[i] == 0xdeaddead) la->response->set_string("error",stdsprintf("Error reading register %s",t_regName.c_str()));
     }
   }
-  la->response->set_word_array("data", data, 24);
+  return;
 }
 
 void broadcastRead(const RPCMsg *request, RPCMsg *response) {
@@ -92,7 +91,9 @@ void broadcastRead(const RPCMsg *request, RPCMsg *response) {
   uint32_t mask = request->get_key_exists("mask")?request->get_word("mask"):0xFF000000;
   uint32_t ohN = request->get_word("ohN");
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-  broadcastReadLocal(&la, ohN, regName, mask);
+  uint32_t outData[24];
+  broadcastReadLocal(&la, outData, ohN, regName, mask);
+  la->response->set_word_array("data", outData, 24);
   rtxn.abort();
 }
 
