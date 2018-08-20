@@ -3,7 +3,125 @@
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
  */
 
+#include <chrono>
+#include <map>
+#include <time.h>
+#include <thread>
 #include "utils.h"
+#include <vector>
+
+/*! \fn std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acquireTime, bool *maxNetworkSizeReached)
+ *  \brief reads out sbits from optohybrid ohN for a number of seconds given by acquireTime and returns them to the user.
+ *  \details The SBIT Monitor stores the 8 SBITs that are sent from the OH (they are all sent at the same time and correspond to the same clock cycle). Each SBIT clusters readout from the SBIT Monitor is a 16 bit word with bits [0:10] being the sbit address and bits [12:14] being the sbit size, bits 11 and 15 are not used.
+ *  \details The possible values of the SBIT Address are [0,1535].  Clusters with address less than 1536 are considered valid (e.g. there was an sbit); otherwise an invalid (no sbit) cluster is returned.  The SBIT address maps to a given trigger pad following the equation \f$sbit = addr % 64\f$.  There are 64 such trigger pads per VFAT.  Each trigger pad corresponds to two VFAT channels.  The SBIT to channel mapping follows \f$sbit=floor(chan/2)\f$.  You can determine the VFAT position of the sbit via the equation \f$vfatPos=7-int(addr/192)+int((addr%192)/64)*8\f$.
+ *  \details The SBIT size represents the number of adjacent trigger pads are part of this cluster.  The SBIT address always reports the lowest trigger pad number in the cluster.  The sbit size takes values [0,7].  So an sbit cluster with address 13 and with size of 2 includes 3 trigger pads for a total of 6 vfat channels and starts at channel \f$13*2=26\f$ and continues to channel \f$(2*15)+1=31\f$.
+ *  \details The output vector will always be of size N * 8 where N is the number of readouts of the SBIT Monitor.  For each readout the SBIT Monitor will be reset and then readout after 4095 clock cycles (~102.4 microseconds).  The SBIT clusters stored in the SBIT Monitor will not be over-written until a module reset is sent.  The readout will stop before acquireTime finishes if the size of the returned vector approaches the max TCP/IP size (~65000 btyes) and sets maxNetworkSize to true.
+ *  \details Each element of the output vector will be a 32 bit word.  Bits [0,10] will the address of the SBIT Cluster, bits [11:13] will be the cluster size, and bits [14:26] will be the difference between the SBIT and the input L1A (if any) in clock cycles.  While the SBIT Monitor stores the difference between the SBIT and input L1A as a 32 bit number (0xFFFFFFFF) any value higher 0xFFF (12 bits) will be truncated to 0xFFF.  This matches the time between readouts of 4095 clock cycles.
+ *  \param la Local arguments structure
+ *  \param ohN Optical link
+ *  \param acquireTime acquisition time on the wall clock in seconds
+ *  \param maxNetworkSize pointer to a boolean, set to true if the returned vector reaches a byte count of 65000
+ */
+std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acquireTime, bool *maxNetworkSizeReached){
+    //Setup the sbit monitor
+    const int nclusters = 8;
+    writeReg(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.OH_SELECT", ohN);
+    uint32_t addrSbitMonReset=getAddress(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.RESET");
+    uint32_t addrSbitL1ADelay=getAddress(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.L1A_DELAY");
+    uint32_t addrSbitCluster[nclusters];
+    for(int iCluster=0; iCluster < nclusters; ++iCluster){
+        addrSbitCluster[iCluster] = getAddress(la, stdsprintf("GEM_AMC.TRIGGER.SBIT_MONITOR.CLUSTER%i",iCluster) );
+    }
+
+    //Take the VFATs out of slow control only mode
+    writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
+
+    //[0:10] address of sbit cluster
+    //[11:13] cluster size
+    //[14:26] L1A Delay (consider anything over 4095 as overflow)
+    std::vector<uint32_t> storedSbits;
+
+    //readout sbits
+    time_t acquisitionTime,startTime;
+    bool acquire=true;
+    startTime=time(NULL);
+    (*maxNetworkSizeReached) = false;
+    uint32_t l1ADelay;
+    while(acquire){
+        if( sizeof(uint32_t) * storedSbits.size() > 65000 ){ //Max TCP/IP message is 65535
+            (*maxNetworkSizeReached) = true;
+            break;
+        }
+
+        //Reset monitors
+        writeRawAddress(addrSbitMonReset, 0x1, la->response);
+
+        //wait for 4095 clock cycles then read L1A delay
+        std::this_thread::sleep_for(std::chrono::nanoseconds(4095*25));
+        l1ADelay = readRawAddress(addrSbitL1ADelay, la->response);
+        if(l1ADelay > 4095){ //Anything larger than this consider as overflow
+            l1ADelay = 4095; //(0xFFF in hex)
+        }
+
+        //get sbits
+        for(int cluster=0; cluster<nclusters; ++cluster){
+            //bits [10:0] is the address of the cluster
+            //bits [14:12] is the cluster size
+            //bits 15 and 11 are not used
+            uint32_t thisCluster = readRawAddress(addrSbitCluster[cluster], la->response);
+            uint32_t sbitAddress = (thisCluster & 0x7ff);
+            int clusterSize = (thisCluster >> 12) & 0x7;
+            bool isValid = (sbitAddress < 1536); //Possible values are [0,(24*64)-1]
+
+            if(isValid){
+                LOGGER->log_message(LogManager::INFO,stdsprintf("valid sbit data: thisClstr %x; sbitAddr %x;",thisCluster,sbitAddress));
+            }
+
+            //Store the sbit
+            storedSbits.push_back( (l1ADelay << 14) + (clusterSize << 12) + sbitAddress);
+        } //End Loop over clusters
+
+        acquisitionTime=difftime(time(NULL),startTime);
+        if(acquisitionTime > acquireTime){
+            acquire=false;
+        }
+    } //End readout sbits
+
+    return storedSbits;
+} //End sbitReadOutLocal(...)
+
+/*! \fn sbitReadOut(const RPCMsg *request, RPCMsg *response)
+ *  \brief readout sbits using the SBIT Monitor.  See the local callable methods documentation for details.
+ *  \param request RPC response message
+ *  \param response RPC response message
+ */
+void sbitReadOut(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t acquireTime = request->get_word("acquireTime");
+
+    bool maxNetworkSizeReached = false;
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    time_t startTime=time(NULL);
+    std::vector<uint32_t> storedSbits = sbitReadOutLocal(&la, ohN, acquireTime, &maxNetworkSizeReached);
+    time_t approxLivetime=difftime(time(NULL),startTime);
+
+    if(maxNetworkSizeReached){
+        response->set_word("maxNetworkSizeReached", maxNetworkSizeReached);
+        response->set_word("approxLiveTime",approxLivetime);
+    }
+    response->set_word_array("storedSbits",storedSbits);
+
+    return;
+} //End sbitReadOut()
 
 /*! \fn void getmonTTCmainLocal(localArgs * la)
  *  \brief Local version of getmonTTCmain
