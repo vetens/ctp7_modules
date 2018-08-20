@@ -967,7 +967,10 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
 } //End sbitRateScan(...)
 
 /*! \fn void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t nevts, uint32_t L1Ainterval, uint32_t pulseDelay)
- *  \brief With all but one channel masked, pulses a given channel, and then checks which sbits are seen by the CTP7, repeats for all channels on vfatN; reports the (vfat,chan) pulsed and (vfat,sbit) observed where sbit=chan*2; additionally reports if the cluster was valid.  The sbit size is the number of trigger pads from the sbit reported that where part of this cluster, size ranges from 0 to 7.
+ *  \brief With all but one channel masked, pulses a given channel, and then checks which sbits are seen by the CTP7, repeats for all channels on vfatN; reports the (vfat,chan) pulsed and (vfat,sbit) observed where sbit=chan*2; additionally reports if the cluster was valid.
+ *  \details The SBIT Monitor stores the 8 SBITs that are sent from the OH (they are all sent at the same time and correspond to the same clock cycle). Each SBIT clusters readout from the SBIT Monitor is a 16 bit word with bits [0:10] being the sbit address and bits [12:14] being the sbit size, bits 11 and 15 are not used.
+ *  \details The possible values of the SBIT Address are [0,1535].  Clusters with address less than 1536 are considered valid (e.g. there was an sbit); otherwise an invalid (no sbit) cluster is returned.  The SBIT address maps to a given trigger pad following the equation \f$sbit = addr % 64\f$.  There are 64 such trigger pads per VFAT.  Each trigger pad corresponds to two VFAT channels.  The SBIT to channel mapping follows \f$sbit=floor(chan/2)\f$.  You can determine the VFAT position of the sbit via the equation \f$vfatPos=7-int(addr/192)+int((addr%192)/64)*8\f$.
+ *  \details The SBIT size represents the number of adjacent trigger pads are part of this cluster.  The SBIT address always reports the lowest trigger pad number in the cluster.  The sbit size takes values [0,7].  So an sbit cluster with address 13 and with size of 2 includes 3 trigger pads for a total of 6 vfat channels and starts at channel \f$13*2=26\f$ and continues to channel \f$(2*15)+1=31\f$.
  *  \param la Local arguments structure
  *  \param outData pointer to an array of size (24*128*8*nevts) which stores the results of the scan, bits [0,7] channel pulsed; bits [8:15] sbit observed; bits [16:20] vfat pulsed; bits [21,25] vfat observed; bit 26 isValid; bits [27,29] are the cluster size
  *  \param ohN Optical link
@@ -1159,7 +1162,6 @@ void checkSbitMappingWithCalPulse(const RPCMsg *request, RPCMsg *response){
 
 /*! \fn void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, uint32_t *outDataFPGAClusterCntRate, uint32_t *outDataVFATSBits, uint32_t ohN, uint32_t mask, bool currentPulse, uint32_t calScaleFactor, uint32_t waitTime, uint32_t pulseRate, uint32_t pulseDelay)
  * \brief With all but one channel masked, pulses a given channel, and then checks the rate of sbits seen by the OH FPGA and CTP7, repeats for all channels; reports the rate observed
- *
  *  \param la Local arguments structure
  *  \param outDataCTP7Rate pointer to an array storing the value of GEM_AMC.TRIGGER.OHX.TRIGGER_RATE for X = ohN; array size 3072 elements, idx = 128 * vfat + chan
  *  \param outDataFPGAClusterCntRate as outDataCTP7Rate but for the value of GEM_AMC.OH.OHX.FPGA.TRIG.CNT.CLUSTER_COUNT
