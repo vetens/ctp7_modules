@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include "optohybrid.h"
 #include <thread>
 #include "vfat3.h"
 
@@ -48,7 +49,7 @@ void vfatSyncCheck(const RPCMsg *request, RPCMsg *response)
 void configureVFAT3DacMonitorLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t dacSelect){
     //Check if VFATs are sync'd
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-    uint32_t notmask = ~vfatMask & 0xFFFFFF;
+    uint32_t notmask = ~mask & 0xFFFFFF;
     if( (notmask & goodVFATs) != notmask)
     {
         la->response->set_string("error",stdsprintf("One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask));
@@ -59,18 +60,18 @@ void configureVFAT3DacMonitorLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
     //These should have been set at time of configure
     uint32_t adcVRefValues[24];
     uint32_t monitorGainValues[24];
-    broadcastReadLocal(la, &adcVRefValues, ohN, "CFG_VREF_ADC", mask);
-    broadcastReadLocal(la, &monitorGainValues, ohN, "CFG_MON_GAIN", mask);
+    broadcastReadLocal(la, adcVRefValues, ohN, "CFG_VREF_ADC", mask);
+    broadcastReadLocal(la, monitorGainValues, ohN, "CFG_MON_GAIN", mask);
 
     //Loop over all vfats and set the dacSelect
-    for(int vfatN=0; vfatN<24, ++vfatN){
+    for(int vfatN=0; vfatN<24; ++vfatN){
         // Check if vfat is masked
         if(!((notmask >> vfatN) & 0x1)){
             continue;
         } //End check if VFAT is masked
 
         //Build global control 4 register
-        uint32_t glbCtr4 = (adcVRefValues[vfat] << 8) + (monitorGainValues[vfat] << 7) + dacSelect;
+        uint32_t glbCtr4 = (adcVRefValues[vfatN] << 8) + (monitorGainValues[vfatN] << 7) + dacSelect;
         writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_4",ohN,vfatN), glbCtr4);
     } //End loop over all VFATs
 
@@ -220,7 +221,7 @@ void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t vfatMas
     return;
 } //end getChannelRegistersVFAT3Local()
 
-void readVFAT3ADCLocal(localArgs * la, uint32_t * outData, uint32_t ohN, bool useExtRefADC=false, uint32_t mask=0xFF000000){
+void readVFAT3ADCLocal(localArgs * la, uint32_t * outData, uint32_t ohN, bool useExtRefADC, uint32_t mask){
     if(useExtRefADC){ //Case: Use ADC with external reference
         broadcastReadLocal(la, outData, ohN, "ADC1", mask);
     } //End Case: Use ADC with external reference
@@ -269,6 +270,7 @@ void readVFAT3ADCAllLinks(const RPCMsg *request, RPCMsg *response){
     request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
     bool useExtRefADC = request->get_word("useExtRefADC");
 
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t adcData[24] = {0};
     uint32_t adcDataAll[12*24] = {0};
     for(int ohN=0; ohN<12; ++ohN){

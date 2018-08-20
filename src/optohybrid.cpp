@@ -93,7 +93,7 @@ void broadcastRead(const RPCMsg *request, RPCMsg *response) {
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   uint32_t outData[24];
   broadcastReadLocal(&la, outData, ohN, regName, mask);
-  la->response->set_word_array("data", outData, 24);
+  response->set_word_array("data", outData, 24);
   rtxn.abort();
 }
 
