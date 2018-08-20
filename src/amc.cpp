@@ -15,7 +15,7 @@
  *  \details The SBIT Monitor stores the 8 SBITs that are sent from the OH (they are all sent at the same time and correspond to the same clock cycle). Each SBIT clusters readout from the SBIT Monitor is a 16 bit word with bits [0:10] being the sbit address and bits [12:14] being the sbit size, bits 11 and 15 are not used.
  *  \details The possible values of the SBIT Address are [0,1535].  Clusters with address less than 1536 are considered valid (e.g. there was an sbit); otherwise an invalid (no sbit) cluster is returned.  The SBIT address maps to a given trigger pad following the equation \f$sbit = addr % 64\f$.  There are 64 such trigger pads per VFAT.  Each trigger pad corresponds to two VFAT channels.  The SBIT to channel mapping follows \f$sbit=floor(chan/2)\f$.  You can determine the VFAT position of the sbit via the equation \f$vfatPos=7-int(addr/192)+int((addr%192)/64)*8\f$.
  *  \details The SBIT size represents the number of adjacent trigger pads are part of this cluster.  The SBIT address always reports the lowest trigger pad number in the cluster.  The sbit size takes values [0,7].  So an sbit cluster with address 13 and with size of 2 includes 3 trigger pads for a total of 6 vfat channels and starts at channel \f$13*2=26\f$ and continues to channel \f$(2*15)+1=31\f$.
- *  \details The output vector will always be of size N * 8 where N is the number of readouts of the SBIT Monitor.  For each readout the SBIT Monitor will be reset and then readout after 4095 clock cycles (~102.4 microseconds).  The SBIT clusters stored in the SBIT Monitor will not be over-written until a module reset is sent.  The readout will stop before acquireTime finishes if the size of the returned vector approaches the max TCP/IP size (~65000 btyes) and sets maxNetworkSize to true.
+ *  \details The output vector will always be of size N * 8 where N is the number of readouts of the SBIT Monitor.  For each readout the SBIT Monitor will be reset and then readout after 4095 clock cycles (~102.4 microseconds).  The SBIT clusters will only be added to the output vector if at least one of them was valid.  The SBIT clusters stored in the SBIT Monitor will not be over-written until a module reset is sent.  The readout will stop before acquireTime finishes if the size of the returned vector approaches the max TCP/IP size (~65000 btyes) and sets maxNetworkSize to true.
  *  \details Each element of the output vector will be a 32 bit word.  Bits [0,10] will the address of the SBIT Cluster, bits [11:13] will be the cluster size, and bits [14:26] will be the difference between the SBIT and the input L1A (if any) in clock cycles.  While the SBIT Monitor stores the difference between the SBIT and input L1A as a 32 bit number (0xFFFFFFFF) any value higher 0xFFF (12 bits) will be truncated to 0xFFF.  This matches the time between readouts of 4095 clock cycles.
  *  \param la Local arguments structure
  *  \param ohN Optical link
@@ -64,6 +64,8 @@ std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acq
         }
 
         //get sbits
+        bool anyValid=false;
+        std::vector<uint32_t> tempSBits; //will only be stored into storedSbits if anyValid is true
         for(int cluster=0; cluster<nclusters; ++cluster){
             //bits [10:0] is the address of the cluster
             //bits [14:12] is the cluster size
@@ -75,11 +77,16 @@ std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acq
 
             if(isValid){
                 LOGGER->log_message(LogManager::INFO,stdsprintf("valid sbit data: thisClstr %x; sbitAddr %x;",thisCluster,sbitAddress));
+                anyValid=true;
             }
 
             //Store the sbit
-            storedSbits.push_back( (l1ADelay << 14) + (clusterSize << 12) + sbitAddress);
+            tempSBits.push_back( (l1ADelay << 14) + (clusterSize << 12) + sbitAddress);
         } //End Loop over clusters
+
+        if(anyValid){
+            storedSbits.insert(storedSbits.end(),tempSBits.begin(),tempSBits.end());
+        }
 
         acquisitionTime=difftime(time(NULL),startTime);
         if(acquisitionTime > acquireTime){
