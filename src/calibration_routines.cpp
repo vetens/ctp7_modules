@@ -1375,8 +1375,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     //Ensure VFAT3 Hardware
     if(fw_version_check("dacScanLocal", la) < 3){
         LOGGER->log_message(LogManager::ERROR, "dacScanLocal is only supported in V3 electronics");
-        sprintf(regBuf,"dacScanLocal is only supported in V3 electronics");
-        la->response->set_string("error",regBuf);
+        la->response->set_string("error","dacScanLocal is only supported in V3 electronics");
         std::vector<uint32_t> emptyVec;
         return emptyVec;
     }
@@ -1422,18 +1421,18 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
         std::string errMsg = "Monitoring Select value " + std::to_string(dacSelect) + " not found, possible values are:\n";
 
         for(auto iterDacSel = map_dacSelect.begin(); iterDacSel != map_dacSelect.end(); ++iterDacSel){
-            errMsg+="\t" + std::to_string((*iterDacSel).first) + "\t" + std::get<0>((*iter).second) "\n";
+            errMsg+="\t" + std::to_string((*iterDacSel).first) + "\t" + std::get<0>((*iterDacSel).second) + "\n";
         }
         la->response->set_string("error",errMsg);
-        return;
+        std::vector<uint32_t> emptyVec;
+        return emptyVec;
     } //End Case: dacSelect not found, exit
 
     //Check which VFATs are sync'd
     uint32_t notmask = ~mask & 0xFFFFFF; //Inverse of the vfatmask
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
     if( (notmask & goodVFATs) != notmask){
-        sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
-        la->response->set_string("error",regBuf);
+        la->response->set_string("error",stdsprintf("One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask));
         std::vector<uint32_t> emptyVec;
         return emptyVec;
     }
@@ -1457,10 +1456,9 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
         } //End Case: Use ADC with internal reference
 
         //Get DAC address and mask
-        auto regNode = getNode(stdsprintf(strRegBase + regName);
-        regAddr[vfatN] = regNode.address;
-        //regAddr[vfatN] = regNode.real_address;
-        regMask[vfatN] = regNode.mask;
+        std::string strFullReg = strRegBase + regName;
+        regAddr[vfatN] = getAddress(la, strFullReg);
+        regMask[vfatN] = getMask(la, strFullReg);
     } //End Loop over VFATs
 
     //make the output container and correctly size it
@@ -1480,13 +1478,13 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
     //Scan the DAC
     uint32_t adcVal;
-    for(int dacVal=dacMin; dacVal<=dacMax; dacVal += dacStep){ //Loop over DAC values
+    for(uint32_t dacVal=dacMin; dacVal<=dacMax; dacVal += dacStep){ //Loop over DAC values
         for(int vfatN=0; vfatN<24; ++vfatN){ //Loop over VFATs
             //Skip masked VFATs
             if ( !( (notmask >> vfatN) & 0x1)) continue;
 
             //Set DAC value
-            writeRawAddress(regAddr[vfatN], applyMask(dacVal, regMask[vfatN]), la->response));
+            writeRawAddress(regAddr[vfatN], applyMask(dacVal, regMask[vfatN]), la->response);
 
             //Read the ADC
             adcVal = readRawAddress(adcAddr[vfatN], la->response);
