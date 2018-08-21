@@ -4,6 +4,7 @@
  *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
+#include <algorithm>
 #include <math.h>
 #include <chrono>
 #include <pthread.h>
@@ -1511,12 +1512,74 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     return vec_dacScanData;
 } //End dacScanLocal(...)
 
+/*! \fn void dacScan(const RPCMsg *request, RPCMsg *response)
+ *  \brief allows the host machine to perform a dacScan for all unmasked VFATs on a given optohybrid, see Local version for details.
+ *  \param request rpc request message
+ *  \param response rpc responce message
+ */
 void dacScan(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t dacSelect = request->get_word("dacSelect");
+    uint32_t dacStep = request->get_word("dacStep");
+    uint32_t mask = request->get_word("mask");
+    bool useExtRefADC = request->get_word("useExtRefADC");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, mask, useExtRefADC);
+    response->set_word_array("dacScanResults",dacScanResults);
+
+    return;
 } //End dacScan(...)
 
+/*! \fn void dacScanAllLinks(const RPCMsg *request, RPCMsg *response)
+ *  \brief As dacScan(...) but for all optohybrids on the AMC
+ *  \details Here the RPCMsg request should have a "ohMask" word which specifies which OH's to read from, this is a 12 bit number where a 1 in the n^th bit indicates that the n^th OH should be read back.  Additionally there should be a "ohVfatMaskArray" which is an array of size 12 where each element is the standard vfatMask for OH specified by the array index.
+ *  \param request rpc request message
+ *  \param response rpc responce message
+ */
 void dacScanAllLinks(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
+    uint32_t ohMask = request->get_word("ohMask");
+    uint32_t dacSelect = request->get_word("dacSelect");
+    uint32_t dacStep = request->get_word("dacStep");
+    uint32_t ohVfatMaskArray[12];
+    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
+    bool useExtRefADC = request->get_word("useExtRefADC");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    std::vector<uint32_t> dacScanResultsAll;
+    for(int ohN=0; ohN<12; ++ohN){
+        // If this Optohybrid is masked skip it
+        if(((ohMask >> ohN) & 0x0)){
+            continue;
+        }
+
+        //Get dac scan results for this optohybrid
+        std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, ohVfatMaskArray[ohN], useExtRefADC);
+
+        //Copy the results into the final container
+        std::copy(dacScanResults.begin(), dacScanResults.end(), dacScanResultsAll.end());
+    } //End Loop over all Optohybrids
+
+    response->set_word_array("dacScanResultsAll",dacScanResultsAll);
+
+    return;
 } //End dacScanAllLinks(...)
 
 /*! \fn void genChannelScan(const RPCMsg *request, RPCMsg *response)
