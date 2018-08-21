@@ -105,6 +105,25 @@ uint32_t getNumNonzeroBits(uint32_t value){
     return numNonzeroBits;
 } //End numNonzeroBits()
 
+uint32_t getMask(localArgs * la, const std::string & regName){
+    lmdb::val key, db_res;
+    bool found=false;
+    key.assign(regName.c_str());
+    found = la->dbi.get(la->rtxn,key,db_res);
+    uint32_t mask = 0x0;
+    if (found){
+        std::vector<std::string> tmp;
+        std::string t_db_res = std::string(db_res.data());
+        t_db_res = t_db_res.substr(0,db_res.size());
+        tmp = split(t_db_res,'|');
+        mask = stoll(tmp[2]);
+    } else {
+        LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
+        la->response->set_string("error", "Register not found");
+    }
+    return mask;
+} //End getMask(...)
+
 void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response){
   uint32_t data[1];
   data[0] = value;
