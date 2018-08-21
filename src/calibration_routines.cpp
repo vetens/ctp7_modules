@@ -1371,6 +1371,16 @@ void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response){
     return;
 } //End checkSbitRateWithCalPulse()
 
+/*! \fn std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep=1, uint32_t mask=0xFF000000, bool useExtRefADC=false)
+ *  \brief configures the VFAT3 DAC Monitoring and then scans the DAC and records the measured ADC values for all unmasked VFATs
+ *  \param la Local arguments structure
+ *  \param ohN Optical link
+ *  \param dacSelect Monitor Sel for ADC monitoring in VFAT3, see documentation for GBL_CFG_CTR_4 in VFAT3 manual for more details
+ *  \param dacStep step size to scan the dac in
+ *  \param mask VFAT mask to use, a value of 1 in the N^th bit indicates the N^th VFAT is masked
+ *  \param useExtRefADC if (true) false use the (externally) internally referenced ADC on the VFAT3 for monitoring
+ *  \return Returns a std::vector<uint32_t> object of size 24*(dacMax-dacMin+1)/dacStep where dacMax and dacMin are described in the VFAT3 manual.  For each element bits [7:0] are the dacValue and bits [17:8] are the ADC readback value in either current or voltage units depending on dacSelect (again, see VFAT3 manual).
+ */
 std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep=1, uint32_t mask=0xFF000000, bool useExtRefADC=false){
     //Ensure VFAT3 Hardware
     if(fw_version_check("dacScanLocal", la) < 3){
@@ -1500,6 +1510,14 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
     return vec_dacScanData;
 } //End dacScanLocal(...)
+
+void dacScan(const RPCMsg *request, RPCMsg *response){
+
+} //End dacScan(...)
+
+void dacScanAllLinks(const RPCMsg *request, RPCMsg *response){
+
+} //End dacScanAllLinks(...)
 
 /*! \fn void genChannelScan(const RPCMsg *request, RPCMsg *response)
  *  \brief Generic per channel scan. See the local callable methods documentation for details
