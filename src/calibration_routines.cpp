@@ -1636,6 +1636,8 @@ extern "C" {
         }
         modmgr->register_method("calibration_routines", "checkSbitMappingWithCalPulse", checkSbitMappingWithCalPulse);
         modmgr->register_method("calibration_routines", "checkSbitRateWithCalPulse", checkSbitRateWithCalPulse);
+        modmgr->register_method("calibration_routines", "dacScan", dacScan);
+        modmgr->register_method("calibration_routines", "dacScanAllLinks", dacScanAllLinks);
         modmgr->register_method("calibration_routines", "genScan", genScan);
         modmgr->register_method("calibration_routines", "genChannelScan", genChannelScan);
         modmgr->register_method("calibration_routines", "sbitRateScan", sbitRateScan);
