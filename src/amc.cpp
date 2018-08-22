@@ -400,19 +400,20 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 }
 
 extern "C" {
-	const char *module_version_key = "amc v1.0.1";
-	int module_activity_color = 4;
-	void module_init(ModuleManager *modmgr) {
-		if (memsvc_open(&memsvc) != 0) {
-			LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
-			LOGGER->log_message(LogManager::ERROR, "Unable to load module");
-			return; // Do not register our functions, we depend on memsvc.
-		}
-		modmgr->register_method("amc", "getmonTTCmain", getmonTTCmain);
-		modmgr->register_method("amc", "getmonTRIGGERmain", getmonTRIGGERmain);
-		modmgr->register_method("amc", "getmonTRIGGEROHmain", getmonTRIGGEROHmain);
-		modmgr->register_method("amc", "getmonDAQmain", getmonDAQmain);
-		modmgr->register_method("amc", "getmonDAQOHmain", getmonDAQOHmain);
-		modmgr->register_method("amc", "getmonOHmain", getmonOHmain);
-	}
+    const char *module_version_key = "amc v1.0.1";
+    int module_activity_color = 4;
+    void module_init(ModuleManager *modmgr) {
+        if (memsvc_open(&memsvc) != 0) {
+            LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
+            LOGGER->log_message(LogManager::ERROR, "Unable to load module");
+            return; // Do not register our functions, we depend on memsvc.
+        }
+        modmgr->register_method("amc", "getmonTTCmain", getmonTTCmain);
+        modmgr->register_method("amc", "getmonTRIGGERmain", getmonTRIGGERmain);
+        modmgr->register_method("amc", "getmonTRIGGEROHmain", getmonTRIGGEROHmain);
+        modmgr->register_method("amc", "getmonDAQmain", getmonDAQmain);
+        modmgr->register_method("amc", "getmonDAQOHmain", getmonDAQOHmain);
+        modmgr->register_method("amc", "getmonOHmain", getmonOHmain);
+        modmgr->register_method("amc", "sbitReadOut", sbitReadOut);
+    }
 }
