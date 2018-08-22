@@ -5,15 +5,16 @@
  */
 
 #include <algorithm>
-#include <math.h>
 #include <chrono>
+#include <math.h>
+#include <map>
 #include <pthread.h>
 #include "optohybrid.h"
 #include <thread>
-#include "vfat3.h"
 #include <tuple>
 #include "utils.h"
 #include <vector>
+#include "vfat3.h"
 
 /*! \fn unsigned int fw_version_check(const char* caller_name, localArgs *la)
  *  \brief Returns AMC FW version
@@ -1539,13 +1540,13 @@ void dacScan(const RPCMsg *request, RPCMsg *response){
     return;
 } //End dacScan(...)
 
-/*! \fn void dacScanAllLinks(const RPCMsg *request, RPCMsg *response)
+/*! \fn void dacScanMultiLink(const RPCMsg *request, RPCMsg *response)
  *  \brief As dacScan(...) but for all optohybrids on the AMC
  *  \details Here the RPCMsg request should have a "ohMask" word which specifies which OH's to read from, this is a 12 bit number where a 1 in the n^th bit indicates that the n^th OH should be read back.  Additionally there should be a "ohVfatMaskArray" which is an array of size 12 where each element is the standard vfatMask for OH specified by the array index.
  *  \param request rpc request message
  *  \param response rpc responce message
  */
-void dacScanAllLinks(const RPCMsg *request, RPCMsg *response){
+void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
     std::string gem_path = std::getenv("GEM_PATH");
@@ -1580,7 +1581,7 @@ void dacScanAllLinks(const RPCMsg *request, RPCMsg *response){
     response->set_word_array("dacScanResultsAll",dacScanResultsAll);
 
     return;
-} //End dacScanAllLinks(...)
+} //End dacScanMultiLink(...)
 
 /*! \fn void genChannelScan(const RPCMsg *request, RPCMsg *response)
  *  \brief Generic per channel scan. See the local callable methods documentation for details
@@ -1637,7 +1638,7 @@ extern "C" {
         modmgr->register_method("calibration_routines", "checkSbitMappingWithCalPulse", checkSbitMappingWithCalPulse);
         modmgr->register_method("calibration_routines", "checkSbitRateWithCalPulse", checkSbitRateWithCalPulse);
         modmgr->register_method("calibration_routines", "dacScan", dacScan);
-        modmgr->register_method("calibration_routines", "dacScanAllLinks", dacScanAllLinks);
+        modmgr->register_method("calibration_routines", "dacScanMultiLink", dacScanMultiLink);
         modmgr->register_method("calibration_routines", "genScan", genScan);
         modmgr->register_method("calibration_routines", "genChannelScan", genChannelScan);
         modmgr->register_method("calibration_routines", "sbitRateScan", sbitRateScan);
