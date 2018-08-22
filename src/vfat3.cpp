@@ -97,7 +97,35 @@ void configureVFAT3DacMonitor(const RPCMsg *request, RPCMsg *response){
     configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
 
     return;
-} //End getChannelRegistersVFAT3()
+} //End configureVFAT3DacMonitor()
+
+void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohMask = request->get_word("ohMask");
+    uint32_t ohVfatMaskArray[12];
+    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
+    uint32_t dacSelect = request->get_word("dacSelect");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    for(int ohN=0; ohN<12; ++ohN){
+        // If this Optohybrid is masked skip it
+        if(((ohMask >> ohN) & 0x0)){
+            continue;
+        }
+
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring on OH%i for Selection %i",ohN,dacSelect));
+        configureVFAT3DacMonitorLocal(&la, ohN, ohVfatMaskArray[ohN], dacSelect);
+    } //End Loop over all Optohybrids
+
+    return;
+} //End configureVFAT3DacMonitorMultiLink()
 
 void configureVFAT3sLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask) {
     std::string line, regName;
@@ -256,7 +284,7 @@ void readVFAT3ADC(const RPCMsg *request, RPCMsg *response){
     return;
 } //End getChannelRegistersVFAT3()
 
-void readVFAT3ADCAllLinks(const RPCMsg *request, RPCMsg *response){
+void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
     std::string gem_path = std::getenv("GEM_PATH");
@@ -289,7 +317,7 @@ void readVFAT3ADCAllLinks(const RPCMsg *request, RPCMsg *response){
     response->set_word_array("adcDataAll",adcDataAll,12*24);
 
     return;
-} //End readVFAT3ADCAllLinks()
+} //End readVFAT3ADCMultiLink()
 
 void setChannelRegistersVFAT3SimpleLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask, uint32_t *chanRegData){
     //Determine the inverse of the vfatmask
@@ -496,9 +524,11 @@ extern "C" {
             return; // Do not register our functions, we depend on memsvc.
         }
         modmgr->register_method("vfat3", "configureVFAT3s", configureVFAT3s);
+        modmgr->register_method("vfat3", "configureVFAT3DacMonitor", configureVFAT3DacMonitor);
+        modmgr->register_method("vfat3", "configureVFAT3DacMonitorMultiLink", configureVFAT3DacMonitorMultiLink);
         modmgr->register_method("vfat3", "getChannelRegistersVFAT3", getChannelRegistersVFAT3);
         modmgr->register_method("vfat3", "readVFAT3ADC", readVFAT3ADC);
-        modmgr->register_method("vfat3", "readVFAT3ADCAllLinks", readVFAT3ADCAllLinks);
+        modmgr->register_method("vfat3", "readVFAT3ADCMultiLink", readVFAT3ADCMultiLink);
         modmgr->register_method("vfat3", "setChannelRegistersVFAT3", setChannelRegistersVFAT3);
         modmgr->register_method("vfat3", "statusVFAT3s", statusVFAT3s);
         modmgr->register_method("vfat3", "vfatSyncCheck", vfatSyncCheck);

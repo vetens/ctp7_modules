@@ -42,6 +42,14 @@ void configureVFAT3DacMonitorLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
  */
 void configureVFAT3DacMonitor(const RPCMsg *request, RPCMsg *response);
 
+/*! \fn void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response)
+ *  \brief As configureVFAT3DacMonitor(...) but for all optical links specified in ohMask on the AMC
+ *  \details Here the RPCMsg request should have a "ohMask" word which specifies which OH's to read from, this is a 12 bit number where a 1 in the n^th bit indicates that the n^th OH should be read back.  Additionally there should be a "ohVfatMaskArray" which is an array of size 12 where each element is the standard vfatMask for OH specified by the array index.
+ *  \param request RPC request message
+ *  \param response RPC responce message
+ */
+void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response);
+
 /*! \fn void configureVFAT3sLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask)
  *  \brief Local callable version of configureVFAT3s
  *  \param la Local arguments structure
@@ -87,19 +95,19 @@ void getChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response);
 void readVFAT3ADCLocal(localArgs * la, uint32_t * outData, uint32_t ohN, bool useExtRefADC=false, uint32_t mask=0xFF000000);
 
 /*! \fn readVFAT3ADC(const RPCMsg *request, RPCMsg *response)
- *  \brief Allows the hsot machine to read the ADC value from all unmasked VFATs
+ *  \brief Allows the host machine to read the ADC value from all unmasked VFATs
  *  \param request RPC request message
  *  \param response RPC responce message
  */
 void readVFAT3ADC(const RPCMsg *request, RPCMsg *response);
 
-/*! \fn void readVFAT3ADCAllLinks(const RPCMsg *request, RPCMsg *response);
- *  \brief As readVFAT3ADC(...) but for all optical links on the AMC
+/*! \fn void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response);
+ *  \brief As readVFAT3ADC(...) but for all optical links specified in ohMask on the AMC
  *  \details Here the RPCMsg request should have a "ohMask" word which specifies which OH's to read from, this is a 12 bit number where a 1 in the n^th bit indicates that the n^th OH should be read back.  Additionally there should be a "ohVfatMaskArray" which is an array of size 12 where each element is the standard vfatMask for OH specified by the array index.
  *  \param request RPC request message
  *  \param response RPC responce message
  */
-void readVFAT3ADCAllLinks(const RPCMsg *request, RPCMsg *response);
+void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response);
 
 /*! \fn void setChannelRegistersVFAT3SimpleLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask, uint32_t *chanRegData)
  *  \brief writes all vfat3 channel registers from AMC
