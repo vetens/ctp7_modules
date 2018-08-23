@@ -1,6 +1,7 @@
 /*! \file utils.h
  *  \brief Util methods for RPC modules
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
+ *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
 #ifndef UTILS_H
