@@ -5,6 +5,7 @@
  */
 
 #include <algorithm>
+#include "amc.cpp"
 #include <chrono>
 #include <math.h>
 #include <map>
@@ -15,38 +16,6 @@
 #include "utils.h"
 #include <vector>
 #include "vfat3.h"
-
-/*! \fn unsigned int fw_version_check(const char* caller_name, localArgs *la)
- *  \brief Returns AMC FW version
- *  in case FW version is not 1.X or 3.X sets an error string in response
- *  \param caller_name Name of methods which called the FW version check
- *  \param la Local arguments structure
- */
-unsigned int fw_version_check(const char* caller_name, localArgs *la)
-{
-    int iFWVersion = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
-    char regBuf[200];
-    switch (iFWVersion){
-        case 1:
-        {
-            LOGGER->log_message(LogManager::INFO, "System release major is 1, v2B electronics behavior");
-            break;
-        }
-        case 3:
-        {
-            LOGGER->log_message(LogManager::INFO, "System release major is 3, v3 electronics behavior");
-            break;
-        }
-        default:
-        {
-            LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
-            sprintf(regBuf,"Unexpected value for system release major!");
-            la->response->set_string("error",regBuf);
-            break;
-        }
-    }
-    return iFWVersion;
-}
 
 /*! \fn std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, unsigned int ch, localArgs *la)
  *  \brief Unmask the channel of interest and masks all the other
@@ -165,7 +134,6 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch)
             writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.OH_SELECT", ohN);
             if(ch>127)
             {
-                //writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_SELECT", 0);
                 writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x1);
             }
             else

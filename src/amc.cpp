@@ -130,6 +130,38 @@ void sbitReadOut(const RPCMsg *request, RPCMsg *response){
     return;
 } //End sbitReadOut()
 
+/*! \fn unsigned int fw_version_check(const char* caller_name, localArgs *la)
+ *  \brief Returns AMC FW version
+ *  in case FW version is not 1.X or 3.X sets an error string in response
+ *  \param caller_name Name of methods which called the FW version check
+ *  \param la Local arguments structure
+ */
+unsigned int fw_version_check(const char* caller_name, localArgs *la)
+{
+    int iFWVersion = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    char regBuf[200];
+    switch (iFWVersion){
+        case 1:
+        {
+            LOGGER->log_message(LogManager::INFO, "System release major is 1, v2B electronics behavior");
+            break;
+        }
+        case 3:
+        {
+            LOGGER->log_message(LogManager::INFO, "System release major is 3, v3 electronics behavior");
+            break;
+        }
+        default:
+        {
+            LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+            sprintf(regBuf,"Unexpected value for system release major!");
+            la->response->set_string("error",regBuf);
+            break;
+        }
+    }
+    return iFWVersion;
+}
+
 /*! \fn void getmonTTCmainLocal(localArgs * la)
  *  \brief Local version of getmonTTCmain
  *  \param la Local arguments
@@ -399,6 +431,82 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+/*! \fn uint32_t getOHVFATMaskLocal(uint32_t ohN)
+ *  \brief returns the vfatMask for the optohybrid ohN
+ *  \param la Local arguments structure
+ *  \param ohN Optical link
+ */
+uint32_t getOHVFATMaskLocal(localArgs * la, uint32_t ohN){
+    uint32_t mask = 0x0;
+    for(int vfatN=0; vfatN<24; ++vfatN){ //Loop over all vfats
+        uint32_t syncErrCnt = readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.SYNC_ERR_CNT",ohN,vfatN));
+
+        if(syncErrCnt > 0x0){ //Case: nonzero sync errors, mask this vfat
+            mask = mask + (0x1 << vfatN);
+        } //End Case: nonzero sync errors, mask this vfat
+    } //End loop over all vfats
+
+    return mask;
+} //End getOHVFATMaskLocal()
+
+/*! \fn void getOHVFATMask(const RPCMsg *request, RPCMsg *response)
+ *  \brief Determines the vfatMask for a given OH, see local method for details
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void getOHVFATMask(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Determining VFAT Mask for OH%i",ohN));
+    uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
+
+    response->set_word("vfatMask",vfatMask);
+
+    return;
+} //End getOHVFATMask(...)
+
+/*! \fn void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response)
+ *  \brief As getOHVFATMask(...) but for all optical links specified in ohMask on the AMC
+ *  \details Here the RPCMsg request should have a "ohMask" word which specifies which OH's to read from, this is a 12 bit number where a 1 in the n^th bit indicates that the n^th OH should be read back.  Additionally there should be a "ohVfatMaskArray" which is an array of size 12 where each element is the standard vfatMask for OH specified by the array index.
+ *  \param request RPC request message
+ *  \param response RPC responce message
+ */
+void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohMask = request->get_word("ohMask");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    uint32_t ohVfatMaskArray[12];
+    for(int ohN=0; ohN<12; ++ohN){
+        // If this Optohybrid is masked skip it
+        if(((ohMask >> ohN) & 0x0)){
+            continue;
+        }
+
+        ohVfatMaskArray[ohN] = getOHVFATMaskLocal(&la, ohN);
+    } //End Loop over all Optohybrids
+
+    response->set_word_array("ohVfatMaskArray",ohVfatMaskArray,12);
+
+    return;
+} //End getOHVFATMaskMultiLink(...)
+
 extern "C" {
     const char *module_version_key = "amc v1.0.1";
     int module_activity_color = 4;
@@ -414,6 +522,8 @@ extern "C" {
         modmgr->register_method("amc", "getmonDAQmain", getmonDAQmain);
         modmgr->register_method("amc", "getmonDAQOHmain", getmonDAQOHmain);
         modmgr->register_method("amc", "getmonOHmain", getmonOHmain);
+        modmgr->register_method("amc", "getOHVFATMask", getOHVFATMask);
+        modmgr->register_method("amc", "getOHVFATMaskMultiLink", getOHVFATMaskMultiLink);
         modmgr->register_method("amc", "sbitReadOut", sbitReadOut);
     }
 }
