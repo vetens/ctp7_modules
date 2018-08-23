@@ -109,6 +109,7 @@ void getmonTTCmain(const RPCMsg *request, RPCMsg *response);
 
 /*! \fn uint32_t getOHVFATMaskLocal(uint32_t ohN)
  *  \brief returns the vfatMask for the optohybrid ohN
+ *  \details Reads the SYNC_ERR_CNT counter for each VFAT on ohN.  If for a given VFAT the counter returns a non-zero value the given VFAT will be masked.
  *  \param la Local arguments structure
  *  \param ohN Optical link
  */
