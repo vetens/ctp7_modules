@@ -106,11 +106,31 @@ void biasAllVFATsLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
 }
 
 void setAllVFATsToRunModeLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
-  broadcastWriteLocal(la, ohN, "ContReg0", 0x37, mask);
+    switch(fw_version_check("setAllVFATsToRunMode", la))
+        case 3:
+            broadcastWriteLocal(la, ohN, "CFG_RUN", 0x1, mask);
+            break;
+        case 1:
+            broadcastWriteLocal(la, ohN, "ContReg0", 0x37, mask);
+            break;
+        default:
+            LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major, do nothing");
+            break;
+    return;
 }
 
 void setAllVFATsToSleepModeLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
-  broadcastWriteLocal(la, ohN, "ContReg0", 0x36, mask);
+    switch(fw_version_check("setAllVFATsToRunMode", la))
+        case 3:
+            broadcastWriteLocal(la, ohN, "CFG_RUN", 0x0, mask);
+            break;
+        case 1:
+            broadcastWriteLocal(la, ohN, "ContReg0", 0x36, mask);
+            break;
+        default:
+            LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major, do nothing");
+            break;
+    return;
 }
 
 void loadVT1Local(localArgs * la, uint32_t ohN, std::string config_file, uint32_t vt1) {
