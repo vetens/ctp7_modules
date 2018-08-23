@@ -5,7 +5,7 @@
  */
 
 #include <algorithm>
-#include "amc.cpp"
+#include "amc.h"
 #include <chrono>
 #include <math.h>
 #include <map>
