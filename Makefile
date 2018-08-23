@@ -6,7 +6,6 @@ ifndef CTP7_MOD_ROOT
 $(error "Error: CTP7_MOD_ROOT environment variable not set. Source setup.sh file")
 endif
 
-
 include apps.common.mk
 
 IncludeDirs = ${CTP7_MOD_ROOT}/include
@@ -17,8 +16,6 @@ IncludeDirs += ${XHAL_ROOT}/xcompile/log4cplus-1.1.2/include
 IncludeDirs += ${XHAL_ROOT}/xcompile/lmdb-LMDB_0.9.19/include
 IncludeDirs += /opt/cactus/include
 INC=$(IncludeDirs:%=-I%)
-
-
 
 LDFLAGS+= -L$(XHAL_ROOT)/lib/arm
 LDFLAGS+= -L$(XHAL_ROOT)/xcompile/lmdb-LMDB_0.9.19/lib
@@ -36,12 +33,6 @@ TARGET_LIBS+=lib/calibration_routines.so
 TARGET_LIBS+=lib/amc.so
 
 all: $(TARGET_LIBS)
-
-#optohybrid: lib/optohybrid.so
-#
-#$(TARGET_LIBS): $(SRCS)
-#lib/%.so:src/%.cpp
-#	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -o $@ $^ -lwisci2c -lxhal -llmdb
 
 lib/memory.so: src/memory.cpp 
 	$(CXX) $(CFLAGS) $(INC) $(LDFLAGS) -fPIC -shared -o $@ $< -lwisci2c
@@ -72,4 +63,3 @@ clean:
 	-rm -rf lib/*.so
 
 .PHONY: all
-
