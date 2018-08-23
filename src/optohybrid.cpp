@@ -1,3 +1,4 @@
+#include "amc.h"
 #include "optohybrid.h"
 
 void broadcastWriteLocal(localArgs * la, uint32_t ohN, std::string regName, uint32_t value, uint32_t mask) {
@@ -106,7 +107,7 @@ void biasAllVFATsLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
 }
 
 void setAllVFATsToRunModeLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
-    switch(fw_version_check("setAllVFATsToRunMode", la))
+    switch(fw_version_check("setAllVFATsToRunMode", la)){
         case 3:
             broadcastWriteLocal(la, ohN, "CFG_RUN", 0x1, mask);
             break;
@@ -116,11 +117,13 @@ void setAllVFATsToRunModeLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
         default:
             LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major, do nothing");
             break;
+    }
+
     return;
 }
 
 void setAllVFATsToSleepModeLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
-    switch(fw_version_check("setAllVFATsToRunMode", la))
+    switch(fw_version_check("setAllVFATsToRunMode", la)){
         case 3:
             broadcastWriteLocal(la, ohN, "CFG_RUN", 0x0, mask);
             break;
@@ -130,6 +133,8 @@ void setAllVFATsToSleepModeLocal(localArgs * la, uint32_t ohN, uint32_t mask) {
         default:
             LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major, do nothing");
             break;
+    }
+
     return;
 }
 
