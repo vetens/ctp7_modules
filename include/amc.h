@@ -61,6 +61,20 @@ void getmonOHmainLocal(localArgs * la, int NOH);
  */
 void getmonOHmain(const RPCMsg *request, RPCMsg *response);
 
+/*! \fn void getmonOHSCAmainLocal(localArgs *la, int NOH);
+ *  \brief Local version of getmonOHSCAmainLocal
+ *  \param la Local arguments
+ *  \param NOH Number of optohybrids in FW
+ */
+void getmonOHSCAmainLocal(localArgs *la, int NOH);
+
+/* !\fn void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
+ *  \brief Reads the SCA Monitoring values of all OH's (voltage and temperature) including FPGA core temperature
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response);
+
 /*! \fn void getmonTRIGGERmainLocal(localArgs * la, int NOH)
  *  \brief Local version of getmonTRIGGERmain
  *  \param la Local arguments

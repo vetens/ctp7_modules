@@ -7,6 +7,7 @@
 #include "amc.h"
 #include <chrono>
 #include <map>
+#include <string>
 #include <time.h>
 #include <thread>
 #include "utils.h"
@@ -344,6 +345,99 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
   int NOH = request->get_word("NOH");
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonOHmainLocal(&la, NOH);
+  rtxn.abort();
+}
+
+void getmonOHSCAmainLocal(localArgs *la, uint32_t NOH){
+    std::string strRegName, strKeyName;
+
+    for (unsigned int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+        //Log Message
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Reading SCA Monitoring Values for OH%i",ohN));
+
+        //SCA Temperature
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.SCA_TEMP",ohN);
+        strKeyName = stdsprintf("OH%i.SCA_TEMP",ohN);
+        la->response->set_word(strKeyName,readReg(la, strRegName));
+
+        //OH Temperature Sensors
+        for(int tempVal=0; tempVal <= 9; ++tempVal){ //Loop over optohybrid temperatures sensosrs
+            strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.BOARD_TEMP%i",ohN,tempVal);
+            strKeyName = stdsprintf("OH%i.BOARD_TEMP%i",ohN,tempVal);
+            la->response->set_word(strKeyName, readReg(la, strRegName));
+        } //End Loop over optohybrid temeprature sensors
+
+        //Voltage Monitor - AVCCN
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.AVCCN",ohN);
+        strKeyName = stdsprintf("OH%i.AVCCN",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - AVCCN
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.AVCCN",ohN);
+        strKeyName = stdsprintf("OH%i.AVCCN",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - AVTTN
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.AVTTN",ohN);
+        strKeyName = stdsprintf("OH%i.AVTTN",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 1V0_INT
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.1V0_INT",ohN);
+        strKeyName = stdsprintf("OH%i.1V0_INT",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 1V8F
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.1V8F",ohN);
+        strKeyName = stdsprintf("OH%i.1V8F",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 1V5
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.1V5",ohN);
+        strKeyName = stdsprintf("OH%i.1V5",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 2V5_IO
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.2V5_IO",ohN);
+        strKeyName = stdsprintf("OH%i.2V5_IO",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 3V0
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.3V0",ohN);
+        strKeyName = stdsprintf("OH%i.3V0",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 1V8
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.1V8",ohN);
+        strKeyName = stdsprintf("OH%i.1V8",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - VTRX_RSSI2
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.VTRX_RSSI2",ohN);
+        strKeyName = stdsprintf("OH%i.VTRX_RSSI2",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - VTRX_RSSI1
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.VTRX_RSSI1",ohN);
+        strKeyName = stdsprintf("OH%i.VTRX_RSSI1",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+    } //End Loop over all optohybrids
+
+    return;
+} //End getmonOHSCAmainLocal(...)
+
+void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
+{
+  auto env = lmdb::env::create();
+  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"/address_table.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
+  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  int NOH = request->get_word("NOH");
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  getmonOHSCAmainLocal(&la, NOH);
   rtxn.abort();
 }
 
