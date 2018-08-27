@@ -351,7 +351,7 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
     std::string strRegName, strKeyName;
 
-    for (unsigned int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+    for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
         // If this Optohybrid is masked skip it
         if(((ohMask >> ohN) & 0x0)){
             continue;
