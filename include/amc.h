@@ -65,8 +65,9 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response);
  *  \brief Local version of getmonOHSCAmainLocal
  *  \param la Local arguments
  *  \param NOH Number of optohybrids in FW
+ *  \param ohMask A 12 bit number which specifies which optohybrids to read from.  Having a value of 1 in the n^th bit indicates that the n^th optohybrid should be considered.
  */
-void getmonOHSCAmainLocal(localArgs *la, int NOH);
+void getmonOHSCAmainLocal(localArgs *la, int NOH=12, int ohMask=0xfff);
 
 /* !\fn void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
  *  \brief Reads the SCA Monitoring values of all OH's (voltage and temperature) including FPGA core temperature

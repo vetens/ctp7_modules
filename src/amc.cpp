@@ -348,10 +348,15 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-void getmonOHSCAmainLocal(localArgs *la, uint32_t NOH){
+void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
     std::string strRegName, strKeyName;
 
     for (unsigned int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+        // If this Optohybrid is masked skip it
+        if(((ohMask >> ohN) & 0x0)){
+            continue;
+        }
+
         //Log Message
         LOGGER->log_message(LogManager::INFO, stdsprintf("Reading SCA Monitoring Values for OH%i",ohN));
 
@@ -361,16 +366,11 @@ void getmonOHSCAmainLocal(localArgs *la, uint32_t NOH){
         la->response->set_word(strKeyName,readReg(la, strRegName));
 
         //OH Temperature Sensors
-        for(int tempVal=0; tempVal <= 9; ++tempVal){ //Loop over optohybrid temperatures sensosrs
+        for(int tempVal=1; tempVal <= 9; ++tempVal){ //Loop over optohybrid temperatures sensosrs
             strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.BOARD_TEMP%i",ohN,tempVal);
             strKeyName = stdsprintf("OH%i.BOARD_TEMP%i",ohN,tempVal);
             la->response->set_word(strKeyName, readReg(la, strRegName));
         } //End Loop over optohybrid temeprature sensors
-
-        //Voltage Monitor - AVCCN
-        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.AVCCN",ohN);
-        strKeyName = stdsprintf("OH%i.AVCCN",ohN);
-        la->response->set_word(strKeyName, readReg(la, strRegName));
 
         //Voltage Monitor - AVCCN
         strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.AVCCN",ohN);
@@ -436,8 +436,9 @@ void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
   int NOH = request->get_word("NOH");
+  int ohMask = request->get_word("ohMask");
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-  getmonOHSCAmainLocal(&la, NOH);
+  getmonOHSCAmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
 
@@ -516,6 +517,7 @@ extern "C" {
         modmgr->register_method("amc", "getmonDAQmain", getmonDAQmain);
         modmgr->register_method("amc", "getmonDAQOHmain", getmonDAQOHmain);
         modmgr->register_method("amc", "getmonOHmain", getmonOHmain);
+        modmgr->register_method("amc", "getmonOHSCAmain", getmonOHSCAmain);
         modmgr->register_method("amc", "getOHVFATMask", getOHVFATMask);
         modmgr->register_method("amc", "getOHVFATMaskMultiLink", getOHVFATMaskMultiLink);
         modmgr->register_method("amc", "sbitReadOut", sbitReadOut);
