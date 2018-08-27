@@ -926,14 +926,14 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
         uint32_t outDataTrigRatePerVFAT[24*(dacMax-dacMin+1)/dacStep];
         sbitRateScanParallelLocal(&la, outDataDacVal, outDataTrigRatePerVFAT, outDataTrigRate, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg);
 
-        response->set_word_array("data_trigRatePerVFAT", outDataTrigRatePerVFAT, 24*(dacMax-dacMin+1)/dacStep);
+        response->set_word_array("outDataVFATRate", outDataTrigRatePerVFAT, 24*(dacMax-dacMin+1)/dacStep);
     }
     else{
         sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, invertVFATPos, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
     }
 
-    response->set_word_array("data_dacVal", outDataDacVal, (dacMax-dacMin+1)/dacStep);
-    response->set_word_array("data_trigRate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
+    response->set_word_array("outDataDacValue", outDataDacVal, (dacMax-dacMin+1)/dacStep);
+    response->set_word_array("outDataCTP7Rate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
 
     return;
 } //End sbitRateScan(...)
