@@ -1,27 +1,18 @@
 /*! \file amc.cpp
  *  \brief AMC methods for RPC modules
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
+ *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
+#include "amc.h"
 #include <chrono>
 #include <map>
+#include <string>
 #include <time.h>
 #include <thread>
 #include "utils.h"
 #include <vector>
 
-/*! \fn std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acquireTime, bool *maxNetworkSizeReached)
- *  \brief reads out sbits from optohybrid ohN for a number of seconds given by acquireTime and returns them to the user.
- *  \details The SBIT Monitor stores the 8 SBITs that are sent from the OH (they are all sent at the same time and correspond to the same clock cycle). Each SBIT clusters readout from the SBIT Monitor is a 16 bit word with bits [0:10] being the sbit address and bits [12:14] being the sbit size, bits 11 and 15 are not used.
- *  \details The possible values of the SBIT Address are [0,1535].  Clusters with address less than 1536 are considered valid (e.g. there was an sbit); otherwise an invalid (no sbit) cluster is returned.  The SBIT address maps to a given trigger pad following the equation \f$sbit = addr % 64\f$.  There are 64 such trigger pads per VFAT.  Each trigger pad corresponds to two VFAT channels.  The SBIT to channel mapping follows \f$sbit=floor(chan/2)\f$.  You can determine the VFAT position of the sbit via the equation \f$vfatPos=7-int(addr/192)+int((addr%192)/64)*8\f$.
- *  \details The SBIT size represents the number of adjacent trigger pads are part of this cluster.  The SBIT address always reports the lowest trigger pad number in the cluster.  The sbit size takes values [0,7].  So an sbit cluster with address 13 and with size of 2 includes 3 trigger pads for a total of 6 vfat channels and starts at channel \f$13*2=26\f$ and continues to channel \f$(2*15)+1=31\f$.
- *  \details The output vector will always be of size N * 8 where N is the number of readouts of the SBIT Monitor.  For each readout the SBIT Monitor will be reset and then readout after 4095 clock cycles (~102.4 microseconds).  The SBIT clusters will only be added to the output vector if at least one of them was valid.  The SBIT clusters stored in the SBIT Monitor will not be over-written until a module reset is sent.  The readout will stop before acquireTime finishes if the size of the returned vector approaches the max TCP/IP size (~65000 btyes) and sets maxNetworkSize to true.
- *  \details Each element of the output vector will be a 32 bit word.  Bits [0,10] will the address of the SBIT Cluster, bits [11:13] will be the cluster size, and bits [14:26] will be the difference between the SBIT and the input L1A (if any) in clock cycles.  While the SBIT Monitor stores the difference between the SBIT and input L1A as a 32 bit number (0xFFFFFFFF) any value higher 0xFFF (12 bits) will be truncated to 0xFFF.  This matches the time between readouts of 4095 clock cycles.
- *  \param la Local arguments structure
- *  \param ohN Optical link
- *  \param acquireTime acquisition time on the wall clock in seconds
- *  \param maxNetworkSize pointer to a boolean, set to true if the returned vector reaches a byte count of 65000
- */
 std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acquireTime, bool *maxNetworkSizeReached){
     //Setup the sbit monitor
     const int nclusters = 8;
@@ -97,11 +88,6 @@ std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acq
     return storedSbits;
 } //End sbitReadOutLocal(...)
 
-/*! \fn sbitReadOut(const RPCMsg *request, RPCMsg *response)
- *  \brief readout sbits using the SBIT Monitor.  See the local callable methods documentation for details.
- *  \param request RPC response message
- *  \param response RPC response message
- */
 void sbitReadOut(const RPCMsg *request, RPCMsg *response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
@@ -130,10 +116,32 @@ void sbitReadOut(const RPCMsg *request, RPCMsg *response){
     return;
 } //End sbitReadOut()
 
-/*! \fn void getmonTTCmainLocal(localArgs * la)
- *  \brief Local version of getmonTTCmain
- *  \param la Local arguments
- */
+unsigned int fw_version_check(const char* caller_name, localArgs *la)
+{
+    int iFWVersion = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    char regBuf[200];
+    switch (iFWVersion){
+        case 1:
+        {
+            LOGGER->log_message(LogManager::INFO, "System release major is 1, v2B electronics behavior");
+            break;
+        }
+        case 3:
+        {
+            LOGGER->log_message(LogManager::INFO, "System release major is 3, v3 electronics behavior");
+            break;
+        }
+        default:
+        {
+            LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
+            sprintf(regBuf,"Unexpected value for system release major!");
+            la->response->set_string("error",regBuf);
+            break;
+        }
+    }
+    return iFWVersion;
+}
+
 void getmonTTCmainLocal(localArgs * la)
 {
   LOGGER->log_message(LogManager::INFO, "Called getmonTTCmainLocal");
@@ -144,11 +152,6 @@ void getmonTTCmainLocal(localArgs * la)
   la->response->set_word("L1A_RATE",readReg(la,"GEM_AMC.TTC.L1A_RATE"));
 }
 
-/*! \fn void getmonTTCmain(const RPCMsg *request, RPCMsg *response)
- *  \brief Reads a set of TTC monitoring registers
- *  \param request RPC request message
- *  \param response RPC response message
- */
 void getmonTTCmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -163,11 +166,6 @@ void getmonTTCmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-/*! \fn void getmonTRIGGERmainLocal(localArgs * la, int NOH)
- *  \brief Local version of getmonTRIGGERmain
- *  \param la Local arguments
- *  \param NOH Number of optohybrids in FW
- */
 void getmonTRIGGERmainLocal(localArgs * la, int NOH)
 {
   std::string t1,t2;
@@ -179,11 +177,6 @@ void getmonTRIGGERmainLocal(localArgs * la, int NOH)
   }
 }
 
-/*! \fn void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
- *  \brief Reads a set of trigger monitoring registers
- *  \param request RPC request message
- *  \param response RPC response message
- */
 void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -199,16 +192,6 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-/*! \fn void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
- *  \brief Local version of getmonTRIGGEROHmain
- *  * LINK{0,1}_SBIT_OVERFLOW_CNT -- this is an interesting counter to monitor from operations perspective, but is not related to the health of the link itself. Rather it shows how many times OH had too many clusters which it couldn't fit into the 8 cluster per BX bandwidth. If this counter is going up it just means that OH is seeing a very high hit occupancy, which could be due to high radiation background, or thresholds configured too low.
- *
- *  The other 3 counters reflect the health of the optical links:
- *  * LINK{0,1}_OVERFLOW_CNT and LINK{0,1}_UNDERFLOW_CNT going up indicate a clocking issue, specifically they go up when the frequency of the clock on the OH doesn't match the frequency on the CTP7. Given that CTP7 is providing the clock to OH, this in principle should not happen unless the OH is sending complete garbage and thus the clock cannot be recovered on CTP7 side, or the bit-error rate is insanely high, or the fiber is just disconnected, or OH is off. In other words, this indicates a critical problem.
- *  * LINK{0,1}_MISSED_COMMA_CNT also monitors the health of the link, but it's more sensitive, because it can go up due to isolated single bit errors. With radiation around, this might count one or two counts in a day or two. But if it starts running away, that would indicate a real problem, but in this case most likely the overflow and underflow counters would also see it.
- *  \param la Local arguments
- *  \param NOH Number of optohybrids in FW
- */
 void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
 {
   std::string t1,t2;
@@ -240,11 +223,6 @@ void getmonTRIGGEROHmainLocal(localArgs * la, int NOH)
   }
 }
 
-/*! \fn void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
- *  \brief Reads a set of trigger monitoring registers at the OH
- *  \param request RPC request message
- *  \param response RPC response message
- */
 void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -260,10 +238,6 @@ void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-/*! \fn void getmonDAQmainLocal(localArgs * la)
- *  \brief Local version of getmonDAQmain
- *  \param la Local arguments
- */
 void getmonDAQmainLocal(localArgs * la)
 {
   la->response->set_word("DAQ_ENABLE",readReg(la,"GEM_AMC.DAQ.CONTROL.DAQ_ENABLE"));
@@ -277,11 +251,6 @@ void getmonDAQmainLocal(localArgs * la)
   la->response->set_word("TTS_STATE",readReg(la,"GEM_AMC.DAQ.STATUS.TTS_STATE"));
 }
 
-/*! \fn void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
- *  \brief Reads a set of DAQ monitoring registers
- *  \param request RPC request message
- *  \param response RPC response message
- */
 void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -296,11 +265,6 @@ void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-/*! \fn void getmonDAQOHmainLocal(localArgs * la, int NOH)
- *  \brief Local version of getmonDAQOHmain
- *  \param la Local arguments
- *  \param NOH Number of optohybrids in FW
- */
 void getmonDAQOHmainLocal(localArgs * la, int NOH)
 {
   std::string t1,t2;
@@ -326,11 +290,6 @@ void getmonDAQOHmainLocal(localArgs * la, int NOH)
   }
 }
 
-/*! \fn void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
- *  \brief Reads a set of DAQ monitoring registers at the OH
- *  \param request RPC request message
- *  \param response RPC response message
- */
 void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -346,11 +305,6 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-/*! \fn void getmonOHmainLocal(localArgs * la, int NOH)
- *  \brief Local version of getmonOHmain
- *  \param la Local arguments
- *  \param NOH Number of optohybrids in FW
- */
 void getmonOHmainLocal(localArgs * la, int NOH)
 {
   std::string t1,t2;
@@ -379,11 +333,6 @@ void getmonOHmainLocal(localArgs * la, int NOH)
   }
 }
 
-/*! \fn void getmonOHmain(const RPCMsg *request, RPCMsg *response)
- *  \brief Reads a set of OH monitoring registers at the OH
- *  \param request RPC request message
- *  \param response RPC response message
- */
 void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 {
   auto env = lmdb::env::create();
@@ -399,20 +348,178 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
+    std::string strRegName, strKeyName;
+
+    for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+        // If this Optohybrid is masked skip it
+        if(((ohMask >> ohN) & 0x0)){
+            continue;
+        }
+
+        //Log Message
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Reading SCA Monitoring Values for OH%i",ohN));
+
+        //SCA Temperature
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.SCA_TEMP",ohN);
+        strKeyName = stdsprintf("OH%i.SCA_TEMP",ohN);
+        la->response->set_word(strKeyName,readReg(la, strRegName));
+
+        //OH Temperature Sensors
+        for(int tempVal=1; tempVal <= 9; ++tempVal){ //Loop over optohybrid temperatures sensosrs
+            strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.BOARD_TEMP%i",ohN,tempVal);
+            strKeyName = stdsprintf("OH%i.BOARD_TEMP%i",ohN,tempVal);
+            la->response->set_word(strKeyName, readReg(la, strRegName));
+        } //End Loop over optohybrid temeprature sensors
+
+        //Voltage Monitor - AVCCN
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.AVCCN",ohN);
+        strKeyName = stdsprintf("OH%i.AVCCN",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - AVTTN
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.AVTTN",ohN);
+        strKeyName = stdsprintf("OH%i.AVTTN",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 1V0_INT
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.1V0_INT",ohN);
+        strKeyName = stdsprintf("OH%i.1V0_INT",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 1V8F
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.1V8F",ohN);
+        strKeyName = stdsprintf("OH%i.1V8F",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 1V5
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.1V5",ohN);
+        strKeyName = stdsprintf("OH%i.1V5",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 2V5_IO
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.2V5_IO",ohN);
+        strKeyName = stdsprintf("OH%i.2V5_IO",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 3V0
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.3V0",ohN);
+        strKeyName = stdsprintf("OH%i.3V0",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - 1V8
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.1V8",ohN);
+        strKeyName = stdsprintf("OH%i.1V8",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - VTRX_RSSI2
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.VTRX_RSSI2",ohN);
+        strKeyName = stdsprintf("OH%i.VTRX_RSSI2",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+
+        //Voltage Monitor - VTRX_RSSI1
+        strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.VTRX_RSSI1",ohN);
+        strKeyName = stdsprintf("OH%i.VTRX_RSSI1",ohN);
+        la->response->set_word(strKeyName, readReg(la, strRegName));
+    } //End Loop over all optohybrids
+
+    return;
+} //End getmonOHSCAmainLocal(...)
+
+void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
+{
+  auto env = lmdb::env::create();
+  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"/address_table.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
+  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  int NOH = request->get_word("NOH");
+  int ohMask = request->get_word("ohMask");
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  getmonOHSCAmainLocal(&la, NOH, ohMask);
+  rtxn.abort();
+}
+
+uint32_t getOHVFATMaskLocal(localArgs * la, uint32_t ohN){
+    uint32_t mask = 0x0;
+    for(int vfatN=0; vfatN<24; ++vfatN){ //Loop over all vfats
+        uint32_t syncErrCnt = readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.SYNC_ERR_CNT",ohN,vfatN));
+
+        if(syncErrCnt > 0x0){ //Case: nonzero sync errors, mask this vfat
+            mask = mask + (0x1 << vfatN);
+        } //End Case: nonzero sync errors, mask this vfat
+    } //End loop over all vfats
+
+    return mask;
+} //End getOHVFATMaskLocal()
+
+void getOHVFATMask(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Determining VFAT Mask for OH%i",ohN));
+    uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
+
+    response->set_word("vfatMask",vfatMask);
+
+    return;
+} //End getOHVFATMask(...)
+
+void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohMask = request->get_word("ohMask");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    uint32_t ohVfatMaskArray[12];
+    for(int ohN=0; ohN<12; ++ohN){
+        // If this Optohybrid is masked skip it
+        if(((ohMask >> ohN) & 0x0)){
+            continue;
+        }
+
+        ohVfatMaskArray[ohN] = getOHVFATMaskLocal(&la, ohN);
+    } //End Loop over all Optohybrids
+
+    response->set_word_array("ohVfatMaskArray",ohVfatMaskArray,12);
+
+    return;
+} //End getOHVFATMaskMultiLink(...)
+
 extern "C" {
-	const char *module_version_key = "amc v1.0.1";
-	int module_activity_color = 4;
-	void module_init(ModuleManager *modmgr) {
-		if (memsvc_open(&memsvc) != 0) {
-			LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
-			LOGGER->log_message(LogManager::ERROR, "Unable to load module");
-			return; // Do not register our functions, we depend on memsvc.
-		}
-		modmgr->register_method("amc", "getmonTTCmain", getmonTTCmain);
-		modmgr->register_method("amc", "getmonTRIGGERmain", getmonTRIGGERmain);
-		modmgr->register_method("amc", "getmonTRIGGEROHmain", getmonTRIGGEROHmain);
-		modmgr->register_method("amc", "getmonDAQmain", getmonDAQmain);
-		modmgr->register_method("amc", "getmonDAQOHmain", getmonDAQOHmain);
-		modmgr->register_method("amc", "getmonOHmain", getmonOHmain);
-	}
+    const char *module_version_key = "amc v1.0.1";
+    int module_activity_color = 4;
+    void module_init(ModuleManager *modmgr) {
+        if (memsvc_open(&memsvc) != 0) {
+            LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
+            LOGGER->log_message(LogManager::ERROR, "Unable to load module");
+            return; // Do not register our functions, we depend on memsvc.
+        }
+        modmgr->register_method("amc", "getmonTTCmain", getmonTTCmain);
+        modmgr->register_method("amc", "getmonTRIGGERmain", getmonTRIGGERmain);
+        modmgr->register_method("amc", "getmonTRIGGEROHmain", getmonTRIGGEROHmain);
+        modmgr->register_method("amc", "getmonDAQmain", getmonDAQmain);
+        modmgr->register_method("amc", "getmonDAQOHmain", getmonDAQOHmain);
+        modmgr->register_method("amc", "getmonOHmain", getmonOHmain);
+        modmgr->register_method("amc", "getmonOHSCAmain", getmonOHSCAmain);
+        modmgr->register_method("amc", "getOHVFATMask", getOHVFATMask);
+        modmgr->register_method("amc", "getOHVFATMaskMultiLink", getOHVFATMaskMultiLink);
+        modmgr->register_method("amc", "sbitReadOut", sbitReadOut);
+    }
 }

@@ -5,7 +5,9 @@
  *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
+#include <algorithm>
 #include <chrono>
+#include "optohybrid.h"
 #include <thread>
 #include "vfat3.h"
 
@@ -42,8 +44,88 @@ void vfatSyncCheck(const RPCMsg *request, RPCMsg *response)
     response->set_word("goodVFATs", goodVFATs);
 
     return;
-
 }
+
+void configureVFAT3DacMonitorLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t dacSelect){
+    //Check if VFATs are sync'd
+    uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
+    uint32_t notmask = ~mask & 0xFFFFFF;
+    if( (notmask & goodVFATs) != notmask)
+    {
+        la->response->set_string("error",stdsprintf("One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask));
+        return;
+    }
+
+    //Get ref voltage and monitor gain
+    //These should have been set at time of configure
+    uint32_t adcVRefValues[24];
+    uint32_t monitorGainValues[24];
+    broadcastReadLocal(la, adcVRefValues, ohN, "CFG_VREF_ADC", mask);
+    broadcastReadLocal(la, monitorGainValues, ohN, "CFG_MON_GAIN", mask);
+
+    //Loop over all vfats and set the dacSelect
+    for(int vfatN=0; vfatN<24; ++vfatN){
+        // Check if vfat is masked
+        if(!((notmask >> vfatN) & 0x1)){
+            continue;
+        } //End check if VFAT is masked
+
+        //Build global control 4 register
+        uint32_t glbCtr4 = (adcVRefValues[vfatN] << 8) + (monitorGainValues[vfatN] << 7) + dacSelect;
+        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_4",ohN,vfatN), glbCtr4);
+    } //End loop over all VFATs
+
+    return;
+} //End configureVFAT3DacMonitorLocal(...)
+
+void configureVFAT3DacMonitor(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t vfatMask = request->get_word("vfatMask");
+    uint32_t dacSelect = request->get_word("dacSelect");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring for Selection %i",dacSelect));
+    configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
+
+    return;
+} //End configureVFAT3DacMonitor()
+
+void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohMask = request->get_word("ohMask");
+    uint32_t ohVfatMaskArray[12];
+    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
+    uint32_t dacSelect = request->get_word("dacSelect");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    for(int ohN=0; ohN<12; ++ohN){
+        // If this Optohybrid is masked skip it
+        if(((ohMask >> ohN) & 0x0)){
+            continue;
+        }
+
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring on OH%i for Selection %i",ohN,dacSelect));
+        configureVFAT3DacMonitorLocal(&la, ohN, ohVfatMaskArray[ohN], dacSelect);
+    } //End Loop over all Optohybrids
+
+    return;
+} //End configureVFAT3DacMonitorMultiLink()
 
 void configureVFAT3sLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask) {
     std::string line, regName;
@@ -166,6 +248,76 @@ void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t vfatMas
 
     return;
 } //end getChannelRegistersVFAT3Local()
+
+void readVFAT3ADCLocal(localArgs * la, uint32_t * outData, uint32_t ohN, bool useExtRefADC, uint32_t mask){
+    if(useExtRefADC){ //Case: Use ADC with external reference
+        broadcastReadLocal(la, outData, ohN, "ADC1", mask);
+    } //End Case: Use ADC with external reference
+    else{ //Case: Use ADC with internal reference
+        broadcastReadLocal(la, outData, ohN, "ADC0", mask);
+    } //End Case: Use ADC with internal reference
+
+    return;
+} //End readVFAT3ADCLocal
+
+void readVFAT3ADC(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    bool useExtRefADC = request->get_word("useExtRefADC");
+    uint32_t vfatMask = request->get_word("vfatMask");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    uint32_t adcData[24];
+
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Reading VFAT3 ADC's for OH%i with mask %x",ohN, vfatMask));
+    readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, vfatMask);
+
+    response->set_word_array("adcData",adcData,24);
+
+    return;
+} //End getChannelRegistersVFAT3()
+
+void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohMask = request->get_word("ohMask");
+    uint32_t ohVfatMaskArray[12];
+    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
+    bool useExtRefADC = request->get_word("useExtRefADC");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    uint32_t adcData[24] = {0};
+    uint32_t adcDataAll[12*24] = {0};
+    for(int ohN=0; ohN<12; ++ohN){
+        // If this Optohybrid is masked skip it
+        if(((ohMask >> ohN) & 0x0)){
+            continue;
+        }
+
+        //Get all ADC values
+        readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, ohVfatMaskArray[ohN]);
+
+        //Copy all ADC values
+        std::copy(adcData, adcData+24, adcDataAll+(24*ohN));
+    } //End Loop over all Optohybrids
+
+    response->set_word_array("adcDataAll",adcDataAll,12*24);
+
+    return;
+} //End readVFAT3ADCMultiLink()
 
 void setChannelRegistersVFAT3SimpleLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask, uint32_t *chanRegData){
     //Determine the inverse of the vfatmask
@@ -372,7 +524,11 @@ extern "C" {
             return; // Do not register our functions, we depend on memsvc.
         }
         modmgr->register_method("vfat3", "configureVFAT3s", configureVFAT3s);
+        modmgr->register_method("vfat3", "configureVFAT3DacMonitor", configureVFAT3DacMonitor);
+        modmgr->register_method("vfat3", "configureVFAT3DacMonitorMultiLink", configureVFAT3DacMonitorMultiLink);
         modmgr->register_method("vfat3", "getChannelRegistersVFAT3", getChannelRegistersVFAT3);
+        modmgr->register_method("vfat3", "readVFAT3ADC", readVFAT3ADC);
+        modmgr->register_method("vfat3", "readVFAT3ADCMultiLink", readVFAT3ADCMultiLink);
         modmgr->register_method("vfat3", "setChannelRegistersVFAT3", setChannelRegistersVFAT3);
         modmgr->register_method("vfat3", "statusVFAT3s", statusVFAT3s);
         modmgr->register_method("vfat3", "vfatSyncCheck", vfatSyncCheck);

@@ -4,45 +4,18 @@
  *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
-#include <math.h>
+#include <algorithm>
+#include "amc.h"
 #include <chrono>
+#include <math.h>
+#include <map>
 #include <pthread.h>
 #include "optohybrid.h"
 #include <thread>
-#include "vfat3.h"
+#include <tuple>
 #include "utils.h"
-
-/*! \fn unsigned int fw_version_check(const char* caller_name, localArgs *la)
- *  \brief Returns AMC FW version
- *  in case FW version is not 1.X or 3.X sets an error string in response
- *  \param caller_name Name of methods which called the FW version check
- *  \param la Local arguments structure
- */
-unsigned int fw_version_check(const char* caller_name, localArgs *la)
-{
-    int iFWVersion = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
-    char regBuf[200];
-    switch (iFWVersion){
-        case 1:
-        {
-            LOGGER->log_message(LogManager::INFO, "System release major is 1, v2B electronics behavior");
-            break;
-        }
-        case 3:
-        {
-            LOGGER->log_message(LogManager::INFO, "System release major is 3, v3 electronics behavior");
-            break;
-        }
-        default:
-        {
-            LOGGER->log_message(LogManager::ERROR, "Unexpected value for system release major!");
-            sprintf(regBuf,"Unexpected value for system release major!");
-            la->response->set_string("error",regBuf);
-            break;
-        }
-    }
-    return iFWVersion;
-}
+#include <vector>
+#include "vfat3.h"
 
 /*! \fn std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, unsigned int ch, localArgs *la)
  *  \brief Unmask the channel of interest and masks all the other
@@ -161,7 +134,6 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch)
             writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.OH_SELECT", ohN);
             if(ch>127)
             {
-                //writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_SELECT", 0);
                 writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x1);
             }
             else
@@ -954,14 +926,14 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
         uint32_t outDataTrigRatePerVFAT[24*(dacMax-dacMin+1)/dacStep];
         sbitRateScanParallelLocal(&la, outDataDacVal, outDataTrigRatePerVFAT, outDataTrigRate, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg);
 
-        response->set_word_array("data_trigRatePerVFAT", outDataTrigRatePerVFAT, 24*(dacMax-dacMin+1)/dacStep);
+        response->set_word_array("outDataVFATRate", outDataTrigRatePerVFAT, 24*(dacMax-dacMin+1)/dacStep);
     }
     else{
         sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, invertVFATPos, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
     }
 
-    response->set_word_array("data_dacVal", outDataDacVal, (dacMax-dacMin+1)/dacStep);
-    response->set_word_array("data_trigRate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
+    response->set_word_array("outDataDacValue", outDataDacVal, (dacMax-dacMin+1)/dacStep);
+    response->set_word_array("outDataCTP7Rate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
 
     return;
 } //End sbitRateScan(...)
@@ -1369,6 +1341,216 @@ void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response){
     return;
 } //End checkSbitRateWithCalPulse()
 
+/*! \fn std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep=1, uint32_t mask=0xFF000000, bool useExtRefADC=false)
+ *  \brief configures the VFAT3 DAC Monitoring and then scans the DAC and records the measured ADC values for all unmasked VFATs
+ *  \param la Local arguments structure
+ *  \param ohN Optical link
+ *  \param dacSelect Monitor Sel for ADC monitoring in VFAT3, see documentation for GBL_CFG_CTR_4 in VFAT3 manual for more details
+ *  \param dacStep step size to scan the dac in
+ *  \param mask VFAT mask to use, a value of 1 in the N^th bit indicates the N^th VFAT is masked
+ *  \param useExtRefADC if (true) false use the (externally) internally referenced ADC on the VFAT3 for monitoring
+ *  \return Returns a std::vector<uint32_t> object of size 24*(dacMax-dacMin+1)/dacStep where dacMax and dacMin are described in the VFAT3 manual.  For each element bits [7:0] are the dacValue and bits [17:8] are the ADC readback value in either current or voltage units depending on dacSelect (again, see VFAT3 manual).
+ */
+std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep=1, uint32_t mask=0xFF000000, bool useExtRefADC=false){
+    //Ensure VFAT3 Hardware
+    if(fw_version_check("dacScanLocal", la) < 3){
+        LOGGER->log_message(LogManager::ERROR, "dacScanLocal is only supported in V3 electronics");
+        la->response->set_string("error","dacScanLocal is only supported in V3 electronics");
+        std::vector<uint32_t> emptyVec;
+        return emptyVec;
+    }
+
+    //key is the monitoring select (dacSelect) value
+    //value is a tuple ("reg name", dacMin, dacMax)
+    std::unordered_map<uint32_t, std::tuple<std::string,int,int> > map_dacSelect;
+
+    //ADC Measures Current
+    //I wonder if this dacMin and dacMax info could be added to the LMDB...?
+    map_dacSelect[0] = std::make_tuple("CFG_IREF", 0, 0x3f);
+    //map_dacSelect[1] = std::make_tuple("CFG_", 0,);
+    map_dacSelect[2] = std::make_tuple("CFG_BIAS_PRE_I_BIT", 0, 0xff);
+    map_dacSelect[3] = std::make_tuple("CFG_BIAS_PRE_I_BLCC", 0, 0x3f);
+    //map_dacSelect[4] = std::make_tuple("CFG_", 0,);
+    map_dacSelect[5] = std::make_tuple("CFG_BIAS_SH_I_BFCAS", 0, 0xff);
+    map_dacSelect[6] = std::make_tuple("CFG_BIAS_SH_I_BDIFF", 0, 0xff);
+    map_dacSelect[7] = std::make_tuple("CFG_BIAS_SD_I_BDIFF", 0, 0xff);
+    map_dacSelect[8] = std::make_tuple("CFG_BIAS_SD_I_BFCAS", 0, 0xff);
+    map_dacSelect[9] = std::make_tuple("CFG_BIAS_SD_I_BSF", 0, 0x3f);
+    map_dacSelect[10] = std::make_tuple("CFG_BIAS_CFD_DAC_1", 0, 0x3f);
+    map_dacSelect[11] = std::make_tuple("CFG_BIAS_CFD_DAC_2", 0, 0x3f);
+    map_dacSelect[12] = std::make_tuple("CFG_HYST", 0, 0x3f);
+    //map_dacSelect[13] = std::make_tuple("CFG_", 0,);
+    map_dacSelect[14] = std::make_tuple("CFG_THR_ARM_DAC", 0, 0xff);
+    map_dacSelect[15] = std::make_tuple("CFG_THR_ZCC_DAC", 0, 0xff);
+    //map_dacSelect[16] = std::make_tuple("CFG_", 0,);
+
+    //ADC Measures Voltage
+    //map_dacSelect[32] = std::make_tuple("CFG_", 0,);
+    //map_dacSelect[33] = std::make_tuple("CFG_", 0,);
+    map_dacSelect[34] = std::make_tuple("CFG_BIAS_PRE_VREF", 0, 0xff);
+    map_dacSelect[35] = std::make_tuple("CFG_THR_ARM_DAC", 0, 0xff);
+    map_dacSelect[36] = std::make_tuple("CFG_THR_ZCC_DAC", 0, 0xff);
+    //map_dacSelect[37] = std::make_tuple("NOREG_VTSENSEINT", 0, 0); //Internal temperature sensor
+    //map_dacSelect[38] = std::make_tuple("NOREG_VTSENSEEXT", 0, 0); //External temperature sensor (only on HV3b_V3(4) hybrids)
+    map_dacSelect[39] = std::make_tuple("CFG_ADC_VREF", 0, 0x3);
+    //map_dacSelect[40] = std::make_tuple("CFG_", 0,);
+    //map_dacSelect[41] = std::make_tuple("CFG_", 0,);
+
+    // Check if dacSelect is valid
+    if(map_dacSelect.count(dacSelect) == 0){ //Case: dacSelect not found, exit
+        std::string errMsg = "Monitoring Select value " + std::to_string(dacSelect) + " not found, possible values are:\n";
+
+        for(auto iterDacSel = map_dacSelect.begin(); iterDacSel != map_dacSelect.end(); ++iterDacSel){
+            errMsg+="\t" + std::to_string((*iterDacSel).first) + "\t" + std::get<0>((*iterDacSel).second) + "\n";
+        }
+        la->response->set_string("error",errMsg);
+        std::vector<uint32_t> emptyVec;
+        return emptyVec;
+    } //End Case: dacSelect not found, exit
+
+    //Check which VFATs are sync'd
+    uint32_t notmask = ~mask & 0xFFFFFF; //Inverse of the vfatmask
+    uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
+    if( (notmask & goodVFATs) != notmask){
+        la->response->set_string("error",stdsprintf("One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask));
+        std::vector<uint32_t> emptyVec;
+        return emptyVec;
+    }
+
+    //Determine the addresses
+    std::string regName = std::get<0>(map_dacSelect[dacSelect]);
+    uint32_t adcAddr[24], regAddr[24], regMask[24];
+    for(int vfatN=0; vfatN<24; ++vfatN){
+        //Skip Masked VFATs
+        if ( !( (notmask >> vfatN) & 0x1)) continue;
+
+        //Determine Register Base string
+        std::string strRegBase = stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.",ohN,vfatN);
+
+        //Get ADC address
+        if(useExtRefADC){ //Case: Use ADC with external reference
+            adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1");
+        } //End Case: Use ADC with external reference
+        else{ //Case: Use ADC with internal reference
+            adcAddr[vfatN] = getAddress(la, strRegBase + "ADC0");
+        } //End Case: Use ADC with internal reference
+
+        //Get DAC address and mask
+        std::string strFullReg = strRegBase + regName;
+        regAddr[vfatN] = getAddress(la, strFullReg);
+        regMask[vfatN] = getMask(la, strFullReg);
+    } //End Loop over VFATs
+
+    //make the output container and correctly size it
+    uint32_t dacMax = std::get<2>(map_dacSelect[dacSelect]);
+    uint32_t dacMin = std::get<1>(map_dacSelect[dacSelect]);
+    int nDacValues = (dacMax-dacMin+1)/dacStep;
+    std::vector<uint32_t> vec_dacScanData(24*nDacValues); //Each element has bits [0:7] as the current dacValue, and bits [8:17] as the ADC read back value
+
+    //Configure the DAC Monitoring on all the VFATs
+    configureVFAT3DacMonitorLocal(la, ohN, mask, dacSelect);
+
+    //Take the VFATs out of slow control only mode
+    writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
+
+    //Set the VFATs into Run Mode
+    broadcastWriteLocal(la, ohN, "CFG_RUN", 0x1, mask);
+
+    //Scan the DAC
+    uint32_t adcVal;
+    for(uint32_t dacVal=dacMin; dacVal<=dacMax; dacVal += dacStep){ //Loop over DAC values
+        for(int vfatN=0; vfatN<24; ++vfatN){ //Loop over VFATs
+            //Skip masked VFATs
+            if ( !( (notmask >> vfatN) & 0x1)) continue;
+
+            //Set DAC value
+            writeRawAddress(regAddr[vfatN], applyMask(dacVal, regMask[vfatN]), la->response);
+
+            //Read the ADC
+            adcVal = readRawAddress(adcAddr[vfatN], la->response);
+
+            //Store value
+            int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
+            vec_dacScanData[idx] = (adcVal << 8) + dacVal;
+        } //End Loop over VFATs
+    } //End Loop over DAC values
+
+    //Take the VFATs out of Run Mode
+    broadcastWriteLocal(la, ohN, "CFG_RUN", 0x0, mask);
+
+    return vec_dacScanData;
+} //End dacScanLocal(...)
+
+/*! \fn void dacScan(const RPCMsg *request, RPCMsg *response)
+ *  \brief allows the host machine to perform a dacScan for all unmasked VFATs on a given optohybrid, see Local version for details.
+ *  \param request rpc request message
+ *  \param response rpc responce message
+ */
+void dacScan(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t dacSelect = request->get_word("dacSelect");
+    uint32_t dacStep = request->get_word("dacStep");
+    uint32_t mask = request->get_word("mask");
+    bool useExtRefADC = request->get_word("useExtRefADC");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, mask, useExtRefADC);
+    response->set_word_array("dacScanResults",dacScanResults);
+
+    return;
+} //End dacScan(...)
+
+/*! \fn void dacScanMultiLink(const RPCMsg *request, RPCMsg *response)
+ *  \brief As dacScan(...) but for all optohybrids on the AMC
+ *  \details Here the RPCMsg request should have a "ohMask" word which specifies which OH's to read from, this is a 12 bit number where a 1 in the n^th bit indicates that the n^th OH should be read back.  Additionally there should be a "ohVfatMaskArray" which is an array of size 12 where each element is the standard vfatMask for OH specified by the array index.
+ *  \param request rpc request message
+ *  \param response rpc responce message
+ */
+void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    uint32_t ohMask = request->get_word("ohMask");
+    uint32_t dacSelect = request->get_word("dacSelect");
+    uint32_t dacStep = request->get_word("dacStep");
+    uint32_t ohVfatMaskArray[12];
+    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
+    bool useExtRefADC = request->get_word("useExtRefADC");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    std::vector<uint32_t> dacScanResultsAll;
+    for(int ohN=0; ohN<12; ++ohN){
+        // If this Optohybrid is masked skip it
+        if(((ohMask >> ohN) & 0x0)){
+            continue;
+        }
+
+        //Get dac scan results for this optohybrid
+        std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, ohVfatMaskArray[ohN], useExtRefADC);
+
+        //Copy the results into the final container
+        std::copy(dacScanResults.begin(), dacScanResults.end(), dacScanResultsAll.end());
+    } //End Loop over all Optohybrids
+
+    response->set_word_array("dacScanResultsAll",dacScanResultsAll);
+
+    return;
+} //End dacScanMultiLink(...)
+
 /*! \fn void genChannelScan(const RPCMsg *request, RPCMsg *response)
  *  \brief Generic per channel scan. See the local callable methods documentation for details
  *  \param request RPC response message
@@ -1423,6 +1605,8 @@ extern "C" {
         }
         modmgr->register_method("calibration_routines", "checkSbitMappingWithCalPulse", checkSbitMappingWithCalPulse);
         modmgr->register_method("calibration_routines", "checkSbitRateWithCalPulse", checkSbitRateWithCalPulse);
+        modmgr->register_method("calibration_routines", "dacScan", dacScan);
+        modmgr->register_method("calibration_routines", "dacScanMultiLink", dacScanMultiLink);
         modmgr->register_method("calibration_routines", "genScan", genScan);
         modmgr->register_method("calibration_routines", "genChannelScan", genChannelScan);
         modmgr->register_method("calibration_routines", "sbitRateScan", sbitRateScan);

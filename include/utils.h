@@ -1,6 +1,7 @@
 /*! \file utils.h
  *  \brief Util methods for RPC modules
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
+ *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
 #ifndef UTILS_H
@@ -55,6 +56,13 @@ std::string serialize(xhal::utils::Node n) {
  *  \param value integer to check the number of nonzero bits
  */
 uint32_t getNumNonzeroBits(uint32_t value);
+
+/*! \fn uint32_t getMask(localArgs * la, const std::string & regName)
+ *  \brief Returns the mask for a given register
+ *  \param la Local arguments structure
+ *  \param regName Register name
+ */
+uint32_t getMask(localArgs * la, const std::string & regName);
 
 /*! \fn void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response)
  *  \brief Writes a value to a raw register address. Register mask is not applied

@@ -6,7 +6,6 @@ ifndef CTP7_MOD_ROOT
 $(error "Error: CTP7_MOD_ROOT environment variable not set. Source setup.sh file")
 endif
 
-
 include apps.common.mk
 
 IncludeDirs = ${CTP7_MOD_ROOT}/include
@@ -18,8 +17,6 @@ IncludeDirs += ${XHAL_ROOT}/xcompile/lmdb-LMDB_0.9.19/include
 IncludeDirs += /opt/cactus/include
 INC=$(IncludeDirs:%=-I%)
 
-
-
 LDFLAGS+= -L$(XHAL_ROOT)/lib/arm
 LDFLAGS+= -L$(XHAL_ROOT)/xcompile/lmdb-LMDB_0.9.19/lib
 LDFLAGS+= -L$(CTP7_MOD_ROOT)/lib
@@ -30,18 +27,12 @@ TARGET_LIBS=lib/memory.so
 TARGET_LIBS+=lib/optical.so
 TARGET_LIBS+=lib/utils.so
 TARGET_LIBS+=lib/extras.so
+TARGET_LIBS+=lib/amc.so
 TARGET_LIBS+=lib/vfat3.so
 TARGET_LIBS+=lib/optohybrid.so
 TARGET_LIBS+=lib/calibration_routines.so
-TARGET_LIBS+=lib/amc.so
 
 all: $(TARGET_LIBS)
-
-#optohybrid: lib/optohybrid.so
-#
-#$(TARGET_LIBS): $(SRCS)
-#lib/%.so:src/%.cpp
-#	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -o $@ $^ -lwisci2c -lxhal -llmdb
 
 lib/memory.so: src/memory.cpp 
 	$(CXX) $(CFLAGS) $(INC) $(LDFLAGS) -fPIC -shared -o $@ $< -lwisci2c
@@ -55,21 +46,19 @@ lib/utils.so: src/utils.cpp
 lib/extras.so: src/extras.cpp
 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,extras.so -o $@ $< -lwisci2c -lxhal -llmdb
 
-lib/vfat3.so: src/vfat3.cpp 
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,vfat3.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so
-
-lib/optohybrid.so: src/optohybrid.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,optohybrid.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so
-
-lib/calibration_routines.so: src/calibration_routines.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,calibration_routines.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:optohybrid.so -l:vfat3.so
-
 lib/amc.so: src/amc.cpp
 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,amc.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so
 
+lib/vfat3.so: src/vfat3.cpp 
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,vfat3.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:amc.so
+
+lib/optohybrid.so: src/optohybrid.cpp
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,optohybrid.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:amc.so
+
+lib/calibration_routines.so: src/calibration_routines.cpp
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,calibration_routines.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:optohybrid.so -l:vfat3.so -l:amc.so
 
 clean:
 	-rm -rf lib/*.so
 
 .PHONY: all
-
