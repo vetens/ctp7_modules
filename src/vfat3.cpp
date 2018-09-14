@@ -116,7 +116,7 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     for(int ohN=0; ohN<12; ++ohN){
         // If this Optohybrid is masked skip it
-        if(((ohMask >> ohN) & 0x0)){
+        if(!((ohMask >> ohN) & 0x1)){
             continue;
         }
 
@@ -303,9 +303,11 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
     uint32_t adcDataAll[12*24] = {0};
     for(int ohN=0; ohN<12; ++ohN){
         // If this Optohybrid is masked skip it
-        if(((ohMask >> ohN) & 0x0)){
+        if(!((ohMask >> ohN) & 0x1)){
             continue;
         }
+
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Reading VFAT3 ADC Values for all chips on OH%i",ohN));
 
         //Get all ADC values
         readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, ohVfatMaskArray[ohN]);

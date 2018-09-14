@@ -490,7 +490,7 @@ void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response){
     uint32_t ohVfatMaskArray[12];
     for(int ohN=0; ohN<12; ++ohN){
         // If this Optohybrid is masked skip it
-        if(((ohMask >> ohN) & 0x0)){
+        if(!((ohMask >> ohN) & 0x1)){
             continue;
         }
 
