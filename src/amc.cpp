@@ -466,8 +466,8 @@ void getOHVFATMask(const RPCMsg *request, RPCMsg *response){
 
     uint32_t ohN = request->get_word("ohN");
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-    LOGGER->log_message(LogManager::INFO, stdsprintf("Determining VFAT Mask for OH%i",ohN));
     uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Determined VFAT Mask for OH%i to be 0x%x",ohN,vfatMask));
 
     response->set_word("vfatMask",vfatMask);
 
@@ -490,12 +490,21 @@ void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response){
     uint32_t ohVfatMaskArray[12];
     for(int ohN=0; ohN<12; ++ohN){
         // If this Optohybrid is masked skip it
-        if(((ohMask >> ohN) & 0x0)){
+        if(!((ohMask >> ohN) & 0x1)){
+            ohVfatMaskArray[ohN] = 0xffffff;
             continue;
         }
-
-        ohVfatMaskArray[ohN] = getOHVFATMaskLocal(&la, ohN);
+        else{
+            ohVfatMaskArray[ohN] = getOHVFATMaskLocal(&la, ohN);
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Determined VFAT Mask for OH%i to be 0x%x",ohN,ohVfatMaskArray[ohN]));
+        }
     } //End Loop over all Optohybrids
+
+    //Debugging
+    LOGGER->log_message(LogManager::DEBUG, "All VFAT Masks found, listing:");
+    for(int ohN=0; ohN<12; ++ohN){
+        LOGGER->log_message(LogManager::DEBUG, stdsprintf("VFAT Mask for OH%i to be 0x%x",ohN,ohVfatMaskArray[ohN]));
+    }
 
     response->set_word_array("ohVfatMaskArray",ohVfatMaskArray,12);
 

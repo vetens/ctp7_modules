@@ -1535,7 +1535,7 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
     std::vector<uint32_t> dacScanResultsAll;
     for(int ohN=0; ohN<12; ++ohN){
         // If this Optohybrid is masked skip it
-        if(((ohMask >> ohN) & 0x0)){
+        if(!((ohMask >> ohN) & 0x1)){
             continue;
         }
 
