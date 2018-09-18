@@ -349,13 +349,66 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 }
 
 void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask){
-    std::string strRegName, strKeyName;
+    std::string strKeyName;
+    std::string strRegBase;
 
     for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
             continue;
         }
+
+        //Set regBase
+        strRegBase = stdsprintf("GEM_AMC.OH.OH%i.FPGA.ADC.CTRL.",ohN);
+
+        //Log Message
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Reading Sysmon Values for OH%i",ohN));
+
+        //Issue reset??
+        //writeReg(la, strRegBase+"RESET", 0x1);
+
+        //Read Alarm conditions & counters - OVERTEMP
+        strKeyName = stdsprintf("OH%i.OVERTEMP",ohN);
+        la->response->set_word(strKeyName,readReg(la, strRegBase + "OVERTEMP"));
+
+        strKeyName = stdsprintf("OH%i.CNT_OVERTEMP",ohN);
+        la->response->set_word(strKeyName,readReg(la, strRegBase + "CNT_OVERTEMP"));
+
+        //Read Alarm conditions & counters - VCCAUX_ALARM
+        strKeyName = stdsprintf("OH%i.VCCAUX_ALARM",ohN);
+        la->response->set_word(strKeyName,readReg(la, strRegBase + "VCCAUX_ALARM"));
+
+        strKeyName = stdsprintf("OH%i.CNT_VCCAUX_ALARM",ohN);
+        la->response->set_word(strKeyName,readReg(la, strRegBase + "CNT_VCCAUX_ALARM"));
+
+        //Read Alarm conditions & counters - VCCINT_ALARM
+        strKeyName = stdsprintf("OH%i.VCCINT_ALARM",ohN);
+        la->response->set_word(strKeyName,readReg(la, strRegBase + "VCCINT_ALARM"));
+
+        strKeyName = stdsprintf("OH%i.CNT_VCCINT_ALARM",ohN);
+        la->response->set_word(strKeyName,readReg(la, strRegBase + "CNT_VCCINT_ALARM"));
+
+        //Enable Sysmon ADC Read
+        writeReg(la, strRegBase + "ENABLE", 0x1);
+
+        //Read Sysmon Values - Core Temperature
+        writeReg(la, strRegBase + "ADR_IN", 0x0);
+        strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP");
+        la->response->set_word(strKeyName,readReg(la, strRegBase + "DATA_OUT"));
+
+        //Read Sysmon Values - Core Voltage
+        writeReg(la, strRegBase + "ADR_IN", 0x1);
+        strKeyName = stdsprintf("OH%i.FPGA_CORE_1V0");
+        la->response->set_word(strKeyName,readReg(la, strRegBase + "DATA_OUT"));
+
+        //Read Sysmon Values - I/O Voltage
+        writeReg(la, strRegBase + "ADR_IN", 0x2);
+        strKeyName = stdsprintf("OH%i.FPGA_CORE_2V5_IO");
+        la->response->set_word(strKeyName,readReg(la, strRegBase + "DATA_OUT"));
+
+        //Disable Sysmon ADC Read
+        writeReg(la, strRegBase + "ENABLE", 0x0);
+    } //End Loop over all optohybrids
 } //End getmonOHSysmonLocal()
 
 void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){

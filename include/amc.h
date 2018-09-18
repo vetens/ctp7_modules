@@ -61,8 +61,24 @@ void getmonOHmainLocal(localArgs * la, int NOH);
  */
 void getmonOHmain(const RPCMsg *request, RPCMsg *response);
 
-/*! \fn void getmonOHSCAmainLocal(localArgs *la, int NOH);
- *  \brief Local version of getmonOHSCAmainLocal
+/*! \fn void getmonOHSysmonLocal(localArgs *la, int NOH=12, int ohMask=0xfff)
+ *  \brief Local version of getmonOHSysmon
+ *  \param la Local arguments
+ *  \param NOH Number of optohybrids in FW
+ *  \param ohMask A 12 bit number which specifies which optohybrids to read from.  Having a value of 1 in the n^th bit indicates that the n^th optohybrid should be considered.
+ */
+void getmonOHSysmonLocal(localArgs *la, int NOH=12, int ohMask=0xfff);
+
+/*! \fn void getmonOHSysmon(const RPCMsg *request, RPCMsg *response)
+ *  \brief reads FPGA Sysmon values of all unmasked OH's
+ *  \details Reads FPGA core temperature, core voltage (1V), and I/O voltage (2.5V).  Will also check error conditions (over temperature, 1V VCCINT, and 2.5V VCCAUX), and the error conunters for those conditions.
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void getmonOHSysmon(const RPCMsg *request, RPCMsg *response);
+
+/*! \fn void getmonOHSCAmainLocal(localArgs *la, int NOH)
+ *  \brief Local version of getmonOHSCAmain
  *  \param la Local arguments
  *  \param NOH Number of optohybrids in FW
  *  \param ohMask A 12 bit number which specifies which optohybrids to read from.  Having a value of 1 in the n^th bit indicates that the n^th optohybrid should be considered.
@@ -70,7 +86,7 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response);
 void getmonOHSCAmainLocal(localArgs *la, int NOH=12, int ohMask=0xfff);
 
 /* !\fn void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
- *  \brief Reads the SCA Monitoring values of all OH's (voltage and temperature) including FPGA core temperature
+ *  \brief Reads the SCA Monitoring values of all OH's (voltage and temperature)
  *  \param request RPC request message
  *  \param response RPC response message
  */
