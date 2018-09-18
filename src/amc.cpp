@@ -348,12 +348,37 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask){
+    std::string strRegName, strKeyName;
+
+    for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+        // If this Optohybrid is masked skip it
+        if(!((ohMask >> ohN) & 0x1)){
+            continue;
+        }
+} //End getmonOHSysmonLocal()
+
+void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
+  auto env = lmdb::env::create();
+  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"/address_table.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
+  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  int NOH = request->get_word("NOH");
+  int ohMask = request->get_word("ohMask");
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  getmonOHSysmonLocal(&la, NOH, ohMask);
+  rtxn.abort();
+} //End getmonOHSysmon()
+
 void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
     std::string strRegName, strKeyName;
 
     for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
         // If this Optohybrid is masked skip it
-        if(((ohMask >> ohN) & 0x0)){
+        if(!((ohMask >> ohN) & 0x1)){
             continue;
         }
 
