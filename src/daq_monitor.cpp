@@ -36,13 +36,13 @@ void getmonTRIGGERmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
   la->response->set_word("OR_TRIGGER_RATE",readReg(la,"GEM_AMC.TRIGGER.STATUS.OR_TRIGGER_RATE"));
-  for (int i = 0; i < NOH; i++){
+  for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
       continue;
     }
-    t1 = stdsprintf("OH%s.TRIGGER_RATE",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.TRIGGER_RATE",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.TRIGGER_RATE",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.TRIGGER_RATE",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
   }
 }
@@ -71,34 +71,34 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 void getmonTRIGGEROHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
-  for (int i = 0; i < NOH; i++){
+  for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
       continue;
     }
-    t1 = stdsprintf("OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.LINK1_MISSED_COMMA_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_MISSED_COMMA_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK1_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.LINK0_OVERFLOW_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_OVERFLOW_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK0_OVERFLOW_CNT",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_OVERFLOW_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.LINK1_OVERFLOW_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_OVERFLOW_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK1_OVERFLOW_CNT",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_OVERFLOW_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.LINK0_UNDERFLOW_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_UNDERFLOW_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK0_UNDERFLOW_CNT",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_UNDERFLOW_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.LINK1_UNDERFLOW_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_UNDERFLOW_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK1_UNDERFLOW_CNT",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_UNDERFLOW_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.LINK0_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK0_SBIT_OVERFLOW_CNT",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK0_SBIT_OVERFLOW_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.LINK1_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_SBIT_OVERFLOW_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.LINK1_SBIT_OVERFLOW_CNT",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.TRIGGER.OH%s.LINK1_SBIT_OVERFLOW_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
   }
 }
@@ -154,27 +154,27 @@ void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
 void getmonDAQOHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
-  for (int i = 0; i < NOH; i++){
+  for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
       continue;
     }
-    t1 = stdsprintf("OH%s.STATUS.EVT_SIZE_ERR",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.STATUS.EVT_SIZE_ERR",std::to_string(ohN).c_str());
     t2 = stdsprintf("GEM_AMC.DAQ.%s",t1.c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.STATUS.EVENT_FIFO_HAD_OFLOW",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.STATUS.EVENT_FIFO_HAD_OFLOW",std::to_string(ohN).c_str());
     t2 = stdsprintf("GEM_AMC.DAQ.%s",t1.c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.STATUS.INPUT_FIFO_HAD_OFLOW",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.STATUS.INPUT_FIFO_HAD_OFLOW",std::to_string(ohN).c_str());
     t2 = stdsprintf("GEM_AMC.DAQ.%s",t1.c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.STATUS.INPUT_FIFO_HAD_UFLOW",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.STATUS.INPUT_FIFO_HAD_UFLOW",std::to_string(ohN).c_str());
     t2 = stdsprintf("GEM_AMC.DAQ.%s",t1.c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.STATUS.VFAT_TOO_MANY",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.STATUS.VFAT_TOO_MANY",std::to_string(ohN).c_str());
     t2 = stdsprintf("GEM_AMC.DAQ.%s",t1.c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.STATUS.VFAT_NO_MARKER",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.STATUS.VFAT_NO_MARKER",std::to_string(ohN).c_str());
     t2 = stdsprintf("GEM_AMC.DAQ.%s",t1.c_str());
     la->response->set_word(t1,readReg(la,t2));
   }
@@ -204,31 +204,31 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
 void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
-  for (int i = 0; i < NOH; i++){
+  for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
       continue;
     }
-    t1 = stdsprintf("OH%s.FW_VERSION",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.OH.OH%s.STATUS.FW.VERSION",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.FW_VERSION",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.OH.OH%s.STATUS.FW.VERSION",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.EVENT_COUNTER",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.DAQ.OH%s.COUNTERS.EVN",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.EVENT_COUNTER",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.DAQ.OH%s.COUNTERS.EVN",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.EVENT_RATE",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.DAQ.OH%s.COUNTERS.EVT_RATE",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.EVENT_RATE",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.DAQ.OH%s.COUNTERS.EVT_RATE",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.GTX.TRK_ERR",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.OH.OH%s.COUNTERS.GTX_LINK.TRK_ERR",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.GTX.TRK_ERR",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.OH.OH%s.COUNTERS.GTX_LINK.TRK_ERR",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.GTX.TRG_ERR",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.OH.OH%s.COUNTERS.GTX_LINK.TRG_ERR",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.GTX.TRG_ERR",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.OH.OH%s.COUNTERS.GTX_LINK.TRG_ERR",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.GBT.TRK_ERR",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.OH.OH%s.COUNTERS.GBT_LINK.TRK_ERR",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.GBT.TRK_ERR",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.OH.OH%s.COUNTERS.GBT_LINK.TRK_ERR",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
-    t1 = stdsprintf("OH%s.CORR_VFAT_BLK_CNT",std::to_string(i).c_str());
-    t2 = stdsprintf("GEM_AMC.DAQ.OH%s.COUNTERS.CORRUPT_VFAT_BLK_CNT",std::to_string(i).c_str());
+    t1 = stdsprintf("OH%s.CORR_VFAT_BLK_CNT",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.DAQ.OH%s.COUNTERS.CORRUPT_VFAT_BLK_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
   }
 }
