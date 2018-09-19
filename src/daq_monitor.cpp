@@ -402,17 +402,17 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
         //Read Sysmon Values - Core Temperature
         writeReg(la, strRegBase + "ADR_IN", 0x0);
         strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP",ohN);
-        la->response->set_word(strKeyName,readReg(la, strRegBase + "DATA_OUT"));
+        la->response->set_word(strKeyName, ((readReg(la, strRegBase + "DATA_OUT") >> 6) & 0x3ff));
 
         //Read Sysmon Values - Core Voltage
         writeReg(la, strRegBase + "ADR_IN", 0x1);
         strKeyName = stdsprintf("OH%i.FPGA_CORE_1V0",ohN);
-        la->response->set_word(strKeyName,readReg(la, strRegBase + "DATA_OUT"));
+        la->response->set_word(strKeyName, ((readReg(la, strRegBase + "DATA_OUT") >> 6) & 0x3ff));
 
         //Read Sysmon Values - I/O Voltage
         writeReg(la, strRegBase + "ADR_IN", 0x2);
         strKeyName = stdsprintf("OH%i.FPGA_CORE_2V5_IO",ohN);
-        la->response->set_word(strKeyName,readReg(la, strRegBase + "DATA_OUT"));
+        la->response->set_word(strKeyName, ((readReg(la, strRegBase + "DATA_OUT") >> 6) & 0x3ff));
 
         //Disable Sysmon ADC Read
         writeReg(la, strRegBase + "ENABLE", 0x0);

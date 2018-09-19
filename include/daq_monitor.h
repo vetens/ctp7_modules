@@ -63,7 +63,7 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response);
 void getmonOHSCAmainLocal(localArgs *la, int NOH=12, int ohMask=0xfff);
 
 /* !\fn void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
- *  \brief Reads the SCA Monitoring values of all OH's (voltage and temperature)
+ *  \brief Reads the SCA Monitoring values of all OH's (voltage and temperature); these quantities are reported in ADC units
  *  \param request RPC request message
  *  \param response RPC response message
  */
@@ -80,7 +80,8 @@ void getmonOHSysmonLocal(localArgs *la, int NOH=12, int ohMask=0xfff, bool doRes
 
 /*! \fn void getmonOHSysmon(const RPCMsg *request, RPCMsg *response)
  *  \brief reads FPGA Sysmon values of all unmasked OH's
- *  \details Reads FPGA core temperature, core voltage (1V), and I/O voltage (2.5V).  Will also check error conditions (over temperature, 1V VCCINT, and 2.5V VCCAUX), and the error conunters for those conditions.
+ *  \details Reads FPGA core temperature, core voltage (1V), and I/O voltage (2.5V); these quantities are reported in ADC units.  The LSB for the core temperature correspons to 0.49 C.  The LSB for the core voltage (both 1V and 2.5V) corresponds to 2.93 mV.
+ *  \details Will also check error conditions (over temperature, 1V VCCINT, and 2.5V VCCAUX), and the error conunters for those conditions.
  *  \param request RPC request message
  *  \param response RPC response message
  */
