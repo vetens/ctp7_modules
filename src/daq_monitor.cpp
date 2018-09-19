@@ -371,6 +371,7 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
 
         //Issue reset??
         if(doReset){
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Reseting CNT_OVERTEMP, CNT_VCCAUX_ALARM and CNT_VCCINT_ALARM for OH%i",ohN));
             writeReg(la, strRegBase+"RESET", 0x1);
         }
 
@@ -400,17 +401,17 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
 
         //Read Sysmon Values - Core Temperature
         writeReg(la, strRegBase + "ADR_IN", 0x0);
-        strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP");
+        strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP",ohN);
         la->response->set_word(strKeyName,readReg(la, strRegBase + "DATA_OUT"));
 
         //Read Sysmon Values - Core Voltage
         writeReg(la, strRegBase + "ADR_IN", 0x1);
-        strKeyName = stdsprintf("OH%i.FPGA_CORE_1V0");
+        strKeyName = stdsprintf("OH%i.FPGA_CORE_1V0",ohN);
         la->response->set_word(strKeyName,readReg(la, strRegBase + "DATA_OUT"));
 
         //Read Sysmon Values - I/O Voltage
         writeReg(la, strRegBase + "ADR_IN", 0x2);
-        strKeyName = stdsprintf("OH%i.FPGA_CORE_2V5_IO");
+        strKeyName = stdsprintf("OH%i.FPGA_CORE_2V5_IO",ohN);
         la->response->set_word(strKeyName,readReg(la, strRegBase + "DATA_OUT"));
 
         //Disable Sysmon ADC Read
