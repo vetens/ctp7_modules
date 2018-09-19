@@ -353,7 +353,7 @@ void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask){
+void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
     std::string strKeyName;
     std::string strRegBase;
 
@@ -370,7 +370,9 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask){
         LOGGER->log_message(LogManager::INFO, stdsprintf("Reading Sysmon Values for OH%i",ohN));
 
         //Issue reset??
-        //writeReg(la, strRegBase+"RESET", 0x1);
+        if(doReset){
+            writeReg(la, strRegBase+"RESET", 0x1);
+        }
 
         //Read Alarm conditions & counters - OVERTEMP
         strKeyName = stdsprintf("OH%i.OVERTEMP",ohN);
@@ -431,8 +433,10 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
     ohMask = request->get_word("ohMask");
   }
 
+  bool doReset = request->get_word("doReset");
+
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-  getmonOHSysmonLocal(&la, NOH, ohMask);
+  getmonOHSysmonLocal(&la, NOH, ohMask, doReset);
   rtxn.abort();
 } //End getmonOHSysmon()
 

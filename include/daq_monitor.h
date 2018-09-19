@@ -69,13 +69,14 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH=12, int ohMask=0xfff);
  */
 void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response);
 
-/*! \fn void getmonOHSysmonLocal(localArgs *la, int NOH=12, int ohMask=0xfff)
+/*! \fn void getmonOHSysmonLocal(localArgs *la, int NOH=12, int ohMask=0xfff, bool doReset=false)
  *  \brief Local version of getmonOHSysmon
  *  \param la Local arguments
  *  \param NOH Number of optohybrids in FW
  *  \param ohMask A 12 bit number which specifies which optohybrids to read from.  Having a value of 1 in the n^th bit indicates that the n^th optohybrid should be considered.
+ *  \param doReset reset counters CNT_OVERTEMP, CNT_VCCAUX_ALARM and CNT_VCCINT_ALARM (presently not working in FW)
  */
-void getmonOHSysmonLocal(localArgs *la, int NOH=12, int ohMask=0xfff);
+void getmonOHSysmonLocal(localArgs *la, int NOH=12, int ohMask=0xfff, bool doReset=false);
 
 /*! \fn void getmonOHSysmon(const RPCMsg *request, RPCMsg *response)
  *  \brief reads FPGA Sysmon values of all unmasked OH's
