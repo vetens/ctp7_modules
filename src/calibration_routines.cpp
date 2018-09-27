@@ -1510,8 +1510,8 @@ void dacScan(const RPCMsg *request, RPCMsg *response){
 
 /*! \fn void dacScanMultiLink(const RPCMsg *request, RPCMsg *response)
  *  \brief As dacScan(...) but for all optohybrids on the AMC
- *  \details Here the RPCMsg request should have a "ohMask" word which specifies which OH's to read from, this is a 12 bit number where a 1 in the n^th bit indicates that the n^th OH should be read back.  Additionally there should be a "ohVfatMaskArray" which is an array of size 12 where each element is the standard vfatMask for OH specified by the array index.
- *  \param request rpc request message
+ *  \details Here the RPCMsg request should have a "ohMask" word which specifies which OH's to read from, this is a 12 bit number where a 1 in the n^th bit indicates that the n^th OH should be read back.
+ :  \param request rpc request message
  *  \param response rpc responce message
  */
 void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
@@ -1526,8 +1526,6 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
     uint32_t ohMask = request->get_word("ohMask");
     uint32_t dacSelect = request->get_word("dacSelect");
     uint32_t dacStep = request->get_word("dacStep");
-    uint32_t ohVfatMaskArray[12];
-    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
     bool useExtRefADC = request->get_word("useExtRefADC");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
@@ -1539,8 +1537,11 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
             continue;
         }
 
+        //Get vfatmask for this OH
+        uint32_t vfatMask = getOHVFATMaskLocal(la, ohN);
+
         //Get dac scan results for this optohybrid
-        std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, ohVfatMaskArray[ohN], useExtRefADC);
+        std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, vfatMask, useExtRefADC);
 
         //Copy the results into the final container
         std::copy(dacScanResults.begin(), dacScanResults.end(), dacScanResultsAll.end());
