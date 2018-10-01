@@ -10,6 +10,8 @@
 #include "optohybrid.h"
 #include <thread>
 #include "vfat3.h"
+#include "amc.h"
+
 
 uint32_t vfatSyncCheckLocal(localArgs * la, uint32_t ohN)
 {
@@ -119,7 +121,7 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
         }
 
 	//Get VFAT Mask
-	uint32_t vfatMask = getOHVFATMaskLocal(la, ohN);
+	uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
 	
         LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring on OH%i for Selection %i",ohN,dacSelect));
         configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
@@ -309,7 +311,7 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
         LOGGER->log_message(LogManager::INFO, stdsprintf("Reading VFAT3 ADC Values for all chips on OH%i",ohN));
 
 	//Get VFAT Mask
-	uint32_t vfatMask = getOHVFATMaskLocal(la, ohN);
+	uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
 	
         //Get all ADC values
         readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, vfatMask);
