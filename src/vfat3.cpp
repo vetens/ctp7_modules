@@ -109,8 +109,6 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
     uint32_t ohMask = request->get_word("ohMask");
-    uint32_t ohVfatMaskArray[12];
-    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
     uint32_t dacSelect = request->get_word("dacSelect");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
@@ -120,8 +118,11 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
             continue;
         }
 
+	//Get VFAT Mask
+	uint32_t vfatMask = getOHVFATMaskLocal(la, ohN);
+	
         LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring on OH%i for Selection %i",ohN,dacSelect));
-        configureVFAT3DacMonitorLocal(&la, ohN, ohVfatMaskArray[ohN], dacSelect);
+        configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
     } //End Loop over all Optohybrids
 
     return;
@@ -294,8 +295,6 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
     uint32_t ohMask = request->get_word("ohMask");
-    uint32_t ohVfatMaskArray[12];
-    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
     bool useExtRefADC = request->get_word("useExtRefADC");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
@@ -309,8 +308,11 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
 
         LOGGER->log_message(LogManager::INFO, stdsprintf("Reading VFAT3 ADC Values for all chips on OH%i",ohN));
 
+	//Get VFAT Mask
+	uint32_t vfatMask = getOHVFATMaskLocal(la, ohN);
+	
         //Get all ADC values
-        readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, ohVfatMaskArray[ohN]);
+        readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, vfatMask);
 
         //Copy all ADC values
         std::copy(adcData, adcData+24, adcDataAll+(24*ohN));
