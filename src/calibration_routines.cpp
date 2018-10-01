@@ -1530,8 +1530,10 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
 
+    int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    
     std::vector<uint32_t> dacScanResultsAll;
-    for(int ohN=0; ohN<12; ++ohN){
+    for(int ohN=0; ohN<NOH; ++ohN){
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
             continue;

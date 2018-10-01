@@ -114,7 +114,8 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
     uint32_t dacSelect = request->get_word("dacSelect");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-    for(int ohN=0; ohN<12; ++ohN){
+    int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    for(int ohN=0; ohN<NOH; ++ohN){
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
             continue;
@@ -298,10 +299,12 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
     request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
     bool useExtRefADC = request->get_word("useExtRefADC");
 
+
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     uint32_t adcData[24] = {0};
     uint32_t adcDataAll[12*24] = {0};
-    for(int ohN=0; ohN<12; ++ohN){
+    for(int ohN=0; ohN<NOH; ++ohN){
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
             continue;
