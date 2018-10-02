@@ -1511,7 +1511,7 @@ void dacScan(const RPCMsg *request, RPCMsg *response){
 /*! \fn void dacScanMultiLink(const RPCMsg *request, RPCMsg *response)
  *  \brief As dacScan(...) but for all optohybrids on the AMC
  *  \details Here the RPCMsg request should have a "ohMask" word which specifies which OH's to read from, this is a 12 bit number where a 1 in the n^th bit indicates that the n^th OH should be read back.
- :  \param request rpc request message
+ *  \param request rpc request message
  *  \param response rpc responce message
  */
 void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){

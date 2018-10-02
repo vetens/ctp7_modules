@@ -2,7 +2,7 @@
  *  \brief RPC module for amc methods
  *  \author Cameron Bravo <cbravo135@gmail.com>
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
- *  \author Brin Dorney <brian.l.dorney@cern.ch>
+ *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
 #ifndef AMC_H

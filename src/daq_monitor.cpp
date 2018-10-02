@@ -1,5 +1,5 @@
-/*! \file amc.cpp
- *  \brief AMC methods for RPC modules
+/*! \file daq_monitor.cpp
+ *  \brief Contains functions for hardware monitoring
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
  *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
