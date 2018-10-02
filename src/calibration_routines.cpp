@@ -1538,7 +1538,7 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
         }
 
         //Get vfatmask for this OH
-        uint32_t vfatMask = getOHVFATMaskLocal(la, ohN);
+        uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
 
         //Get dac scan results for this optohybrid
         std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, vfatMask, useExtRefADC);
