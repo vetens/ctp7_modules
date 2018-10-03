@@ -1349,7 +1349,7 @@ void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response){
  *  \param dacStep step size to scan the dac in
  *  \param mask VFAT mask to use, a value of 1 in the N^th bit indicates the N^th VFAT is masked
  *  \param useExtRefADC if (true) false use the (externally) internally referenced ADC on the VFAT3 for monitoring
- *  \return Returns a std::vector<uint32_t> object of size 24*(dacMax-dacMin+1)/dacStep where dacMax and dacMin are described in the VFAT3 manual.  For each element bits [7:0] are the dacValue and bits [17:8] are the ADC readback value in either current or voltage units depending on dacSelect (again, see VFAT3 manual).
+ *  \return Returns a std::vector<uint32_t> object of size 24*(dacMax-dacMin+1)/dacStep where dacMax and dacMin are described in the VFAT3 manual.  For each element bits [7:0] are the dacValue, bits [17:8] are the ADC readback value in either current or voltage units depending on dacSelect (again, see VFAT3 manual), bits [22:18] are the VFAT position, and bits [26:23] are the optohybrid number.
  */
 std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep=1, uint32_t mask=0xFF000000, bool useExtRefADC=false){
     //Ensure VFAT3 Hardware
@@ -1471,7 +1471,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
             //Store value
             int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
-            vec_dacScanData[idx] = (adcVal << 8) + dacVal;
+            vec_dacScanData[idx] = (ohN << 23) + (vfatN << 18) + (adcVal << 8) + dacVal;
         } //End Loop over VFATs
     } //End Loop over DAC values
 
