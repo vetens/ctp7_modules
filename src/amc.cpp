@@ -89,10 +89,10 @@ void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response){
 
     unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     if (request->get_key_exists("NOH")){
-      if (request->get_word("NOH") <= NOH)
-        NOH = request->get_word("NOH");
-      else
-        LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH (%i), NOH request will be disregarded",request->get_word("NOH"),NOH));
+        if (request->get_word("NOH") <= NOH)
+            NOH = request->get_word("NOH");
+        else
+            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH (%i), NOH request will be disregarded",request->get_word("NOH"),NOH));
     }
     
     uint32_t ohVfatMaskArray[12];
