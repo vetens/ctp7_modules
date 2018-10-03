@@ -12,7 +12,6 @@
 #include "vfat3.h"
 #include "amc.h"
 
-
 uint32_t vfatSyncCheckLocal(localArgs * la, uint32_t ohN)
 {
     uint32_t goodVFATs = 0;
