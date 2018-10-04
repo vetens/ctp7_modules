@@ -258,6 +258,12 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
     std::string strRegName, strKeyName;
 
+    //Get original monitoring mask
+    uint32_t initSCAMonOffMask = readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF");
+
+    //Turn on monitoring for requested links
+    writeReg(la, "GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF", (~ohMask) & 0x3fc);
+
     for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
@@ -329,6 +335,9 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
         strKeyName = stdsprintf("OH%i.VTRX_RSSI1",ohN);
         la->response->set_word(strKeyName, readReg(la, strRegName));
     } //End Loop over all optohybrids
+
+    //Return monitoring to original value
+    writeReg(la, "GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF", initSCAMonOffMask);
 
     return;
 } //End getmonOHSCAmainLocal(...)
