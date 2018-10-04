@@ -116,10 +116,11 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     if (request->get_key_exists("NOH")){
-        if (request->get_word("NOH") <= NOH)
-            NOH = request->get_word("NOH");
+        unsigned int NOH_requested = request->get_word("NOH");
+        if (NOH_requested <= NOH)
+            NOH = NOH_requested;
         else
-            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH (%i), NOH request will be disregarded",request->get_word("NOH"),NOH));
+            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH (%i), NOH request will be disregarded",NOH_requested,NOH));
     }
     for(unsigned int ohN=0; ohN<NOH; ++ohN){
         // If this Optohybrid is masked skip it
@@ -308,11 +309,12 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     if (request->get_key_exists("NOH")){
-        if (request->get_word("NOH") <= NOH)
-            NOH = request->get_word("NOH");
+        unsigned int NOH_requested = request->get_word("NOH");
+        if (NOH_requested <= NOH)
+            NOH = NOH_requested;
         else
-            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH (%i), NOH request will be disregarded",request->get_word("NOH"),NOH));
-    }
+            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH (%i), NOH request will be disregarded",NOH_requested,NOH));
+    }    
     uint32_t adcData[24] = {0};
     uint32_t adcDataAll[12*24] = {0};
     for(unsigned int ohN=0; ohN<NOH; ++ohN){
