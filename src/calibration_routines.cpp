@@ -1392,7 +1392,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     map_dacSelect[36] = std::make_tuple("CFG_THR_ZCC_DAC", 0, 0xff);
     //map_dacSelect[37] = std::make_tuple("NOREG_VTSENSEINT", 0, 0); //Internal temperature sensor
     //map_dacSelect[38] = std::make_tuple("NOREG_VTSENSEEXT", 0, 0); //External temperature sensor (only on HV3b_V3(4) hybrids)
-    map_dacSelect[39] = std::make_tuple("CFG_ADC_VREF", 0, 0x3);
+    map_dacSelect[39] = std::make_tuple("CFG_VREF_ADC", 0, 0x3);
     //map_dacSelect[40] = std::make_tuple("CFG_", 0,);
     //map_dacSelect[41] = std::make_tuple("CFG_", 0,);
 
