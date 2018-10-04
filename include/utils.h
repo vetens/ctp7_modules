@@ -1,6 +1,7 @@
 /*! \file utils.h
  *  \brief Util methods for RPC modules
  *  \author Mykhailo Dalchenko <mykhailo.dalchenko@cern.ch>
+ *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
 #ifndef UTILS_H
@@ -50,8 +51,21 @@ std::string serialize(xhal::utils::Node n) {
   return std::to_string((uint32_t)n.real_address)+"|"+n.permission+"|"+std::to_string((uint32_t)n.mask);
 }
 
+/*! \fn uint32_t getNumNonzeroBits(uint32_t value)
+ *  \brief returns the number of nonzero bits in an integer
+ *  \param value integer to check the number of nonzero bits
+ */
+uint32_t getNumNonzeroBits(uint32_t value);
+
+/*! \fn uint32_t getMask(localArgs * la, const std::string & regName)
+ *  \brief Returns the mask for a given register
+ *  \param la Local arguments structure
+ *  \param regName Register name
+ */
+uint32_t getMask(localArgs * la, const std::string & regName);
+
 /*! \fn void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response)
- *  \brief Writes a value to a raw register address. Register mask is not applied  
+ *  \brief Writes a value to a raw register address. Register mask is not applied
  *  \param address Register address
  *  \param value Value to write
  *  \param response RPC response message
@@ -88,7 +102,7 @@ void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response);
 uint32_t readAddress(lmdb::val & db_res, RPCMsg *response);
 
 /*! \fn void writeRawReg(localArgs * la, const std::string & regName, uint32_t value)
- *  \brief Writes a value to a raw register. Register mask is not applied  
+ *  \brief Writes a value to a raw register. Register mask is not applied
  *  \param la Local arguments structure
  *  \param regName Register name
  *  \param value Value to write
@@ -117,7 +131,7 @@ uint32_t applyMask(uint32_t data, uint32_t mask);
 uint32_t readReg(localArgs * la, const std::string & regName);
 
 /*! \fn void writeReg(localArgs * la, const std::string & regName, uint32_t value)
- *  \brief Writes a value to a register. Register mask is applied  
+ *  \brief Writes a value to a register. Register mask is applied
  *  \param la Local arguments structure
  *  \param regName Register name
  *  \param value Value to write
