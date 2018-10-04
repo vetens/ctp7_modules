@@ -34,7 +34,6 @@ void getmonTTCmain(const RPCMsg *request, RPCMsg *response)
 
 void getmonTRIGGERmainLocal(localArgs * la, int NOH, int ohMask)
 {
-
   std::string t1,t2;
   la->response->set_word("OR_TRIGGER_RATE",readReg(la,"GEM_AMC.TRIGGER.STATUS.OR_TRIGGER_RATE"));
   for (int ohN = 0; ohN < NOH; ohN++){
