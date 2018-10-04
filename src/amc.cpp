@@ -92,7 +92,7 @@ void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response){
         if (NOH_requested <= NOH)
             NOH = NOH_requested;
         else
-            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH (%i), NOH request will be disregarded",NOH_requested,NOH));
+            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
     }
     
     uint32_t ohVfatMaskArray[12];
