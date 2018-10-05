@@ -135,6 +135,8 @@ void getmonDAQmainLocal(localArgs * la)
   la->response->set_word("DAQ_FIFO_DATA_COUNT",readReg(la,"GEM_AMC.DAQ.EXT_STATUS.DAQ_FIFO_DATA_CNT"));
   la->response->set_word("EVENT_SENT",readReg(la,"GEM_AMC.DAQ.EXT_STATUS.EVT_SENT"));
   la->response->set_word("TTS_STATE",readReg(la,"GEM_AMC.DAQ.STATUS.TTS_STATE"));
+  la->response->set_word("INPUT_ENABLE_MASK",readReg(la,"GEM_AMC.DAQ.CONTROL.INPUT_ENABLE_MASK"));
+  la->response->set_word("INPUT_AUTOKILL_MASK",readReg(la,"GEM_AMC.DAQ.STATUS.INPUT_AUTOKILL_MASK"));
 }
 
 void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
@@ -229,6 +231,12 @@ void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
     la->response->set_word(t1,readReg(la,t2));
     t1 = stdsprintf("OH%s.CORR_VFAT_BLK_CNT",std::to_string(ohN).c_str());
     t2 = stdsprintf("GEM_AMC.DAQ.OH%s.COUNTERS.CORRUPT_VFAT_BLK_CNT",std::to_string(ohN).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.COUNTERS.SEU",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.OH.OH%s.COUNTERS.SEU",std::to_string(ohN).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.STATUS.SEU",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.OH.OH%s.STATUS.SEU",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
   }
 }

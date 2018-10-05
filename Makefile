@@ -34,11 +34,11 @@ TARGET_LIBS  = lib/memory.so
 TARGET_LIBS += lib/optical.so
 TARGET_LIBS += lib/utils.so
 TARGET_LIBS += lib/extras.so
+TARGET_LIBS += lib/amc.so
+TARGET_LIBS += lib/daq_monitor.so
 TARGET_LIBS += lib/vfat3.so
 TARGET_LIBS += lib/optohybrid.so
 TARGET_LIBS += lib/calibration_routines.so
-TARGET_LIBS += lib/amc.so
-TARGET_LIBS += lib/daq_monitor.so
 
 .PHONY: clean rpc prerpm
 
