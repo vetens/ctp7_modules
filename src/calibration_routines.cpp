@@ -1061,7 +1061,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
                 int vfatObserved = 7-int(sbitAddress/192)+int((sbitAddress%192)/64)*8;
                 int sbitObserved = sbitAddress % 64;
 
-                outData[idx] = (clusterSize << 27) + (isValid << 26) + (vfatObserved << 21) + (vfatN << 16) + (sbitObserved << 8) + chan;
+                outData[idx] = ((clusterSize & 0x7 ) << 27) + ((isValid & 0x1) << 26) + ((vfatObserved & 0x1f) << 21) + ((vfatN & 0x1f) << 16) + ((sbitObserved & 0xff) << 8) + (chan & 0xff);
 
                 if(isValid){
                     LOGGER->log_message(
@@ -1471,7 +1471,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
             //Store value
             int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
-            vec_dacScanData[idx] = (ohN << 23) + (vfatN << 18) + (adcVal << 8) + dacVal;
+            vec_dacScanData[idx] = ((ohN & 0xf) << 23) + ((vfatN & 0x1f) << 18) + ((adcVal & 0x3ff) << 8) + (dacVal & 0xff);
         } //End Loop over VFATs
     } //End Loop over DAC values
 
