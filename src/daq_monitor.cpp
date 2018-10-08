@@ -489,6 +489,33 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
   rtxn.abort();
 } //End getmonOHSysmon()
 
+void getmonSCALocal(localArgs * la, int NOH)
+{
+  std::string t1,t2;
+  la->response->set_word("SCA.STATUS.READY", readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.STATUS.READY"));
+  la->response->set_word("SCA.STATUS.CRITICAL_ERROR", readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.STATUS.CRITICAL_ERROR"));
+  for (int i = 0; i < NOH; ++i) {
+    t1 = stdsprintf("SCA.STATUS.NOT_READY_CNT_OH%s",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.STATUS.NOT_READY_CNT_OH%s",std::to_string(i).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+  }
+}
+
+void getmonSCA(const RPCMsg *request, RPCMsg *response){
+  auto env = lmdb::env::create();
+  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"/address_table.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
+  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  getmonSCALocal(&la, NOH);
+  rtxn.abort();
+} //End getmonSCA()
+
 extern "C" {
     const char *module_version_key = "daq_monitor v1.0.1";
     int module_activity_color = 4;
@@ -506,5 +533,6 @@ extern "C" {
         modmgr->register_method("daq_monitor", "getmonOHmain", getmonOHmain);
         modmgr->register_method("daq_monitor", "getmonOHSCAmain", getmonOHSCAmain);
         modmgr->register_method("daq_monitor", "getmonOHSysmon", getmonOHSysmon);
+        modmgr->register_method("daq_monitor", "getmonSCA", getmonSCA);
     }
 }
