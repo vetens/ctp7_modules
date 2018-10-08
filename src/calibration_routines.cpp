@@ -1461,17 +1461,25 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     for(uint32_t dacVal=dacMin; dacVal<=dacMax; dacVal += dacStep){ //Loop over DAC values
         for(int vfatN=0; vfatN<24; ++vfatN){ //Loop over VFATs
             //Skip masked VFATs
-            if ( !( (notmask >> vfatN) & 0x1)) continue;
+            if ( !( (notmask >> vfatN) & 0x1)){ //Case: VFAT is masked, skip
+                //Store word, but with adcVal = 0
+                int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
+                vec_dacScanData[idx] = ((ohN & 0xf) << 23) + ((vfatN & 0x1f) << 18) + (dacVal & 0xff);
 
-            //Set DAC value
-            writeRawAddress(regAddr[vfatN], applyMask(dacVal, regMask[vfatN]), la->response);
+                //skip
+                continue;
+            } //End Case: VFAT is masked, skip
+            else{ //Case: VFAT is not masked
+                //Set DAC value
+                writeRawAddress(regAddr[vfatN], applyMask(dacVal, regMask[vfatN]), la->response);
 
-            //Read the ADC
-            adcVal = readRawAddress(adcAddr[vfatN], la->response);
+                //Read the ADC
+                adcVal = readRawAddress(adcAddr[vfatN], la->response);
 
-            //Store value
-            int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
-            vec_dacScanData[idx] = ((ohN & 0xf) << 23) + ((vfatN & 0x1f) << 18) + ((adcVal & 0x3ff) << 8) + (dacVal & 0xff);
+                //Store value
+                int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
+                vec_dacScanData[idx] = ((ohN & 0xf) << 23) + ((vfatN & 0x1f) << 18) + ((adcVal & 0x3ff) << 8) + (dacVal & 0xff);
+            } //End Case: VFAT is not masked
         } //End Loop over VFATs
     } //End Loop over DAC values
 
