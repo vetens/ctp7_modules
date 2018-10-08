@@ -1546,16 +1546,22 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
         }
 
         //Get vfatmask for this OH
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Getting VFAT Mask for OH%i", ohN));
         uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
 
         //Get dac scan results for this optohybrid
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Performing DAC Scan for OH%i", ohN));
         std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, vfatMask, useExtRefADC);
 
         //Copy the results into the final container
-        std::copy(dacScanResults.begin(), dacScanResults.end(), dacScanResultsAll.end());
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Storing results of DAC scan for OH%i", ohN));
+        std::copy(dacScanResults.begin(), dacScanResults.end(), std::back_inserter(dacScanResultsAll));
+
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Finished DAC scan for OH%i", ohN));
     } //End Loop over all Optohybrids
 
     response->set_word_array("dacScanResultsAll",dacScanResultsAll);
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Finished DAC scans for OH Mask 0x%x", ohMask));
 
     return;
 } //End dacScanMultiLink(...)
