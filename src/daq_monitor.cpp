@@ -4,6 +4,7 @@
  *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
+#include "amc.h"
 #include "daq_monitor.h"
 #include <string>
 #include "utils.h"
@@ -56,14 +57,22 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
 
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
+  
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonTRIGGERmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -112,14 +121,22 @@ void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonTRIGGEROHmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -189,14 +206,22 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonDAQOHmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -242,20 +267,34 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonOHmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
 
 void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
     std::string strRegName, strKeyName;
+
+    //Get original monitoring mask
+    uint32_t initSCAMonOffMask = readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF");
+
+    //Turn on monitoring for requested links
+    writeReg(la, "GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF", (~ohMask) & 0x3fc);
 
     for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
         // If this Optohybrid is masked skip it
@@ -329,6 +368,9 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
         la->response->set_word(strKeyName, readReg(la, strRegName));
     } //End Loop over all optohybrids
 
+    //Return monitoring to original value
+    writeReg(la, "GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF", initSCAMonOffMask);
+
     return;
 } //End getmonOHSCAmainLocal(...)
 
@@ -341,14 +383,22 @@ void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonOHSCAmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -357,66 +407,96 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
     std::string strKeyName;
     std::string strRegBase;
 
-    for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
-        // If this Optohybrid is masked skip it
-        if(!((ohMask >> ohN) & 0x1)){
-            continue;
-        }
+    if (fw_version_check("getmonOHSysmon", la) == 3){
+        for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+            // If this Optohybrid is masked skip it
+            if(!((ohMask >> ohN) & 0x1)){
+                continue;
+            }
 
-        //Set regBase
-        strRegBase = stdsprintf("GEM_AMC.OH.OH%i.FPGA.ADC.CTRL.",ohN);
+            //Set regBase
+            strRegBase = stdsprintf("GEM_AMC.OH.OH%i.FPGA.ADC.CTRL.",ohN);
 
-        //Log Message
-        LOGGER->log_message(LogManager::INFO, stdsprintf("Reading Sysmon Values for OH%i",ohN));
+            //Log Message
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Reading Sysmon Values for OH%i",ohN));
 
-        //Issue reset??
-        if(doReset){
-            LOGGER->log_message(LogManager::INFO, stdsprintf("Reseting CNT_OVERTEMP, CNT_VCCAUX_ALARM and CNT_VCCINT_ALARM for OH%i",ohN));
-            writeReg(la, strRegBase+"RESET", 0x1);
-        }
+            //Issue reset??
+            if(doReset){
+                LOGGER->log_message(LogManager::INFO, stdsprintf("Reseting CNT_OVERTEMP, CNT_VCCAUX_ALARM and CNT_VCCINT_ALARM for OH%i",ohN));
+                writeReg(la, strRegBase+"RESET", 0x1);
+            }
 
-        //Read Alarm conditions & counters - OVERTEMP
-        strKeyName = stdsprintf("OH%i.OVERTEMP",ohN);
-        la->response->set_word(strKeyName,readReg(la, strRegBase + "OVERTEMP"));
+            //Read Alarm conditions & counters - OVERTEMP
+            strKeyName = stdsprintf("OH%i.OVERTEMP",ohN);
+            la->response->set_word(strKeyName,readReg(la, strRegBase + "OVERTEMP"));
 
-        strKeyName = stdsprintf("OH%i.CNT_OVERTEMP",ohN);
-        la->response->set_word(strKeyName,readReg(la, strRegBase + "CNT_OVERTEMP"));
+            strKeyName = stdsprintf("OH%i.CNT_OVERTEMP",ohN);
+            la->response->set_word(strKeyName,readReg(la, strRegBase + "CNT_OVERTEMP"));
 
-        //Read Alarm conditions & counters - VCCAUX_ALARM
-        strKeyName = stdsprintf("OH%i.VCCAUX_ALARM",ohN);
-        la->response->set_word(strKeyName,readReg(la, strRegBase + "VCCAUX_ALARM"));
+            //Read Alarm conditions & counters - VCCAUX_ALARM
+            strKeyName = stdsprintf("OH%i.VCCAUX_ALARM",ohN);
+            la->response->set_word(strKeyName,readReg(la, strRegBase + "VCCAUX_ALARM"));
 
-        strKeyName = stdsprintf("OH%i.CNT_VCCAUX_ALARM",ohN);
-        la->response->set_word(strKeyName,readReg(la, strRegBase + "CNT_VCCAUX_ALARM"));
+            strKeyName = stdsprintf("OH%i.CNT_VCCAUX_ALARM",ohN);
+            la->response->set_word(strKeyName,readReg(la, strRegBase + "CNT_VCCAUX_ALARM"));
 
-        //Read Alarm conditions & counters - VCCINT_ALARM
-        strKeyName = stdsprintf("OH%i.VCCINT_ALARM",ohN);
-        la->response->set_word(strKeyName,readReg(la, strRegBase + "VCCINT_ALARM"));
+            //Read Alarm conditions & counters - VCCINT_ALARM
+            strKeyName = stdsprintf("OH%i.VCCINT_ALARM",ohN);
+            la->response->set_word(strKeyName,readReg(la, strRegBase + "VCCINT_ALARM"));
 
-        strKeyName = stdsprintf("OH%i.CNT_VCCINT_ALARM",ohN);
-        la->response->set_word(strKeyName,readReg(la, strRegBase + "CNT_VCCINT_ALARM"));
+            strKeyName = stdsprintf("OH%i.CNT_VCCINT_ALARM",ohN);
+            la->response->set_word(strKeyName,readReg(la, strRegBase + "CNT_VCCINT_ALARM"));
 
-        //Enable Sysmon ADC Read
-        writeReg(la, strRegBase + "ENABLE", 0x1);
+            //Enable Sysmon ADC Read
+            writeReg(la, strRegBase + "ENABLE", 0x1);
 
-        //Read Sysmon Values - Core Temperature
-        writeReg(la, strRegBase + "ADR_IN", 0x0);
-        strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP",ohN);
-        la->response->set_word(strKeyName, ((readReg(la, strRegBase + "DATA_OUT") >> 6) & 0x3ff));
+            //Read Sysmon Values - Core Temperature
+            writeReg(la, strRegBase + "ADR_IN", 0x0);
+            strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP",ohN);
+            la->response->set_word(strKeyName, ((readReg(la, strRegBase + "DATA_OUT") >> 6) & 0x3ff));
 
-        //Read Sysmon Values - Core Voltage
-        writeReg(la, strRegBase + "ADR_IN", 0x1);
-        strKeyName = stdsprintf("OH%i.FPGA_CORE_1V0",ohN);
-        la->response->set_word(strKeyName, ((readReg(la, strRegBase + "DATA_OUT") >> 6) & 0x3ff));
+            //Read Sysmon Values - Core Voltage
+            writeReg(la, strRegBase + "ADR_IN", 0x1);
+            strKeyName = stdsprintf("OH%i.FPGA_CORE_1V0",ohN);
+            la->response->set_word(strKeyName, ((readReg(la, strRegBase + "DATA_OUT") >> 6) & 0x3ff));
 
-        //Read Sysmon Values - I/O Voltage
-        writeReg(la, strRegBase + "ADR_IN", 0x2);
-        strKeyName = stdsprintf("OH%i.FPGA_CORE_2V5_IO",ohN);
-        la->response->set_word(strKeyName, ((readReg(la, strRegBase + "DATA_OUT") >> 6) & 0x3ff));
+            //Read Sysmon Values - I/O Voltage
+            writeReg(la, strRegBase + "ADR_IN", 0x2);
+            strKeyName = stdsprintf("OH%i.FPGA_CORE_2V5_IO",ohN);
+            la->response->set_word(strKeyName, ((readReg(la, strRegBase + "DATA_OUT") >> 6) & 0x3ff));
 
-        //Disable Sysmon ADC Read
-        writeReg(la, strRegBase + "ENABLE", 0x0);
-    } //End Loop over all optohybrids
+            //Disable Sysmon ADC Read
+            writeReg(la, strRegBase + "ENABLE", 0x0);
+        } //End Loop over all optohybrids
+    } //End Case: v3 Electronics
+    else{ //Case: v2b Electronics
+        for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+            // If this Optohybrid is masked skip it
+            if(!((ohMask >> ohN) & 0x1)){
+                continue;
+            }
+
+            //Set regBase
+            strRegBase = stdsprintf("GEM_AMC.OH.OH%i.ADC.",ohN);
+
+            //Log Message
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Reading Sysmon Values for OH%i",ohN));
+
+            //Read Sysmon Values - Core Temperature
+            strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP",ohN);
+            la->response->set_word(strKeyName, ((readReg(la, strRegBase + "TEMP") >> 6) & 0x3ff));
+
+            //Read Sysmon Values - Core Voltage
+            strKeyName = stdsprintf("OH%i.FPGA_CORE_1V0",ohN);
+            la->response->set_word(strKeyName, ((readReg(la, strRegBase + "VCCINT") >> 6) & 0x3ff));
+
+            //Read Sysmon Values - I/O Voltage
+            strKeyName = stdsprintf("OH%i.FPGA_CORE_2V5_IO",ohN);
+            la->response->set_word(strKeyName, ((readReg(la, strRegBase + "VCCAUX") >> 6) & 0x3ff));
+        } //End Loop all optohybrids
+    } //End Case: v2b Electronics
+
+    return;
 } //End getmonOHSysmonLocal()
 
 void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
@@ -427,7 +507,16 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
@@ -436,7 +525,6 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
 
   bool doReset = request->get_word("doReset");
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonOHSysmonLocal(&la, NOH, ohMask, doReset);
   rtxn.abort();
 } //End getmonOHSysmon()
