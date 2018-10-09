@@ -178,7 +178,7 @@ std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acq
             }
 
             //Store the sbit
-            tempSBits.push_back( (l1ADelay << 14) + (clusterSize << 11) + sbitAddress);
+            tempSBits.push_back( ((l1ADelay & 0x1fff) << 14) + ((clusterSize & 0x7) << 11) + (sbitAddress & 0x7ff) );
         } //End Loop over clusters
 
         if(anyValid){
