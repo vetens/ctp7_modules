@@ -1061,7 +1061,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
                 int vfatObserved = 7-int(sbitAddress/192)+int((sbitAddress%192)/64)*8;
                 int sbitObserved = sbitAddress % 64;
 
-                outData[idx] = (clusterSize << 27) + (isValid << 26) + (vfatObserved << 21) + (vfatN << 16) + (sbitObserved << 8) + chan;
+                outData[idx] = ((clusterSize & 0x7 ) << 27) + ((isValid & 0x1) << 26) + ((vfatObserved & 0x1f) << 21) + ((vfatN & 0x1f) << 16) + ((sbitObserved & 0xff) << 8) + (chan & 0xff);
 
                 if(isValid){
                     LOGGER->log_message(
@@ -1349,7 +1349,7 @@ void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response){
  *  \param dacStep step size to scan the dac in
  *  \param mask VFAT mask to use, a value of 1 in the N^th bit indicates the N^th VFAT is masked
  *  \param useExtRefADC if (true) false use the (externally) internally referenced ADC on the VFAT3 for monitoring
- *  \return Returns a std::vector<uint32_t> object of size 24*(dacMax-dacMin+1)/dacStep where dacMax and dacMin are described in the VFAT3 manual.  For each element bits [7:0] are the dacValue and bits [17:8] are the ADC readback value in either current or voltage units depending on dacSelect (again, see VFAT3 manual).
+ *  \return Returns a std::vector<uint32_t> object of size 24*(dacMax-dacMin+1)/dacStep where dacMax and dacMin are described in the VFAT3 manual.  For each element bits [7:0] are the dacValue, bits [17:8] are the ADC readback value in either current or voltage units depending on dacSelect (again, see VFAT3 manual), bits [22:18] are the VFAT position, and bits [26:23] are the optohybrid number.
  */
 std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep=1, uint32_t mask=0xFF000000, bool useExtRefADC=false){
     //Ensure VFAT3 Hardware
@@ -1392,7 +1392,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     map_dacSelect[36] = std::make_tuple("CFG_THR_ZCC_DAC", 0, 0xff);
     //map_dacSelect[37] = std::make_tuple("NOREG_VTSENSEINT", 0, 0); //Internal temperature sensor
     //map_dacSelect[38] = std::make_tuple("NOREG_VTSENSEEXT", 0, 0); //External temperature sensor (only on HV3b_V3(4) hybrids)
-    map_dacSelect[39] = std::make_tuple("CFG_ADC_VREF", 0, 0x3);
+    map_dacSelect[39] = std::make_tuple("CFG_VREF_ADC", 0, 0x3);
     //map_dacSelect[40] = std::make_tuple("CFG_", 0,);
     //map_dacSelect[41] = std::make_tuple("CFG_", 0,);
 
@@ -1461,17 +1461,25 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     for(uint32_t dacVal=dacMin; dacVal<=dacMax; dacVal += dacStep){ //Loop over DAC values
         for(int vfatN=0; vfatN<24; ++vfatN){ //Loop over VFATs
             //Skip masked VFATs
-            if ( !( (notmask >> vfatN) & 0x1)) continue;
+            if ( !( (notmask >> vfatN) & 0x1)){ //Case: VFAT is masked, skip
+                //Store word, but with adcVal = 0
+                int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
+                vec_dacScanData[idx] = ((ohN & 0xf) << 23) + ((vfatN & 0x1f) << 18) + (dacVal & 0xff);
 
-            //Set DAC value
-            writeRawAddress(regAddr[vfatN], applyMask(dacVal, regMask[vfatN]), la->response);
+                //skip
+                continue;
+            } //End Case: VFAT is masked, skip
+            else{ //Case: VFAT is not masked
+                //Set DAC value
+                writeRawAddress(regAddr[vfatN], applyMask(dacVal, regMask[vfatN]), la->response);
 
-            //Read the ADC
-            adcVal = readRawAddress(adcAddr[vfatN], la->response);
+                //Read the ADC
+                adcVal = readRawAddress(adcAddr[vfatN], la->response);
 
-            //Store value
-            int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
-            vec_dacScanData[idx] = (adcVal << 8) + dacVal;
+                //Store value
+                int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
+                vec_dacScanData[idx] = ((ohN & 0xf) << 23) + ((vfatN & 0x1f) << 18) + ((adcVal & 0x3ff) << 8) + (dacVal & 0xff);
+            } //End Case: VFAT is not masked
         } //End Loop over VFATs
     } //End Loop over DAC values
 
@@ -1538,16 +1546,22 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
         }
 
         //Get vfatmask for this OH
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Getting VFAT Mask for OH%i", ohN));
         uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
 
         //Get dac scan results for this optohybrid
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Performing DAC Scan for OH%i", ohN));
         std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, vfatMask, useExtRefADC);
 
         //Copy the results into the final container
-        std::copy(dacScanResults.begin(), dacScanResults.end(), dacScanResultsAll.end());
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Storing results of DAC scan for OH%i", ohN));
+        std::copy(dacScanResults.begin(), dacScanResults.end(), std::back_inserter(dacScanResultsAll));
+
+        LOGGER->log_message(LogManager::INFO, stdsprintf("Finished DAC scan for OH%i", ohN));
     } //End Loop over all Optohybrids
 
     response->set_word_array("dacScanResultsAll",dacScanResultsAll);
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Finished DAC scans for OH Mask 0x%x", ohMask));
 
     return;
 } //End dacScanMultiLink(...)
