@@ -86,9 +86,17 @@ void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response){
     }
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-
+    unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (request->get_key_exists("NOH")){
+        unsigned int NOH_requested = request->get_word("NOH");
+        if (NOH_requested <= NOH)
+            NOH = NOH_requested;
+        else
+            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
+    }
+    
     uint32_t ohVfatMaskArray[12];
-    for(int ohN=0; ohN<12; ++ohN){
+    for(unsigned int ohN=0; ohN<NOH; ++ohN){
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
             ohVfatMaskArray[ohN] = 0xffffff;

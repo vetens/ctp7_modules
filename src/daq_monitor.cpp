@@ -57,14 +57,22 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
 
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
+  
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonTRIGGERmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -113,14 +121,22 @@ void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonTRIGGEROHmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -190,14 +206,22 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonDAQOHmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -243,14 +267,22 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonOHmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -351,14 +383,22 @@ void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonOHSCAmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -467,7 +507,16 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
   env.open(lmdb_data_file.c_str(), 0, 0664);
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested <= NOH)
+      NOH = NOH_requested;
+    else
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
+  }
 
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
@@ -476,7 +525,6 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
 
   bool doReset = request->get_word("doReset");
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonOHSysmonLocal(&la, NOH, ohMask, doReset);
   rtxn.abort();
 } //End getmonOHSysmon()
