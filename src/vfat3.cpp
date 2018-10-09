@@ -10,6 +10,7 @@
 #include "optohybrid.h"
 #include <thread>
 #include "vfat3.h"
+#include "amc.h"
 
 uint32_t vfatSyncCheckLocal(localArgs * la, uint32_t ohN)
 {
@@ -109,19 +110,28 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
     uint32_t ohMask = request->get_word("ohMask");
-    uint32_t ohVfatMaskArray[12];
-    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
     uint32_t dacSelect = request->get_word("dacSelect");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-    for(int ohN=0; ohN<12; ++ohN){
+    unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (request->get_key_exists("NOH")){
+        unsigned int NOH_requested = request->get_word("NOH");
+        if (NOH_requested <= NOH)
+            NOH = NOH_requested;
+        else
+            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
+    }
+    for(unsigned int ohN=0; ohN<NOH; ++ohN){
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
             continue;
         }
 
+        //Get VFAT Mask
+        uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
+        
         LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring on OH%i for Selection %i",ohN,dacSelect));
-        configureVFAT3DacMonitorLocal(&la, ohN, ohVfatMaskArray[ohN], dacSelect);
+        configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
     } //End Loop over all Optohybrids
 
     return;
@@ -294,14 +304,20 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
     uint32_t ohMask = request->get_word("ohMask");
-    uint32_t ohVfatMaskArray[12];
-    request->get_word_array("ohVfatMaskArray",ohVfatMaskArray);
     bool useExtRefADC = request->get_word("useExtRefADC");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (request->get_key_exists("NOH")){
+        unsigned int NOH_requested = request->get_word("NOH");
+        if (NOH_requested <= NOH)
+            NOH = NOH_requested;
+        else
+            LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
+    }    
     uint32_t adcData[24] = {0};
     uint32_t adcDataAll[12*24] = {0};
-    for(int ohN=0; ohN<12; ++ohN){
+    for(unsigned int ohN=0; ohN<NOH; ++ohN){
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
             continue;
@@ -309,8 +325,11 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
 
         LOGGER->log_message(LogManager::INFO, stdsprintf("Reading VFAT3 ADC Values for all chips on OH%i",ohN));
 
+        //Get VFAT Mask
+        uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
+        
         //Get all ADC values
-        readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, ohVfatMaskArray[ohN]);
+        readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, vfatMask);
 
         //Copy all ADC values
         std::copy(adcData, adcData+24, adcDataAll+(24*ohN));
