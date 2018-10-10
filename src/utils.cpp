@@ -10,7 +10,7 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
   xhal::utils::XHALXMLParser * m_parser = new xhal::utils::XHALXMLParser(at_xml.c_str());
   try
   {
-    m_parser->setLogLevel(0);
+    m_parser->setLogLevel(4);
     m_parser->parseXML();
   } catch (...){
     response->set_string("error", "XML parser failed");

@@ -10,6 +10,8 @@
 #include "utils.h"
 #include <unistd.h>
 
+const int NOH_MAX = 12;
+
 /*! \fn void getmonDAQmainLocal(localArgs * la)
  *  \brief Local version of getmonDAQmain
  *  \param la Local arguments
