@@ -269,9 +269,11 @@ void ttcGenToggle(const RPCMsg *request, RPCMsg *response)
 void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type, uint32_t pulseDelay, uint32_t L1Ainterval, uint32_t nPulses, bool enable)
 {
     //Check firmware version
+    LOGGER->log_message(LogManager::INFO, "Entering ttcGenConfLocal");
     switch(fw_version_check("ttcGenConf", la)) {
         case 0x3: //v3 electronics behavior
         {
+            LOGGER->log_message(LogManager::INFO, "ttcGenConfLocal: V3 behavior");
             writeReg(la, "GEM_AMC.TTC.GENERATOR.RESET", 0x1);
             writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_L1A_GAP", L1Ainterval);
             writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_CALPULSE_TO_L1A_GAP", pulseDelay);
@@ -335,6 +337,7 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
         }
     }
     //start or stop
+    LOGGER->log_message(LogManager::INFO, "ttcGenConfLocal: call ttcGenToggleLocal");
     ttcGenToggleLocal(la, ohN, enable);
     return;
 }
@@ -367,6 +370,7 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
  */
 void ttcGenConf(const RPCMsg *request, RPCMsg *response)
 {
+    LOGGER->log_message(LogManager::INFO, "Entering ttcGenConf");
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
     std::string gem_path = std::getenv("GEM_PATH");
@@ -384,6 +388,7 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
     bool enable = request->get_word("enable");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Calling ttcGenConfLocal with ohN : %i, mode : %i, type : %i, pulse delay : %i, L1A interval : %i, number of pulses : %i", ohN,mode,type,pulseDelay,L1Ainterval,nPulses));
     ttcGenConfLocal(&la, ohN, mode, type, pulseDelay, L1Ainterval, nPulses, enable);
 
     return;

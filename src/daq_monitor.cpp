@@ -38,8 +38,10 @@ void getmonTRIGGERmainLocal(localArgs * la, int NOH, int ohMask)
   std::string t1,t2;
   la->response->set_word("OR_TRIGGER_RATE",readReg(la,"GEM_AMC.TRIGGER.STATUS.OR_TRIGGER_RATE"));
   for (int ohN = 0; ohN < NOH; ohN++){
-    // If this Optohybrid is masked skip it
+    // If this Optohybrid is masked fill with 0xdeaddead
     if(!((ohMask >> ohN) & 0x1)){
+      t1 = stdsprintf("OH%s.TRIGGER_RATE",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
       continue;
     }
     t1 = stdsprintf("OH%s.TRIGGER_RATE",std::to_string(ohN).c_str());
@@ -60,19 +62,20 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-  if (request->get_key_exists("NOH")){
-    unsigned int NOH_requested = request->get_word("NOH");
-    if (NOH_requested <= NOH)
-      NOH = NOH_requested;
-    else
-      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
-  }
-  
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested > NOH) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
+      ohMask = ohMask & (0xfff >> (NOH_MAX-NOH));
+    }
+    NOH = NOH_requested;
+  }
+  
   getmonTRIGGERmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -83,6 +86,22 @@ void getmonTRIGGEROHmainLocal(localArgs * la, int NOH, int ohMask)
   for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
+      t1 = stdsprintf("OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.LINK1_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.LINK0_OVERFLOW_CNT",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.LINK1_OVERFLOW_CNT",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.LINK0_UNDERFLOW_CNT",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.LINK1_UNDERFLOW_CNT",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.LINK0_SBIT_OVERFLOW_CNT",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.LINK1_SBIT_OVERFLOW_CNT",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
       continue;
     }
     t1 = stdsprintf("OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
@@ -124,17 +143,18 @@ void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
 
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-  if (request->get_key_exists("NOH")){
-    unsigned int NOH_requested = request->get_word("NOH");
-    if (NOH_requested <= NOH)
-      NOH = NOH_requested;
-    else
-      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
-  }
-
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
+  }
+
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested > NOH) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
+      ohMask = ohMask & (0xfff >> (NOH_MAX-NOH));
+    }
+    NOH = NOH_requested;
   }
 
   getmonTRIGGEROHmainLocal(&la, NOH, ohMask);
@@ -152,6 +172,8 @@ void getmonDAQmainLocal(localArgs * la)
   la->response->set_word("DAQ_FIFO_DATA_COUNT",readReg(la,"GEM_AMC.DAQ.EXT_STATUS.DAQ_FIFO_DATA_CNT"));
   la->response->set_word("EVENT_SENT",readReg(la,"GEM_AMC.DAQ.EXT_STATUS.EVT_SENT"));
   la->response->set_word("TTS_STATE",readReg(la,"GEM_AMC.DAQ.STATUS.TTS_STATE"));
+  la->response->set_word("INPUT_ENABLE_MASK",readReg(la,"GEM_AMC.DAQ.CONTROL.INPUT_ENABLE_MASK"));
+  la->response->set_word("INPUT_AUTOKILL_MASK",readReg(la,"GEM_AMC.DAQ.STATUS.INPUT_AUTOKILL_MASK"));
 }
 
 void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
@@ -174,6 +196,18 @@ void getmonDAQOHmainLocal(localArgs * la, int NOH, int ohMask)
   for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
+      t1 = stdsprintf("OH%s.STATUS.EVT_SIZE_ERR",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.STATUS.EVENT_FIFO_HAD_OFLOW",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.STATUS.INPUT_FIFO_HAD_OFLOW",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.STATUS.INPUT_FIFO_HAD_UFLOW",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.STATUS.VFAT_TOO_MANY",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.STATUS.VFAT_NO_MARKER",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
       continue;
     }
     t1 = stdsprintf("OH%s.STATUS.EVT_SIZE_ERR",std::to_string(ohN).c_str());
@@ -209,17 +243,18 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
 
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-  if (request->get_key_exists("NOH")){
-    unsigned int NOH_requested = request->get_word("NOH");
-    if (NOH_requested <= NOH)
-      NOH = NOH_requested;
-    else
-      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
-  }
-
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
+  }
+
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested > NOH) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
+      ohMask = ohMask & (0xfff >> (NOH_MAX-NOH));
+    }
+    NOH = NOH_requested;
   }
 
   getmonDAQOHmainLocal(&la, NOH, ohMask);
@@ -232,11 +267,47 @@ void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
   for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
+      t1 = stdsprintf("OH%s.FW_VERSION",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.EVENT_COUNTER",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.EVENT_RATE",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.GTX.TRK_ERR",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.GTX.TRG_ERR",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.GBT.TRK_ERR",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.CORR_VFAT_BLK_CNT",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.COUNTERS.SEU",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
+      t1 = stdsprintf("OH%s.STATUS.SEU",std::to_string(ohN).c_str());
+      la->response->set_word(t1,0xdeaddead);
       continue;
     }
     t1 = stdsprintf("OH%s.FW_VERSION",std::to_string(ohN).c_str());
-    t2 = stdsprintf("GEM_AMC.OH.OH%s.STATUS.FW.VERSION",std::to_string(ohN).c_str());
-    la->response->set_word(t1,readReg(la,t2));
+    if (fw_version_check("getmonOHmain",la) == 3) 
+    {
+      uint32_t t_fwver=0xffffffff;
+      t2 = stdsprintf("GEM_AMC.OH.OH%s.FPGA.CONTROL.RELEASE.VERSION.MAJOR",std::to_string(ohN).c_str());
+      t_fwver = t_fwver & (0x00ffffff|(readReg(la,t2) << 24));
+      LOGGER->log_message(LogManager::INFO, stdsprintf("FW version MAJOR for OH%i is %08x, t_fwver is %08x ",ohN, readReg(la,t2), t_fwver));
+      t2 = stdsprintf("GEM_AMC.OH.OH%s.FPGA.CONTROL.RELEASE.VERSION.MINOR",std::to_string(ohN).c_str());
+      t_fwver = t_fwver & (0xff00ffff|(readReg(la,t2) << 16));
+      LOGGER->log_message(LogManager::INFO, stdsprintf("FW version MINOR for OH%i is %08x, t_fwver is %08x ",ohN, readReg(la,t2), t_fwver));
+      t2 = stdsprintf("GEM_AMC.OH.OH%s.FPGA.CONTROL.RELEASE.VERSION.BUILD",std::to_string(ohN).c_str());
+      t_fwver = t_fwver & (0xffff00ff|(readReg(la,t2) << 8));
+      LOGGER->log_message(LogManager::INFO, stdsprintf("FW version BUILD for OH%i is %08x, t_fwver is %08x ",ohN, readReg(la,t2), t_fwver));
+      t2 = stdsprintf("GEM_AMC.OH.OH%s.FPGA.CONTROL.RELEASE.VERSION.GENERATION",std::to_string(ohN).c_str());
+      t_fwver = t_fwver & (0xffffff00|(readReg(la,t2)));
+      LOGGER->log_message(LogManager::INFO, stdsprintf("FW version GENERATION for OH%i is %08x, t_fwver is %08x ",ohN, readReg(la,t2), t_fwver));
+      la->response->set_word(t1,t_fwver);
+    } else {
+      t2 = stdsprintf("GEM_AMC.OH.OH%s.STATUS.FW.VERSION",std::to_string(ohN).c_str());
+      la->response->set_word(t1,readReg(la,t2));
+    }
     t1 = stdsprintf("OH%s.EVENT_COUNTER",std::to_string(ohN).c_str());
     t2 = stdsprintf("GEM_AMC.DAQ.OH%s.COUNTERS.EVN",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
@@ -255,6 +326,12 @@ void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
     t1 = stdsprintf("OH%s.CORR_VFAT_BLK_CNT",std::to_string(ohN).c_str());
     t2 = stdsprintf("GEM_AMC.DAQ.OH%s.COUNTERS.CORRUPT_VFAT_BLK_CNT",std::to_string(ohN).c_str());
     la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.COUNTERS.SEU",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.OH.OH%s.COUNTERS.SEU",std::to_string(ohN).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+    t1 = stdsprintf("OH%s.STATUS.SEU",std::to_string(ohN).c_str());
+    t2 = stdsprintf("GEM_AMC.OH.OH%s.STATUS.SEU",std::to_string(ohN).c_str());
+    la->response->set_word(t1,readReg(la,t2));
   }
 }
 
@@ -270,19 +347,20 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-  if (request->get_key_exists("NOH")){
-    unsigned int NOH_requested = request->get_word("NOH");
-    if (NOH_requested <= NOH)
-      NOH = NOH_requested;
-    else
-      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
-  }
-
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested > NOH) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
+      ohMask = ohMask & (0xfff >> (NOH_MAX-NOH));
+    }
+    NOH = NOH_requested;
+  }
+ 
   getmonOHmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -299,7 +377,45 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
     for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
-            continue;
+          //SCA Temperature
+          strKeyName = stdsprintf("OH%i.SCA_TEMP",ohN);
+          la->response->set_word(strKeyName,0xdeaddead);
+          //OH Temperature Sensors
+          for(int tempVal=1; tempVal <= 9; ++tempVal){ //Loop over optohybrid temperatures sensosrs
+              strKeyName = stdsprintf("OH%i.BOARD_TEMP%i",ohN,tempVal);
+              la->response->set_word(strKeyName, 0xdeaddead);
+          } //End Loop over optohybrid temeprature sensors
+          //Voltage Monitor - AVCCN
+          strKeyName = stdsprintf("OH%i.AVCCN",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          //Voltage Monitor - AVTTN
+          strKeyName = stdsprintf("OH%i.AVTTN",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          //Voltage Monitor - 1V0_INT
+          strKeyName = stdsprintf("OH%i.1V0_INT",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          //Voltage Monitor - 1V8F
+          strKeyName = stdsprintf("OH%i.1V8F",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          //Voltage Monitor - 1V5
+          strKeyName = stdsprintf("OH%i.1V5",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          //Voltage Monitor - 2V5_IO
+          strKeyName = stdsprintf("OH%i.2V5_IO",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          //Voltage Monitor - 3V0
+          strKeyName = stdsprintf("OH%i.3V0",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          //Voltage Monitor - 1V8
+          strKeyName = stdsprintf("OH%i.1V8",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          //Voltage Monitor - VTRX_RSSI2
+          strKeyName = stdsprintf("OH%i.VTRX_RSSI2",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          //Voltage Monitor - VTRX_RSSI1
+          strKeyName = stdsprintf("OH%i.VTRX_RSSI1",ohN);
+          la->response->set_word(strKeyName, 0xdeaddead);
+          continue;
         }
 
         //Log Message
@@ -386,19 +502,20 @@ void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
 
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-  if (request->get_key_exists("NOH")){
-    unsigned int NOH_requested = request->get_word("NOH");
-    if (NOH_requested <= NOH)
-      NOH = NOH_requested;
-    else
-      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
-  }
-
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
   }
 
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested > NOH) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
+      ohMask = ohMask & (0xfff >> (NOH_MAX-NOH));
+    }
+    NOH = NOH_requested;
+  }
+ 
   getmonOHSCAmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -411,7 +528,31 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
         for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
             // If this Optohybrid is masked skip it
             if(!((ohMask >> ohN) & 0x1)){
-                continue;
+              //Read Alarm conditions & counters - OVERTEMP
+              strKeyName = stdsprintf("OH%i.OVERTEMP",ohN);
+              la->response->set_word(strKeyName,0xdeaddead);
+              strKeyName = stdsprintf("OH%i.CNT_OVERTEMP",ohN);
+              la->response->set_word(strKeyName,0xdeaddead);
+              //Read Alarm conditions & counters - VCCAUX_ALARM
+              strKeyName = stdsprintf("OH%i.VCCAUX_ALARM",ohN);
+              la->response->set_word(strKeyName,0xdeaddead);
+              strKeyName = stdsprintf("OH%i.CNT_VCCAUX_ALARM",ohN);
+              la->response->set_word(strKeyName,0xdeaddead);
+              //Read Alarm conditions & counters - VCCINT_ALARM
+              strKeyName = stdsprintf("OH%i.VCCINT_ALARM",ohN);
+              la->response->set_word(strKeyName,0xdeaddead);
+              strKeyName = stdsprintf("OH%i.CNT_VCCINT_ALARM",ohN);
+              la->response->set_word(strKeyName,0xdeaddead);
+              //Read Sysmon Values - Core Temperature
+              strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP",ohN);
+              la->response->set_word(strKeyName, 0xdeaddead);
+              //Read Sysmon Values - Core Voltage
+              strKeyName = stdsprintf("OH%i.FPGA_CORE_1V0",ohN);
+              la->response->set_word(strKeyName, 0xdeaddead);
+              //Read Sysmon Values - I/O Voltage
+              strKeyName = stdsprintf("OH%i.FPGA_CORE_2V5_IO",ohN);
+              la->response->set_word(strKeyName, 0xdeaddead);
+              continue;
             }
 
             //Set regBase
@@ -473,7 +614,16 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
         for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
             // If this Optohybrid is masked skip it
             if(!((ohMask >> ohN) & 0x1)){
-                continue;
+              //Read Sysmon Values - Core Temperature
+              strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP",ohN);
+              la->response->set_word(strKeyName, 0xdeaddead);
+              //Read Sysmon Values - Core Voltage
+              strKeyName = stdsprintf("OH%i.FPGA_CORE_1V0",ohN);
+              la->response->set_word(strKeyName, 0xdeaddead);
+              //Read Sysmon Values - I/O Voltage
+              strKeyName = stdsprintf("OH%i.FPGA_CORE_2V5_IO",ohN);
+              la->response->set_word(strKeyName, 0xdeaddead);
+              continue;
             }
 
             //Set regBase
@@ -510,17 +660,18 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
 
   struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-  if (request->get_key_exists("NOH")){
-    unsigned int NOH_requested = request->get_word("NOH");
-    if (NOH_requested <= NOH)
-      NOH = NOH_requested;
-    else
-      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i), NOH request will be disregarded",NOH_requested,NOH));
-  }
-
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
     ohMask = request->get_word("ohMask");
+  }
+
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested > NOH) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
+      ohMask = ohMask & (0xfff >> (NOH_MAX-NOH));
+    }
+    NOH = NOH_requested;
   }
 
   bool doReset = request->get_word("doReset");
@@ -528,6 +679,33 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
   getmonOHSysmonLocal(&la, NOH, ohMask, doReset);
   rtxn.abort();
 } //End getmonOHSysmon()
+
+void getmonSCALocal(localArgs * la, int NOH)
+{
+  std::string t1,t2;
+  la->response->set_word("SCA.STATUS.READY", readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.STATUS.READY"));
+  la->response->set_word("SCA.STATUS.CRITICAL_ERROR", readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.STATUS.CRITICAL_ERROR"));
+  for (int i = 0; i < NOH; ++i) {
+    t1 = stdsprintf("SCA.STATUS.NOT_READY_CNT_OH%s",std::to_string(i).c_str());
+    t2 = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.STATUS.NOT_READY_CNT_OH%s",std::to_string(i).c_str());
+    la->response->set_word(t1,readReg(la,t2));
+  }
+}
+
+void getmonSCA(const RPCMsg *request, RPCMsg *response){
+  auto env = lmdb::env::create();
+  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"/address_table.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
+  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  int NOH = request->get_word("NOH");
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  getmonSCALocal(&la, NOH);
+  rtxn.abort();
+} //End getmonSCA()
 
 extern "C" {
     const char *module_version_key = "daq_monitor v1.0.1";
@@ -546,5 +724,6 @@ extern "C" {
         modmgr->register_method("daq_monitor", "getmonOHmain", getmonOHmain);
         modmgr->register_method("daq_monitor", "getmonOHSCAmain", getmonOHSCAmain);
         modmgr->register_method("daq_monitor", "getmonOHSysmon", getmonOHSysmon);
+        modmgr->register_method("daq_monitor", "getmonSCA", getmonSCA);
     }
 }

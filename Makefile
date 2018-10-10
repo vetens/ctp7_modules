@@ -2,38 +2,59 @@ ifndef PETA_STAGE
 $(error "Error: PETA_STAGE environment variable not set.")
 endif
 
-ifndef CTP7_MOD_ROOT
-$(error "Error: CTP7_MOD_ROOT environment variable not set. Source setup.sh file")
-endif
+BUILD_HOME   := $(shell dirname `pwd`)
+Project      := ctp7_modules
+Package      := ctp7_modules
+ShortPackage := ctp7_modules
+LongPackage  := ctp7_modules
+PackageName  := $(ShortPackage)
+PackagePath  := $(shell pwd)
+PackageDir   := pkg/$(ShortPackage)
+Arch         := arm
+Packager     := Mykhailo Dalchenko
 
-include apps.common.mk
+CTP7_MODULES_VER_MAJOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[1];}' | awk '{split($$0,b,":"); print b[2];}')
+CTP7_MODULES_VER_MINOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[2];}' | awk '{split($$0,b,":"); print b[2];}')
+CTP7_MODULES_VER_PATCH:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[3];}' | awk '{split($$0,b,":"); print b[2];}')
 
-IncludeDirs = ${CTP7_MOD_ROOT}/include
-IncludeDirs += ${CTP7_MOD_ROOT}/src
-IncludeDirs += ${XHAL_ROOT}/xhalcore/include
-IncludeDirs += ${XHAL_ROOT}/xcompile/xerces-c-3.1.4/src
-IncludeDirs += ${XHAL_ROOT}/xcompile/log4cplus-1.1.2/include
-IncludeDirs += ${XHAL_ROOT}/xcompile/lmdb-LMDB_0.9.19/include
-IncludeDirs += /opt/cactus/include
+include $(BUILD_HOME)//$(Package)/config/mfZynq.mk
+include $(BUILD_HOME)//$(Package)/config/mfCommonDefs.mk
+include $(BUILD_HOME)//$(Package)/config/mfRPMRules.mk
+
+IncludeDirs  = ${BUILD_HOME}/$(Package)/include
+IncludeDirs += ${BUILD_HOME}/xhal/xhalcore/include
+#IncludeDirs += /opt/cactus/include
 INC=$(IncludeDirs:%=-I%)
 
-LDFLAGS+= -L$(XHAL_ROOT)/lib/arm
-LDFLAGS+= -L$(XHAL_ROOT)/xcompile/lmdb-LMDB_0.9.19/lib
-LDFLAGS+= -L$(CTP7_MOD_ROOT)/lib
+LDFLAGS+= -L${BUILD_HOME}/xhal/xhalarm/lib
+LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
 
-SRCS= $(shell echo ${CTP7_MOD_ROOT}/src/*.cpp)
-#TARGET_LIBS=$(addprefix lib/,$(patsubst %.cpp, %.so, $(notdir $(wildcard ./src/*.cpp))))
-TARGET_LIBS=lib/memory.so
-TARGET_LIBS+=lib/optical.so
-TARGET_LIBS+=lib/utils.so
-TARGET_LIBS+=lib/extras.so
-TARGET_LIBS+=lib/amc.so
-TARGET_LIBS+=lib/daq_monitor.so
-TARGET_LIBS+=lib/vfat3.so
-TARGET_LIBS+=lib/optohybrid.so
-TARGET_LIBS+=lib/calibration_routines.so
+SRCS= $(shell echo ${BUILD_HOME}/${Package}/src/*.cpp)
+TARGET_LIBS  = lib/memory.so
+TARGET_LIBS += lib/optical.so
+TARGET_LIBS += lib/utils.so
+TARGET_LIBS += lib/extras.so
+TARGET_LIBS += lib/amc.so
+TARGET_LIBS += lib/daq_monitor.so
+TARGET_LIBS += lib/vfat3.so
+TARGET_LIBS += lib/optohybrid.so
+TARGET_LIBS += lib/calibration_routines.so
 
-all: $(TARGET_LIBS)
+.PHONY: clean rpc prerpm
+
+default:
+	@echo "Running default target"
+	$(MakeDir) $(PackageDir)
+
+_rpmprep: preprpm
+	@echo "Running _rpmprep target"
+preprpm: default
+	@echo "Running preprpm target"
+	@cp -rf lib $(PackageDir)
+
+build: $(TARGET_LIBS)
+
+_all: $(TARGET_LIBS)
 
 lib/memory.so: src/memory.cpp 
 	$(CXX) $(CFLAGS) $(INC) $(LDFLAGS) -fPIC -shared -o $@ $< -lwisci2c
@@ -62,7 +83,9 @@ lib/optohybrid.so: src/optohybrid.cpp
 lib/calibration_routines.so: src/calibration_routines.cpp
 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,calibration_routines.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:optohybrid.so -l:vfat3.so -l:amc.so
 
-clean:
+clean: cleanrpm
 	-rm -rf lib/*.so
+	-rm -rf $(PackageDir)
 
-.PHONY: all
+cleandoc: 
+	@echo "TO DO"
