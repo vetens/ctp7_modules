@@ -21,10 +21,10 @@ int memhub_open(memsvc_handle_t *handle) {
         int semval = 0;
         sem_getvalue(semaphore, &semval);
         if (semval > 1) {
-            printf("Invalid semaphore value = %d. Probably it was messed up by a dying process. Please clean up this semaphore (you can just delete /dev/shm/sem.memhub, I think)\n", semval);
+            LOGGER->log_message(LogManager::INFO, stdsprintf("Invalid semaphore value = %d. Probably it was messed up by a dying process. Please clean up this semaphore (you can just delete /dev/shm/sem.memhub, I think)\n", semval));
             exit(1);
         }
-        printf("\nMemhub initialized a semaphore. Current semaphore value = %d\n", semval);
+        LOGGER->log_message(LogManager::INFO, stdsprintf("\nMemhub initialized a semaphore. Current semaphore value = %d\n", semval));
     }
     if (semaphore == SEM_FAILED) {
         perror("sem_open(3) error");
@@ -70,10 +70,10 @@ void die(int signo) {
     sem_getvalue(semaphore, &semval);
     
     if (busy && (semval == 0)) {
-        fprintf(stderr,"\n[!] Application is dying, trying to undo an active semaphore..\n");
+        LOGGER->log_message(LogManager::ERROR, stdsprintf("[!] Application is dying, trying to undo an active semaphore..\n"));
         sem_post(semaphore);
     }
-    fprintf(stderr,"\n[!] Application was killed or died with signal %d (semaphore value at the time of the kill = %d)...\n", signo, semval);
+    LOGGER->log_message(LogManager::ERROR, stdsprintf("[!] Application was killed or died with signal %d (semaphore value at the time of the kill = %d)...\n", signo, semval));
     exit(1);
 }
 

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <libmemsvc.h>
+#include "LogManager.h"
 
 #ifdef __cplusplus
 extern "C" {
