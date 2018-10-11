@@ -12,7 +12,7 @@
 void getmonTTCmainLocal(localArgs * la)
 {
   LOGGER->log_message(LogManager::INFO, "Called getmonTTCmainLocal");
-  la->response->set_word("MMCM_LOCKED",readReg(la,"GEM_AMC.TTC.STATUS.MMCM_LOCKED"));
+  la->response->set_word("MMCM_LOCKED",readReg(la,"GEM_AMC.TTC.STATUS.CLK.MMCM_LOCKED"));
   la->response->set_word("TTC_SINGLE_ERROR_CNT",readReg(la,"GEM_AMC.TTC.STATUS.TTC_SINGLE_ERROR_CNT"));
   la->response->set_word("BC0_LOCKED",readReg(la,"GEM_AMC.TTC.STATUS.BC0.LOCKED"));
   la->response->set_word("L1A_ID",readReg(la,"GEM_AMC.TTC.L1A_ID"));
@@ -711,7 +711,7 @@ extern "C" {
     const char *module_version_key = "daq_monitor v1.0.1";
     int module_activity_color = 4;
     void module_init(ModuleManager *modmgr) {
-        if (memsvc_open(&memsvc) != 0) {
+        if (memhub_open(&memsvc) != 0) {
             LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
             LOGGER->log_message(LogManager::ERROR, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
