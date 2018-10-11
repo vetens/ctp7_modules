@@ -32,6 +32,7 @@ LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
 SRCS= $(shell echo ${BUILD_HOME}/${Package}/src/*.cpp)
 TARGET_LIBS  = lib/memory.so
 TARGET_LIBS += lib/optical.so
+TARGET_LIBS  = lib/memhub.so
 TARGET_LIBS += lib/utils.so
 TARGET_LIBS += lib/extras.so
 TARGET_LIBS += lib/amc.so
@@ -62,11 +63,14 @@ lib/memory.so: src/memory.cpp
 lib/optical.so: src/optical.cpp 
 	$(CXX) $(CFLAGS) $(INC) $(LDFLAGS) -fPIC -shared -o $@ $< -lwisci2c
 
+lib/memhub.so: src/memhub.cpp 
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,memhub.so -o $@ $< -lwisci2c -lmemsvc 
+
 lib/utils.so: src/utils.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,utils.so -o $@ $< -lwisci2c -lxhal -llmdb
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,utils.so -o $@ $< -lwisci2c -lxhal -llmdb -l:memhub.so
 
 lib/extras.so: src/extras.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,extras.so -o $@ $< -lwisci2c -lxhal -llmdb
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,extras.so -o $@ $< -lwisci2c -lxhal -llmdb -l:memhub.so
 
 lib/amc.so: src/amc.cpp
 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,amc.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so
