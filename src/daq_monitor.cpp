@@ -12,7 +12,7 @@
 void getmonTTCmainLocal(localArgs * la)
 {
   LOGGER->log_message(LogManager::INFO, "Called getmonTTCmainLocal");
-  la->response->set_word("MMCM_LOCKED",readReg(la,"GEM_AMC.TTC.STATUS.MMCM_LOCKED"));
+  la->response->set_word("MMCM_LOCKED",readReg(la,"GEM_AMC.TTC.STATUS.CLK.MMCM_LOCKED"));
   la->response->set_word("TTC_SINGLE_ERROR_CNT",readReg(la,"GEM_AMC.TTC.STATUS.TTC_SINGLE_ERROR_CNT"));
   la->response->set_word("BC0_LOCKED",readReg(la,"GEM_AMC.TTC.STATUS.BC0.LOCKED"));
   la->response->set_word("L1A_ID",readReg(la,"GEM_AMC.TTC.L1A_ID"));
