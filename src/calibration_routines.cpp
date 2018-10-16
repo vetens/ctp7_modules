@@ -1371,7 +1371,6 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
     //ADC Measures Current
     //I wonder if this dacMin and dacMax info could be added to the LMDB...?
-    map_dacSelect[0] = std::make_tuple("CFG_IREF", 0, 0x3f);
     //map_dacSelect[1] = std::make_tuple("CFG_", 0,);
     map_dacSelect[2] = std::make_tuple("CFG_BIAS_PRE_I_BIT", 0, 0xff);
     map_dacSelect[3] = std::make_tuple("CFG_BIAS_PRE_I_BLCC", 0, 0x3f);
@@ -1551,7 +1550,7 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
         else
             LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
     }
-    
+
     std::vector<uint32_t> dacScanResultsAll;
     for(unsigned int ohN=0; ohN<NOH; ++ohN){
         // If this Optohybrid is masked skip it
