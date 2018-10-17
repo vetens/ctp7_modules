@@ -1423,7 +1423,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
     //Determine the addresses
     std::string regName = std::get<0>(map_dacSelect[dacSelect]);
-    uint32_t adcAddr[24], regAddr[24], regMask[24];
+    uint32_t adcAddr[24];
     for(int vfatN=0; vfatN<24; ++vfatN){
         //Skip Masked VFATs
         if ( !( (notmask >> vfatN) & 0x1)) continue;
@@ -1438,11 +1438,6 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
         else{ //Case: Use ADC with internal reference
             adcAddr[vfatN] = getAddress(la, strRegBase + "ADC0");
         } //End Case: Use ADC with internal reference
-
-        //Get DAC address and mask
-        std::string strFullReg = strRegBase + regName;
-        regAddr[vfatN] = getAddress(la, strFullReg);
-        regMask[vfatN] = getMask(la, strFullReg);
     } //End Loop over VFATs
 
     //make the output container and correctly size it
@@ -1459,6 +1454,8 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
     //Set the VFATs into Run Mode
     broadcastWriteLocal(la, ohN, "CFG_RUN", 0x1, mask);
+    LOGGER->log_message(LogManager::INFO, stdsprintf("VFATs not in 0x%x where set to run mode", mask));
+    std::this_thread::sleep_for(std::chrono::seconds(1)); //I noticed that DAC values behave weirdly immediately after VFAT is placed in run mode (probably voltage/current takes a moment to stabalize)
 
     //Scan the DAC
     uint32_t adcVal;
@@ -1475,7 +1472,8 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
             } //End Case: VFAT is masked, skip
             else{ //Case: VFAT is not masked
                 //Set DAC value
-                writeRawAddress(regAddr[vfatN], applyMask(dacVal, regMask[vfatN]), la->response);
+                std::string strDacReg = stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.",ohN,vfatN) + regName;
+                writeReg(la, strDacReg, dacVal);
 
                 //Read the ADC
                 adcVal = readRawAddress(adcAddr[vfatN], la->response);
