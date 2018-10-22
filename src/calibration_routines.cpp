@@ -1454,7 +1454,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
     //Set the VFATs into Run Mode
     broadcastWriteLocal(la, ohN, "CFG_RUN", 0x1, mask);
-    LOGGER->log_message(LogManager::INFO, stdsprintf("VFATs not in 0x%x where set to run mode", mask));
+    LOGGER->log_message(LogManager::INFO, stdsprintf("VFATs not in 0x%x were set to run mode", mask));
     std::this_thread::sleep_for(std::chrono::seconds(1)); //I noticed that DAC values behave weirdly immediately after VFAT is placed in run mode (probably voltage/current takes a moment to stabalize)
 
     //Scan the DAC
