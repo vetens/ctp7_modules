@@ -11,6 +11,21 @@
 #include "utils.h"
 #include <unistd.h>
 
+/*! \fn uint32_t checkPllLockLocal(localArgs * la, uint32_t readAttempts)
+ *  \brief Resets the PLL and checks if it relocks
+ *  \param la Local arguments structure
+ *  \param readAttempts Specifies the number of times to reset the PLL and check for a relock
+ *  \return Returns the number of times the PLL relocked
+ */
+uint32_t checkPllLockLocal(localArgs * la, int readAttempts);
+
+/*! \fn void checkPllLock(const RPCMsg *request, RPCMsg *response)
+ *  \brief Resets the PLL and checks if it relocks, see local method for details
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void checkPllLock(const RPCMsg *request, RPCMsg *response);
+
 /*! \fn unsigned int fw_version_check(const char* caller_name, localArgs *la)
  *  \brief Returns AMC FW version
  *  in case FW version is not 1.X or 3.X sets an error string in response
@@ -56,11 +71,29 @@ void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response);
  */
 std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acquireTime, bool *maxNetworkSizeReached);
 
-/*! \fn sbitReadOut(const RPCMsg *request, RPCMsg *response)
+/*! \fn void sbitReadOut(const RPCMsg *request, RPCMsg *response)
  *  \brief readout sbits using the SBIT Monitor.  See the local callable methods documentation for details.
  *  \param request RPC response message
  *  \param response RPC response message
  */
 void sbitReadOut(const RPCMsg *request, RPCMsg *response);
+
+/*! \fn void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0Locked, bool doScan)
+ *  \brief Performs the locking procedure performs up to 3840 shifts (full width of one good + bad region).
+ *  \details If shiftOutOfLockFirst is true, then the procedure will first shift into a bad region (not an edge), find the next good lock status, shift halfway through the region.  1920 for BC0_LOCKED, 1000 for PLL_LOCKED.
+ *  \details If shiftOutOfLockFirst is false, then the procedure will find X consecutive "good" locks for X = 200 (50) for BC0_LOCKED (PLL_LOCKED).  It will then reverse direction and shift backwards halfway.  If a bad lock is encountered it will reset and try again.  Otherwise it will take the phase at the back half point
+ *  \param la Local arguments structure
+ *  \param shiftOutOfLockFirst controls whether the procedure will force a relock
+ *  \useBC0Locked controls whether the procedure will use the BC0_LOCKED or the PLL_LOCKED register.  Note for GEM_AMC FW > 1.13.0 BC0_LOCKED doesn't work.
+ *  \param doScan tells the procedure to run through the full possibility of phases several times, and just logs the place where it found a lock
+ */
+void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0Locked, bool doScan);
+
+/*! \fn void ttcMMCMPhaseShift(const RPCMsg *request, RPCMsg *response)
+ *  \brief phase alignment algorithm for ttc phase on uTCA backplane.  See the local callable methods documentation for details.
+ *  \param request RPC response message
+ *  \param response RPC response message
+ */
+void ttcMMCMPhaseShift(const RPCMsg *request, RPCMsg *response);
 
 #endif
