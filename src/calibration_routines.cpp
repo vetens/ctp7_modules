@@ -3,13 +3,9 @@
 #include "calibration_routines.h"
 #include <chrono>
 #include <math.h>
-#include <map>
 #include <pthread.h>
 #include "optohybrid.h"
 #include <thread>
-#include <tuple>
-#include "utils.h"
-#include <vector>
 #include "vfat3.h"
 
 std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, unsigned int ch, localArgs *la)
@@ -1124,40 +1120,8 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
         return emptyVec;
     }
 
-    //key is the monitoring select (dacSelect) value
-    //value is a tuple ("reg name", dacMin, dacMax)
-    std::unordered_map<uint32_t, std::tuple<std::string,int,int> > map_dacSelect;
-
-    //ADC Measures Current
-    //I wonder if this dacMin and dacMax info could be added to the LMDB...?
-    map_dacSelect[1] = std::make_tuple("CFG_CAL_DAC", 0, 0xff);
-    map_dacSelect[2] = std::make_tuple("CFG_BIAS_PRE_I_BIT", 0, 0xff);
-    map_dacSelect[3] = std::make_tuple("CFG_BIAS_PRE_I_BLCC", 0, 0x3f);
-    map_dacSelect[4] = std::make_tuple("CFG_BIAS_PRE_I_BSF", 0,0x3f);
-    map_dacSelect[5] = std::make_tuple("CFG_BIAS_SH_I_BFCAS", 0, 0xff);
-    map_dacSelect[6] = std::make_tuple("CFG_BIAS_SH_I_BDIFF", 0, 0xff);
-    map_dacSelect[7] = std::make_tuple("CFG_BIAS_SD_I_BDIFF", 0, 0xff);
-    map_dacSelect[8] = std::make_tuple("CFG_BIAS_SD_I_BFCAS", 0, 0xff);
-    map_dacSelect[9] = std::make_tuple("CFG_BIAS_SD_I_BSF", 0, 0x3f);
-    map_dacSelect[10] = std::make_tuple("CFG_BIAS_CFD_DAC_1", 0, 0x3f);
-    map_dacSelect[11] = std::make_tuple("CFG_BIAS_CFD_DAC_2", 0, 0x3f);
-    map_dacSelect[12] = std::make_tuple("CFG_HYST", 0, 0x3f);
-    //map_dacSelect[13] = std::make_tuple("NOREG_CFGIREFLOCAL", 0, 0); //CFD Ireflocal
-    map_dacSelect[14] = std::make_tuple("CFG_THR_ARM_DAC", 0, 0xff);
-    map_dacSelect[15] = std::make_tuple("CFG_THR_ZCC_DAC", 0, 0xff);
-    //map_dacSelect[16] = std::make_tuple("CFG_", 0,);
-
-    //ADC Measures Voltage
-    //map_dacSelect[32] = std::make_tuple("NOREG_BGR", 0,); //Band gap reference
-    map_dacSelect[33] = std::make_tuple("CFG_CAL_DAC", 0, 0xff);
-    map_dacSelect[34] = std::make_tuple("CFG_BIAS_PRE_VREF", 0, 0xff);
-    map_dacSelect[35] = std::make_tuple("CFG_THR_ARM_DAC", 0, 0xff);
-    map_dacSelect[36] = std::make_tuple("CFG_THR_ZCC_DAC", 0, 0xff);
-    //map_dacSelect[37] = std::make_tuple("NOREG_VTSENSEINT", 0, 0); //Internal temperature sensor
-    //map_dacSelect[38] = std::make_tuple("NOREG_VTSENSEEXT", 0, 0); //External temperature sensor (only on HV3b_V3(4) hybrids)
-    map_dacSelect[39] = std::make_tuple("CFG_VREF_ADC", 0, 0x3);
-    //map_dacSelect[40] = std::make_tuple("NOREG_ADCVinM", 0,); //ADC Vin M
-    //map_dacSelect[41] = std::make_tuple("CFG_", 0,);
+    vfat3DACAndSize dacInfo;
+    auto map_dacSelect = dacInfo.map_dacInfo;
 
     // Check if dacSelect is valid
     if(map_dacSelect.count(dacSelect) == 0){ //Case: dacSelect not found, exit
@@ -1302,10 +1266,15 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
             LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
     }
 
+    vfat3DACAndSize dacInfo;
     std::vector<uint32_t> dacScanResultsAll;
     for(unsigned int ohN=0; ohN<NOH; ++ohN){
+        std::vector<uint32_t> dacScanResults;
+
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
+            dacScanResults.resize( (dacInfo.map_dacInfo[dacSelect]+1)*24/dacStep );
+            std::copy(dacScanResults.begin(), dacScanResults.end(), std::back_inserter(dacScanResultsAll));
             continue;
         }
 
@@ -1315,7 +1284,7 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
 
         //Get dac scan results for this optohybrid
         LOGGER->log_message(LogManager::INFO, stdsprintf("Performing DAC Scan for OH%i", ohN));
-        std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, vfatMask, useExtRefADC);
+        dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, vfatMask, useExtRefADC);
 
         //Copy the results into the final container
         LOGGER->log_message(LogManager::INFO, stdsprintf("Storing results of DAC scan for OH%i", ohN));
