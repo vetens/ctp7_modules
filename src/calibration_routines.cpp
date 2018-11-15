@@ -1371,7 +1371,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
     //ADC Measures Current
     //I wonder if this dacMin and dacMax info could be added to the LMDB...?
-    //map_dacSelect[1] = std::make_tuple("CFG_", 0,);
+    map_dacSelect[1] = std::make_tuple("CFG_CAL_DAC", 0, 0xff);
     map_dacSelect[2] = std::make_tuple("CFG_BIAS_PRE_I_BIT", 0, 0xff);
     map_dacSelect[3] = std::make_tuple("CFG_BIAS_PRE_I_BLCC", 0, 0x3f);
     map_dacSelect[4] = std::make_tuple("CFG_BIAS_PRE_I_BSF", 0,0x3f);
@@ -1387,19 +1387,17 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     map_dacSelect[14] = std::make_tuple("CFG_THR_ARM_DAC", 0, 0xff);
     map_dacSelect[15] = std::make_tuple("CFG_THR_ZCC_DAC", 0, 0xff);
     //map_dacSelect[16] = std::make_tuple("CFG_", 0,);
-    //map_dacSelect[32] = std::make_tuple("NOREG_BGR", 0,); //Band gap reference
-    //map_dacSelect[40] = std::make_tuple("NOREG_ADCVinM", 0,); //ADC Vin M
 
     //ADC Measures Voltage
-    //map_dacSelect[32] = std::make_tuple("CFG_", 0,);
-    //map_dacSelect[33] = std::make_tuple("CFG_", 0,);
+    //map_dacSelect[32] = std::make_tuple("NOREG_BGR", 0,); //Band gap reference
+    map_dacSelect[33] = std::make_tuple("CFG_CAL_DAC", 0, 0xff);
     map_dacSelect[34] = std::make_tuple("CFG_BIAS_PRE_VREF", 0, 0xff);
     map_dacSelect[35] = std::make_tuple("CFG_THR_ARM_DAC", 0, 0xff);
     map_dacSelect[36] = std::make_tuple("CFG_THR_ZCC_DAC", 0, 0xff);
     //map_dacSelect[37] = std::make_tuple("NOREG_VTSENSEINT", 0, 0); //Internal temperature sensor
     //map_dacSelect[38] = std::make_tuple("NOREG_VTSENSEEXT", 0, 0); //External temperature sensor (only on HV3b_V3(4) hybrids)
     map_dacSelect[39] = std::make_tuple("CFG_VREF_ADC", 0, 0x3);
-    //map_dacSelect[40] = std::make_tuple("CFG_", 0,);
+    //map_dacSelect[40] = std::make_tuple("NOREG_ADCVinM", 0,); //ADC Vin M
     //map_dacSelect[41] = std::make_tuple("CFG_", 0,);
 
     // Check if dacSelect is valid
