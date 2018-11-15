@@ -1273,7 +1273,8 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
 
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
-            dacScanResults.resize( (dacInfo.map_dacInfo[dacSelect]+1)*24/dacStep );
+            int dacMax = std::get<2>(dacInfo.map_dacInfo[dacSelect]);
+            dacScanResults.resize( (dacMax+1)*24/dacStep );
             std::copy(dacScanResults.begin(), dacScanResults.end(), std::back_inserter(dacScanResultsAll));
             continue;
         }
