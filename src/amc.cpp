@@ -208,6 +208,89 @@ void sbitReadOut(const RPCMsg *request, RPCMsg *response)
     rtxn.abort();
 } //End sbitReadOut()
 
+bool writeConfRAMLocal(localArgs *la, uint32_t* blob)
+{
+  // do memory validation on blob
+  // strip blob to GBT, OptoHybrid, and VFAT blobs
+  uint32_t gbtRAMAddr  = getAddress(la, stdsprintf("GEM_AMC.CONFIG_BLASTER.RAM.GBT"));
+  uint32_t ohRAMAddr   = getAddress(la, stdsprintf("GEM_AMC.CONFIG_BLASTER.RAM.OH"));
+  uint32_t vfatRAMAddr = getAddress(la, stdsprintf("GEM_AMC.CONFIG_BLASTER.RAM.VFAT"));
+  return true;
+}
+
+void writeConfRAM(const RPCMsg *request, RPCMsg *response)
+{
+}
+
+bool writeGBTConfRAMLocal(localArgs *la, uint32_t* gbtblob)
+{
+  LOGGER->log_message(LogManager::DEBUG, "writeGBTConfRAMLocal called");
+  // do memory validation on gbtblob
+  uint32_t gbtRAMAddr = getAddress(la, stdsprintf("GEM_AMC.CONFIG_BLASTER.RAM.GBT"));
+
+  // send size? or do size validation in writeBlock?
+  // write to address, or register name, that can be looked up and type checked
+  writeBlock(gbtRAMAddr, gbtblob, la->response);
+  return true;
+}
+
+
+void writeGBTConfRAM(const RPCMsg *request, RPCMsg *response)
+{
+}
+
+
+bool writeOptoHybridConfRAMLocal(localArgs *la, uint32_t* ohblob)
+{
+  LOGGER->log_message(LogManager::DEBUG, "writeOptoHybridConfRAMLocal called");
+  // do memory validation on ohblob
+  uint32_t ohRAMAddr = getAddress(la, stdsprintf("GEM_AMC.CONFIG_BLASTER.RAM.OH"));
+
+  // send size? or do size validation in writeBlock?
+  // write to address, or register name, that can be looked up and type checked
+  writeBlock(ohRAMAddr, ohblob, la->response);
+  return true;
+}
+
+
+void writeOptoHybridConfRAM(const RPCMsg *request, RPCMsg *response)
+{
+}
+
+
+bool writeVFATConfRAMLocal(localArgs *la, uint32_t* vfatblob)
+{
+  LOGGER->log_message(LogManager::DEBUG, "writeVFATConfRAMLocal called");
+  // do memory validation on vfatblob
+  uint32_t vfatRAMAddr = getAddress(la, stdsprintf("GEM_AMC.CONFIG_BLASTER.RAM.VFAT"));
+
+  // send size? or do size validation in writeBlock?
+  // write to address, or register name, that can be looked up and type checked
+  writeBlock(vfatRAMAddr, vfatblob, la->response);
+  return true;
+}
+
+
+void writeVFATConfRAM(const RPCMsg *request, RPCMsg *response)
+{
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    bool shiftOutOfLockFirst = request->get_word("shiftOutOfLockFirst");
+    bool useBC0Locked = request->get_word("useBC0Locked");
+    bool doScan = request->get_word("doScan");
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    ttcMMCMPhaseShiftLocal(&la, shiftOutOfLockFirst, useBC0Locked, doScan);
+
+    return;
+}
 
 extern "C" {
     const char *module_version_key = "amc v1.0.1";
