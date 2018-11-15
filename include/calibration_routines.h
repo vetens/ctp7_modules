@@ -323,7 +323,7 @@ void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response);
  *  \param useExtRefADC if (true) false use the (externally) internally referenced ADC on the VFAT3 for monitoring
  *  \return Returns a std::vector<uint32_t> object of size 24*(dacMax-dacMin+1)/dacStep where dacMax and dacMin are described in the VFAT3 manual.  For each element bits [7:0] are the dacValue, bits [17:8] are the ADC readback value in either current or voltage units depending on dacSelect (again, see VFAT3 manual), bits [22:18] are the VFAT position, and bits [26:23] are the optohybrid number.
  */
-std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep=1, uint32_t mask=0xFF000000, bool useExtRefADC=false);
+std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep, uint32_t mask, bool useExtRefADC);
 
 /*! \fn void dacScan(const RPCMsg *request, RPCMsg *response)
  *  \brief allows the host machine to perform a dacScan for all unmasked VFATs on a given optohybrid, see Local version for details.
