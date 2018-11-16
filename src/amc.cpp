@@ -220,6 +220,7 @@ bool writeConfRAMLocal(localArgs *la, uint32_t* blob)
 
 void writeConfRAM(const RPCMsg *request, RPCMsg *response)
 {
+  struct localArgs la = getLocalArgs(response);
 }
 
 bool writeGBTConfRAMLocal(localArgs *la, uint32_t* gbtblob)
@@ -230,13 +231,14 @@ bool writeGBTConfRAMLocal(localArgs *la, uint32_t* gbtblob)
 
   // send size? or do size validation in writeBlock?
   // write to address, or register name, that can be looked up and type checked
-  writeBlock(gbtRAMAddr, gbtblob, la->response);
+  // writeBlock(gbtRAMAddr, gbtblob, la->response);
   return true;
 }
 
 
 void writeGBTConfRAM(const RPCMsg *request, RPCMsg *response)
 {
+  struct localArgs la = getLocalArgs(response);
 }
 
 
@@ -248,13 +250,14 @@ bool writeOptoHybridConfRAMLocal(localArgs *la, uint32_t* ohblob)
 
   // send size? or do size validation in writeBlock?
   // write to address, or register name, that can be looked up and type checked
-  writeBlock(ohRAMAddr, ohblob, la->response);
+  // writeBlock(ohRAMAddr, ohblob, la->response);
   return true;
 }
 
 
 void writeOptoHybridConfRAM(const RPCMsg *request, RPCMsg *response)
 {
+  struct localArgs la = getLocalArgs(response);
 }
 
 
@@ -266,30 +269,23 @@ bool writeVFATConfRAMLocal(localArgs *la, uint32_t* vfatblob)
 
   // send size? or do size validation in writeBlock?
   // write to address, or register name, that can be looked up and type checked
-  writeBlock(vfatRAMAddr, vfatblob, la->response);
+  // writeBlock(vfatRAMAddr, vfatblob, la->response);
   return true;
 }
 
 
 void writeVFATConfRAM(const RPCMsg *request, RPCMsg *response)
 {
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  struct localArgs la = getLocalArgs(response);
 
-    bool shiftOutOfLockFirst = request->get_word("shiftOutOfLockFirst");
-    bool useBC0Locked = request->get_word("useBC0Locked");
-    bool doScan = request->get_word("doScan");
+  uint32_t* vfatblob;
+  request->get_word_array("vfatblob", vfatblob);
+  bool success = writeVFATConfRAMLocal(&la, vfatblob);
+  // LOGGER->log_message(LogManager::INFO, stdsprintf("Determined VFAT Mask for OH%i to be 0x%x",ohN,vfatMask));
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  // response->set_word("vfatMask",vfatMask);
 
-    ttcMMCMPhaseShiftLocal(&la, shiftOutOfLockFirst, useBC0Locked, doScan);
-
-    return;
+  return;
 }
 
 extern "C" {
