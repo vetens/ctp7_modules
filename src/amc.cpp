@@ -13,7 +13,7 @@
 #include "utils.h"
 #include <vector>
 
-uint32_t checkPllLockLocal(localArgs * la, uint32_t readAttempts){
+uint32_t checkPLLLockLocal(localArgs * la, uint32_t readAttempts){
     uint32_t lockCnt = 0;
     for (uint32_t i = 0; i < readAttempts; ++i ) {
         writeReg(la,"GEM_AMC.TTC.CTRL.PA_MANUAL_PLL_RESET", 0x1);
@@ -27,9 +27,9 @@ uint32_t checkPllLockLocal(localArgs * la, uint32_t readAttempts){
         }
     }
     return lockCnt;
-} //End checkPllLockLocal()
+} //End checkPLLLockLocal()
 
-void checkPllLock(const RPCMsg * request, RPCMsg * response){
+void checkPLLLock(const RPCMsg * request, RPCMsg * response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
     std::string gem_path = std::getenv("GEM_PATH");
@@ -41,13 +41,13 @@ void checkPllLock(const RPCMsg * request, RPCMsg * response){
     uint32_t readAttempts = request->get_word("readAttempts");
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
 
-    uint32_t lockCnt = checkPllLockLocal(&la, readAttempts);
+    uint32_t lockCnt = checkPLLLockLocal(&la, readAttempts);
     LOGGER->log_message(LogManager::INFO, stdsprintf("Checked PLL Locked Status %i times; Found PLL Locked %i times",readAttempts,lockCnt));
 
     response->set_word("lockCnt",lockCnt);
 
     return;
-} //End checkPllLock()
+} //End checkPLLLock()
 
 unsigned int fw_version_check(const char* caller_name, localArgs *la)
 {
@@ -263,7 +263,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
 
     LOGGER->log_message(LogManager::INFO,"starting phase shifting procedure");
 
-    std::string strTtcCtrlBaseNode = "GEM_AMC.TTC.CTRL.";
+    std::string strTTCCtrlBaseNode = "GEM_AMC.TTC.CTRL.";
     std::unordered_map<std::string, uint32_t> map_ttcCtrlRegs;
 
     map_ttcCtrlRegs["DISABLE_PHASE_ALIGNMENT"]       = 0x1;
@@ -282,21 +282,21 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
     // write & readback of aforementioned registers
     uint32_t readback;
     for(auto ttcRegIter = map_ttcCtrlRegs.begin(); ttcRegIter != map_ttcCtrlRegs.end(); ++ttcRegIter){
-        writeReg(la, strTtcCtrlBaseNode + (*ttcRegIter).first, (*ttcRegIter).second);
+        writeReg(la, strTTCCtrlBaseNode + (*ttcRegIter).first, (*ttcRegIter).second);
         std::this_thread::sleep_for(std::chrono::microseconds(250));
-        readback = readReg(la, strTtcCtrlBaseNode + (*ttcRegIter).first);
+        readback = readReg(la, strTTCCtrlBaseNode + (*ttcRegIter).first);
         if( readback != (*ttcRegIter).second){
             LOGGER->log_message(
                     LogManager::ERROR,
                     stdsprintf(
                         "Readback of %s failed, value is %i, expected %i",
-                        (strTtcCtrlBaseNode + (*ttcRegIter).first).c_str(),
+                        (strTTCCtrlBaseNode + (*ttcRegIter).first).c_str(),
                         readback,
                         (*ttcRegIter).second)
                     );
             la->response->set_string("error",stdsprintf(
                         "ttcMMCMPhaseShift: Readback of %s failed, value is %i, expected %i",
-                        (strTtcCtrlBaseNode + (*ttcRegIter).first).c_str(),
+                        (strTTCCtrlBaseNode + (*ttcRegIter).first).c_str(),
                         readback,
                         (*ttcRegIter).second)
                     );
@@ -304,7 +304,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
         }
     }
 
-    if (readReg(la,strTtcCtrlBaseNode+"DISABLE_PHASE_ALIGNMENT") == 0x0) {
+    if (readReg(la,strTTCCtrlBaseNode+"DISABLE_PHASE_ALIGNMENT") == 0x0) {
         LOGGER->log_message(LogManager::ERROR,"automatic phase alignment is turned off!!");
         la->response->set_string("error","ttcMMCMPhaseShift: automatic phase alignment is turned off!!");
         return;
@@ -322,7 +322,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
     }
     uint32_t mmcmShiftCnt = readReg(la,"GEM_AMC.TTC.STATUS.CLK.PA_MANUAL_SHIFT_CNT");
     uint32_t gthShiftCnt  = readReg(la,"GEM_AMC.TTC.STATUS.CLK.PA_MANUAL_GTH_SHIFT_CNT");
-    int  pllLockCnt = checkPllLockLocal(la, readAttempts);
+    int  pllLockCnt = checkPLLLockLocal(la, readAttempts);
     bool firstUnlockFound = false;
     bool nextLockFound    = false;
     bool bestLockFound    = false;
@@ -343,8 +343,8 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
     int totalShiftCount  = 0;
 
     for (int i = 0; i < maxShift; ++i) {
-        writeReg(la, strTtcCtrlBaseNode + "CNT_RESET", 0x1);
-        writeReg(la, strTtcCtrlBaseNode + "PA_GTH_MANUAL_SHIFT_EN", 0x1);
+        writeReg(la, strTTCCtrlBaseNode + "CNT_RESET", 0x1);
+        writeReg(la, strTTCCtrlBaseNode + "PA_GTH_MANUAL_SHIFT_EN", 0x1);
 
         if (!reversingForLock && (gthShiftCnt == 39)) {
             LOGGER->log_message(LogManager::DEBUG,"normal GTH shift rollover 39->0");
@@ -402,7 +402,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
             }
         }
 
-        pllLockCnt = checkPllLockLocal(la,readAttempts);
+        pllLockCnt = checkPLLLockLocal(la,readAttempts);
         phase      = readReg(la,"GEM_AMC.TTC.STATUS.CLK.TTC_PM_PHASE_MEAN");
         phaseNs    = phase * 0.01860119;
         uint32_t gthPhase = readReg(la,"TTC.STATUS.CLK.GTH_PM_PHASE_MEAN");
@@ -773,7 +773,7 @@ extern "C" {
             LOGGER->log_message(LogManager::ERROR, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
         }
-        modmgr->register_method("amc", "checkPllLock", checkPllLock);
+        modmgr->register_method("amc", "checkPLLLock", checkPLLLock);
         modmgr->register_method("amc", "getOHVFATMask", getOHVFATMask);
         modmgr->register_method("amc", "getOHVFATMaskMultiLink", getOHVFATMaskMultiLink);
         modmgr->register_method("amc", "sbitReadOut", sbitReadOut);

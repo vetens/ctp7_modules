@@ -11,20 +11,20 @@
 #include "utils.h"
 #include <unistd.h>
 
-/*! \fn uint32_t checkPllLockLocal(localArgs * la, uint32_t readAttempts)
+/*! \fn uint32_t checkPLLLockLocal(localArgs * la, uint32_t readAttempts)
  *  \brief Resets the PLL and checks if it relocks
  *  \param la Local arguments structure
  *  \param readAttempts Specifies the number of times to reset the PLL and check for a relock
  *  \return Returns the number of times the PLL relocked
  */
-uint32_t checkPllLockLocal(localArgs * la, int readAttempts);
+uint32_t checkPLLLockLocal(localArgs * la, int readAttempts);
 
-/*! \fn void checkPllLock(const RPCMsg *request, RPCMsg *response)
+/*! \fn void checkPLLLock(const RPCMsg *request, RPCMsg *response)
  *  \brief Resets the PLL and checks if it relocks, see local method for details
  *  \param request RPC request message
  *  \param response RPC response message
  */
-void checkPllLock(const RPCMsg *request, RPCMsg *response);
+void checkPLLLock(const RPCMsg *request, RPCMsg *response);
 
 /*! \fn unsigned int fw_version_check(const char* caller_name, localArgs *la)
  *  \brief Returns AMC FW version
