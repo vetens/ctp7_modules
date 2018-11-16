@@ -10,6 +10,7 @@
 #include <string>
 #include <time.h>
 #include <thread>
+#include <utility>
 #include "utils.h"
 #include <vector>
 
@@ -264,24 +265,24 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
     LOGGER->log_message(LogManager::INFO,"starting phase shifting procedure");
 
     std::string strTTCCtrlBaseNode = "GEM_AMC.TTC.CTRL.";
-    std::unordered_map<std::string, uint32_t> map_ttcCtrlRegs;
+    std::vector<std::pair<std::string, uint32_t> > vec_ttcCtrlRegs;
 
-    map_ttcCtrlRegs["DISABLE_PHASE_ALIGNMENT"]       = 0x1;
-    map_ttcCtrlRegs["PA_DISABLE_GTH_PHASE_TRACKING"] = 0x1;
-    map_ttcCtrlRegs["PA_MANUAL_OVERRIDE"]            = 0x1;
-    map_ttcCtrlRegs["PA_MANUAL_SHIFT_DIR"]           = 0x1;
-    map_ttcCtrlRegs["PA_GTH_MANUAL_OVERRIDE"]        = 0x1;
-    map_ttcCtrlRegs["PA_GTH_MANUAL_SHIFT_DIR"]       = 0x0;
-    map_ttcCtrlRegs["PA_GTH_MANUAL_SHIFT_STEP"]      = 0x1;
-    map_ttcCtrlRegs["PA_GTH_MANUAL_SEL_OVERRIDE"]    = 0x1;
-    map_ttcCtrlRegs["PA_GTH_MANUAL_COMBINED"]        = 0x1;
-    map_ttcCtrlRegs["GTH_TXDLYBYPASS"]               = 0x1;
-    map_ttcCtrlRegs["PA_MANUAL_PLL_RESET"]           = 0x1;
-    map_ttcCtrlRegs["CNT_RESET"]                     = 0x1;
+    vec_ttcCtrlRegs["DISABLE_PHASE_ALIGNMENT"]       = 0x1;
+    vec_ttcCtrlRegs["PA_DISABLE_GTH_PHASE_TRACKING"] = 0x1;
+    vec_ttcCtrlRegs["PA_MANUAL_OVERRIDE"]            = 0x1;
+    vec_ttcCtrlRegs["PA_MANUAL_SHIFT_DIR"]           = 0x1;
+    vec_ttcCtrlRegs["PA_GTH_MANUAL_OVERRIDE"]        = 0x1;
+    vec_ttcCtrlRegs["PA_GTH_MANUAL_SHIFT_DIR"]       = 0x0;
+    vec_ttcCtrlRegs["PA_GTH_MANUAL_SHIFT_STEP"]      = 0x1;
+    vec_ttcCtrlRegs["PA_GTH_MANUAL_SEL_OVERRIDE"]    = 0x1;
+    vec_ttcCtrlRegs["PA_GTH_MANUAL_COMBINED"]        = 0x1;
+    vec_ttcCtrlRegs["GTH_TXDLYBYPASS"]               = 0x1;
+    vec_ttcCtrlRegs["PA_MANUAL_PLL_RESET"]           = 0x1;
+    vec_ttcCtrlRegs["CNT_RESET"]                     = 0x1;
 
     // write & readback of aforementioned registers
     uint32_t readback;
-    for(auto ttcRegIter = map_ttcCtrlRegs.begin(); ttcRegIter != map_ttcCtrlRegs.end(); ++ttcRegIter){
+    for(auto ttcRegIter = vec_ttcCtrlRegs.begin(); ttcRegIter != vec_ttcCtrlRegs.end(); ++ttcRegIter){
         writeReg(la, strTTCCtrlBaseNode + (*ttcRegIter).first, (*ttcRegIter).second);
         std::this_thread::sleep_for(std::chrono::microseconds(250));
         readback = readReg(la, strTTCCtrlBaseNode + (*ttcRegIter).first);
