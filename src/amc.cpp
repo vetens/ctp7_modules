@@ -267,18 +267,18 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
     std::string strTTCCtrlBaseNode = "GEM_AMC.TTC.CTRL.";
     std::vector<std::pair<std::string, uint32_t> > vec_ttcCtrlRegs;
 
-    vec_ttcCtrlRegs["DISABLE_PHASE_ALIGNMENT"]       = 0x1;
-    vec_ttcCtrlRegs["PA_DISABLE_GTH_PHASE_TRACKING"] = 0x1;
-    vec_ttcCtrlRegs["PA_MANUAL_OVERRIDE"]            = 0x1;
-    vec_ttcCtrlRegs["PA_MANUAL_SHIFT_DIR"]           = 0x1;
-    vec_ttcCtrlRegs["PA_GTH_MANUAL_OVERRIDE"]        = 0x1;
-    vec_ttcCtrlRegs["PA_GTH_MANUAL_SHIFT_DIR"]       = 0x0;
-    vec_ttcCtrlRegs["PA_GTH_MANUAL_SHIFT_STEP"]      = 0x1;
-    vec_ttcCtrlRegs["PA_GTH_MANUAL_SEL_OVERRIDE"]    = 0x1;
-    vec_ttcCtrlRegs["PA_GTH_MANUAL_COMBINED"]        = 0x1;
-    vec_ttcCtrlRegs["GTH_TXDLYBYPASS"]               = 0x1;
-    vec_ttcCtrlRegs["PA_MANUAL_PLL_RESET"]           = 0x1;
-    vec_ttcCtrlRegs["CNT_RESET"]                     = 0x1;
+    vec_ttcCtrlRegs.push_back(std::make_pair("DISABLE_PHASE_ALIGNMENT"       , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("PA_DISABLE_GTH_PHASE_TRACKING" , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("PA_MANUAL_OVERRIDE"            , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("PA_MANUAL_SHIFT_DIR"           , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("PA_GTH_MANUAL_OVERRIDE"        , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("PA_GTH_MANUAL_SHIFT_DIR"       , 0x0));
+    vec_ttcCtrlRegs.push_back(std::make_pair("PA_GTH_MANUAL_SHIFT_STEP"      , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("PA_GTH_MANUAL_SEL_OVERRIDE"    , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("PA_GTH_MANUAL_COMBINED"        , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("GTH_TXDLYBYPASS"               , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("PA_MANUAL_PLL_RESET"           , 0x1));
+    vec_ttcCtrlRegs.push_back(std::make_pair("CNT_RESET"                     , 0x1));
 
     // write & readback of aforementioned registers
     uint32_t readback;
