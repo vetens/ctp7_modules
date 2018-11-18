@@ -277,29 +277,31 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
     vec_ttcCtrlRegs.push_back(std::make_pair("PA_GTH_MANUAL_SEL_OVERRIDE"    , 0x1));
     vec_ttcCtrlRegs.push_back(std::make_pair("PA_GTH_MANUAL_COMBINED"        , 0x1));
     vec_ttcCtrlRegs.push_back(std::make_pair("GTH_TXDLYBYPASS"               , 0x1));
-    vec_ttcCtrlRegs.push_back(std::make_pair("PA_MANUAL_PLL_RESET"           , 0x1));
-    vec_ttcCtrlRegs.push_back(std::make_pair("CNT_RESET"                     , 0x1));
+    // vec_ttcCtrlRegs.push_back(std::make_pair("PA_MANUAL_PLL_RESET"           , 0x1));
+    // vec_ttcCtrlRegs.push_back(std::make_pair("CNT_RESET"                     , 0x1));
 
     // write & readback of aforementioned registers
     uint32_t readback;
-    for(auto ttcRegIter = vec_ttcCtrlRegs.begin(); ttcRegIter != vec_ttcCtrlRegs.end(); ++ttcRegIter){
-        writeReg(la, strTTCCtrlBaseNode + (*ttcRegIter).first, (*ttcRegIter).second);
+    for (auto &ttcRegIter: vec_ttcCtrlRegs) {
+        writeReg(la, strTTCCtrlBaseNode + ttcRegIter.first, ttcRegIter.second);
         std::this_thread::sleep_for(std::chrono::microseconds(250));
-        readback = readReg(la, strTTCCtrlBaseNode + (*ttcRegIter).first);
-        if( readback != (*ttcRegIter).second){
+        if ((ttcRegIter.first).rfind("RESET") != std::string::npos)
+          continue;
+        readback = readReg(la, strTTCCtrlBaseNode + ttcRegIter.first);
+        if( readback != ttcRegIter.second){
             LOGGER->log_message(
                     LogManager::ERROR,
                     stdsprintf(
                         "Readback of %s failed, value is %i, expected %i",
-                        (strTTCCtrlBaseNode + (*ttcRegIter).first).c_str(),
+                        (strTTCCtrlBaseNode + ttcRegIter.first).c_str(),
                         readback,
-                        (*ttcRegIter).second)
+                        ttcRegIter.second)
                     );
             la->response->set_string("error",stdsprintf(
                         "ttcMMCMPhaseShift: Readback of %s failed, value is %i, expected %i",
-                        (strTTCCtrlBaseNode + (*ttcRegIter).first).c_str(),
+                        (strTTCCtrlBaseNode + ttcRegIter.first).c_str(),
                         readback,
-                        (*ttcRegIter).second)
+                        ttcRegIter.second)
                     );
             return;
         }
@@ -344,28 +346,39 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
     int totalShiftCount  = 0;
 
     for (int i = 0; i < maxShift; ++i) {
-        writeReg(la, strTTCCtrlBaseNode + "CNT_RESET", 0x1);
+        // writeReg(la, strTTCCtrlBaseNode + "CNT_RESET", 0x1);
         writeReg(la, strTTCCtrlBaseNode + "PA_GTH_MANUAL_SHIFT_EN", 0x1);
+        uint32_t tmpGthShiftCnt  = readReg(la,"GEM_AMC.TTC.STATUS.CLK.PA_MANUAL_GTH_SHIFT_CNT");
+        uint32_t tmpMmcmShiftCnt = readReg(la,"GEM_AMC.TTC.STATUS.CLK.PA_MANUAL_SHIFT_CNT");
 
+        bool mmcmShiftRequired = false;
+        if (reversingForLock) {
+          mmcmShiftRequired = mmcmShiftTable[gthShiftCnt];
+        } else {
+          mmcmShiftRequired = mmcmShiftTable[gthShiftCnt+1];
+        }
+
+        std::stringstream msg;
+        msg << "BEFORE: "
+            << "mmcmShift: "  << mmcmShiftCnt << "(" << tmpMmcmShiftCnt << ")"
+            << ", gthShift: " << gthShiftCnt  << "(" << tmpGthShiftCnt  << ")"
+            << ", mmcmShiftRequired: "               << mmcmShiftRequired;
+        LOGGER->log_message(LogManager::DEBUG,stdsprintf(msg.str().c_str()));
+        
         if (!reversingForLock && (gthShiftCnt == 39)) {
             LOGGER->log_message(LogManager::DEBUG,"normal GTH shift rollover 39->0");
             gthShiftCnt = 0;
-        }
-        else if (reversingForLock && (gthShiftCnt == 0)){
+        } else if (reversingForLock && (gthShiftCnt == 0)){
             LOGGER->log_message(LogManager::DEBUG,"rerversed GTH shift rollover 0->39");
             gthShiftCnt = 39;
-        }
-        else {
+        } else {
             if (reversingForLock) {
                 gthShiftCnt -= 1;
-            }
-            else {
+            } else {
                 gthShiftCnt += 1;
             }
         }
 
-        uint32_t tmpGthShiftCnt  = readReg(la,"GEM_AMC.TTC.STATUS.CLK.PA_MANUAL_GTH_SHIFT_CNT");
-        uint32_t tmpMmcmShiftCnt = readReg(la,"GEM_AMC.TTC.STATUS.CLK.PA_MANUAL_SHIFT_CNT");
         LOGGER->log_message(LogManager::INFO,stdsprintf("tmpGthShiftCnt: %i, tmpMmcmShiftCnt %i",tmpGthShiftCnt, tmpMmcmShiftCnt));
         while (gthShiftCnt != tmpGthShiftCnt) {
             LOGGER->log_message(LogManager::WARNING,
@@ -379,34 +392,42 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
             //FIX ME should this continue indefinitely...?
         }
 
-        if (mmcmShiftTable[gthShiftCnt+1]) {
+        // if (mmcmShiftTable[gthShiftCnt+1]) {
+        if (mmcmShiftRequired) {
             if (!reversingForLock && (mmcmShiftCnt == 0xffff)) {
                 mmcmShiftCnt = 0;
-            }
-            else if (reversingForLock && (mmcmShiftCnt == 0x0)) {
+            } else if (reversingForLock && (mmcmShiftCnt == 0x0)) {
                 mmcmShiftCnt = 0xffff;
-            }
-            else {
+            } else {
                 if (reversingForLock) {
                     mmcmShiftCnt -= 1;
                 } else {
                     mmcmShiftCnt += 1;
                 }
             }
+        }
 
-            tmpMmcmShiftCnt = readReg(la,"TTC.STATUS.CLK.PA_MANUAL_SHIFT_CNT");
-            if (mmcmShiftCnt != tmpMmcmShiftCnt){
-                LOGGER->log_message(LogManager::WARNING,
-                        "Reported MMCM shift count doesn't match the expected MMCM shift count."
-                        " Expected shift cnt = " + std::to_string(mmcmShiftCnt) +
-                        " , ctp7 returned "      + std::to_string(tmpMmcmShiftCnt));
-            }
+        tmpMmcmShiftCnt = readReg(la,"GEM_AMC.TTC.STATUS.CLK.PA_MANUAL_SHIFT_CNT");
+
+        msg.str("");
+        msg.clear();
+        msg << "AFTER: "
+            << "mmcmShift: "  << mmcmShiftCnt << "(" << tmpMmcmShiftCnt << ")"
+            << ", gthShift: " << gthShiftCnt  << "(" << tmpGthShiftCnt  << ")"
+            << ", mmcmShiftRequired: "               << mmcmShiftRequired;
+        LOGGER->log_message(LogManager::DEBUG,stdsprintf(msg.str().c_str()));
+        
+        if (mmcmShiftCnt != tmpMmcmShiftCnt){
+            LOGGER->log_message(LogManager::WARNING,
+                    "Reported MMCM shift count doesn't match the expected MMCM shift count."
+                    " Expected shift cnt = " + std::to_string(mmcmShiftCnt) +
+                    " , ctp7 returned "      + std::to_string(tmpMmcmShiftCnt));
         }
 
         pllLockCnt = checkPLLLockLocal(la,readAttempts);
         phase      = readReg(la,"GEM_AMC.TTC.STATUS.CLK.TTC_PM_PHASE_MEAN");
         phaseNs    = phase * 0.01860119;
-        uint32_t gthPhase = readReg(la,"TTC.STATUS.CLK.GTH_PM_PHASE_MEAN");
+        uint32_t gthPhase = readReg(la,"GEM_AMC.TTC.STATUS.CLK.GTH_PM_PHASE_MEAN");
         double gthPhaseNs = gthPhase * 0.01860119;
 
         uint32_t bc0Locked  = readReg(la,"GEM_AMC.TTC.STATUS.BC0.LOCKED");
@@ -444,8 +465,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                               ", mmcm phase count = "    + std::to_string(phase) +
                               ", mmcm phase ns = "       + std::to_string(phaseNs) + "ns");
                     }
-                }
-                else {
+                } else {
                     if (reversingForLock && (nBadLocks > 0)) {
                         LOGGER->log_message(LogManager::DEBUG,
                                 "Bad BC0 lock found:"
@@ -457,8 +477,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                         bestLockFound    = false;
                         reversingForLock = false;
                         nGoodLocks       = 0;
-                    }
-                    else if (nGoodLocks == 200) {
+                    } else if (nGoodLocks == 200) {
                         reversingForLock = true;
                         LOGGER->log_message(LogManager::INFO,
                                 "200 consecutive good BC0 locks found:"
@@ -480,14 +499,12 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                             bestLockFound    = false;
                             reversingForLock = false;
                             nGoodLocks       = 0;
-                        }
-                        else {
+                        } else {
                             break;
                         }
                     }
                 }
-            }
-            else { // shift to first good BC0 locked
+            } else { // shift to first good BC0 locked
                 if (bc0Locked == 0) {
                     if (nextLockFound) {
                         LOGGER->log_message(LogManager::DEBUG,
@@ -548,8 +565,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                               ", good locks "            + std::to_string(nGoodLocks) +
                               ", mmcm phase count = "    + std::to_string(phase) +
                               ", mmcm phase ns = "       + std::to_string(phaseNs) + "ns");
-                    }
-                    else {
+                    } else {
                         if (reversingForLock && (nBadLocks > 0)) {
                             LOGGER->log_message(LogManager::DEBUG,
                                     "Bad BC0 lock found:"
@@ -561,8 +577,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                             bestLockFound    = false;
                             reversingForLock = false;
                             nGoodLocks       = 0;
-                        }
-                        else if (nGoodLocks == 50) {
+                        } else if (nGoodLocks == 50) {
                             reversingForLock = true;
                             LOGGER->log_message(LogManager::INFO,
                                     "50 consecutive good PLL locks found:"
@@ -584,8 +599,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                                 bestLockFound    = false;
                                 reversingForLock = false;
                                 nGoodLocks       = 0;
-                            }
-                            else {
+                            } else {
                                 break;
                             }
                         }
@@ -632,8 +646,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                     }
                 }
             }
-        }
-        else {
+        } else {
             if (shiftOutOfLockFirst && (pllLockCnt < PLL_LOCK_READ_ATTEMPTS) && !firstUnlockFound) {
                 firstUnlockFound = true;
                 LOGGER->log_message(LogManager::WARNING,
@@ -670,13 +683,11 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                             reversingForLock = false;
                             nGoodLocks       = 0;
                             nShiftsSinceLock = 0;
-                        }
-                        else {
+                        } else {
                             break;
                         }
                     }
-                }
-                else if (firstUnlockFound || !shiftOutOfLockFirst) {
+                } else if (firstUnlockFound || !shiftOutOfLockFirst) {
                     if (!nextLockFound) {
                         LOGGER->log_message(LogManager::DEBUG,
                                 "Found next lock after " + std::to_string(i+1)+ " shifts:"
@@ -696,12 +707,10 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                         nGoodLocks       = 0;
                         nShiftsSinceLock = 0;
                     }
-                }
-                else {
+                } else {
                     nGoodLocks += 1;
                 }
-            }
-            else if (nextLockFound) {
+            } else if (nextLockFound) {
                 if (nShiftsSinceLock > 500) {
                     bestLockFound = true;
                     if (!doScan)
@@ -712,8 +721,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                     nGoodLocks       = 0;
                     nShiftsSinceLock = 0;
                 }
-            }
-            else {
+            } else {
                 bestLockFound = false;
                 nBadLocks += 1;
             }
@@ -723,8 +731,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
         }
         if (reversingForLock){
             totalShiftCount -= 1;
-        }
-        else{
+        } else{
             totalShiftCount += 1;
         }
     }
@@ -735,8 +742,7 @@ void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0
                 "Lock was found:"
                 " phase count " +std::to_string(phase) +
                 ", phase "      +std::to_string(phaseNs) + "ns");
-    }
-    else {
+    } else {
         std::stringstream msg;
         LOGGER->log_message(LogManager::ERROR,"Unable to find lock");
         la->response->set_string("error","ttcMMCMPhaseShift: unable to find lock");
