@@ -1111,7 +1111,7 @@ void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response){
     return;
 } //End checkSbitRateWithCalPulse()
 
-std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep=1, uint32_t mask=0xFF000000, bool useExtRefADC=false){
+std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep, uint32_t mask, bool useExtRefADC){
     //Ensure VFAT3 Hardware
     if(fw_version_check("dacScanLocal", la) < 3){
         LOGGER->log_message(LogManager::ERROR, "dacScanLocal is only supported in V3 electronics");
