@@ -87,6 +87,7 @@ void sbitReadOut(const RPCMsg *request, RPCMsg *response);
  *  \useBC0Locked controls whether the procedure will use the BC0_LOCKED or the PLL_LOCKED register.  Note for GEM_AMC FW > 1.13.0 BC0_LOCKED doesn't work.
  *  \param doScan tells the procedure to run through the full possibility of phases several times, and just logs the place where it found a lock
  */
+
 void ttcMMCMPhaseShiftLocal(localArgs *la, bool shiftOutOfLockFirst, bool useBC0Locked, bool doScan);
 
 /*! \fn void ttcMMCMPhaseShift(const RPCMsg *request, RPCMsg *response)

@@ -765,6 +765,7 @@ void ttcMMCMPhaseShift(const RPCMsg *request, RPCMsg *response){
     return;
 } //End ttcMMCMPhaseShift()
 
+
 extern "C" {
     const char *module_version_key = "amc v1.0.1";
     int module_activity_color = 4;
