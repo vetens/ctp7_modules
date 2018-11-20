@@ -17,17 +17,20 @@ CTP7_MODULES_VER_MAJOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); pr
 CTP7_MODULES_VER_MINOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[2];}' | awk '{split($$0,b,":"); print b[2];}')
 CTP7_MODULES_VER_PATCH:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[3];}' | awk '{split($$0,b,":"); print b[2];}')
 
-include $(BUILD_HOME)//$(Package)/config/mfZynq.mk
-include $(BUILD_HOME)//$(Package)/config/mfCommonDefs.mk
-include $(BUILD_HOME)//$(Package)/config/mfRPMRules.mk
+include $(BUILD_HOME)/$(Package)/config/mfZynq.mk
+include $(BUILD_HOME)/$(Package)/config/mfCommonDefs.mk
+include $(BUILD_HOME)/$(Package)/config/mfRPMRules.mk
 
 IncludeDirs  = ${BUILD_HOME}/$(Package)/include
-IncludeDirs += ${BUILD_HOME}/xhal/xhalcore/include
+IncludeDirs += ${XHAL_ROOT}/include
+IncludeDirs += /opt/wiscrpcsvc/include
 #IncludeDirs += /opt/cactus/include
 INC=$(IncludeDirs:%=-I%)
 
-LDFLAGS+= -L${BUILD_HOME}/xhal/xhalarm/lib
 LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
+## package the arm libs in the devel package so they are available for building?
+LDFLAGS+= -L${XHAL_ROOT}/lib/arm
+LDFLAGS+= -L/opt/wiscrpcsvc/lib
 
 SRCS= $(shell echo ${BUILD_HOME}/${Package}/src/*.cpp)
 TARGET_LIBS  = lib/memhub.so
@@ -41,7 +44,10 @@ TARGET_LIBS += lib/vfat3.so
 TARGET_LIBS += lib/optohybrid.so
 TARGET_LIBS += lib/calibration_routines.so
 
-.PHONY: clean rpc prerpm
+.PHONY: clean rpc prerpm test
+
+test:
+	g++ -o test/phase  test/phase.cpp $(INC) $(LDFLAGS) -lwiscrpcsvc
 
 default:
 	@echo "Running default target"
