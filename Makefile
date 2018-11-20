@@ -29,7 +29,8 @@ INC=$(IncludeDirs:%=-I%)
 
 LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
 ## package the arm libs in the devel package so they are available for building?
-LDFLAGS+= -L${XHAL_ROOT}/lib/arm
+# LDFLAGS+= -L${XHAL_ROOT}/lib/arm
+LDFLAGS+= -L${BUILD_HOME}/xhal/xhalarm/lib
 LDFLAGS+= -L/opt/wiscrpcsvc/lib
 
 SRCS= $(shell echo ${BUILD_HOME}/${Package}/src/*.cpp)
@@ -47,7 +48,7 @@ TARGET_LIBS += lib/calibration_routines.so
 .PHONY: clean rpc prerpm test
 
 test:
-	g++ -o test/phase  test/phase.cpp $(INC) $(LDFLAGS) -lwiscrpcsvc
+	g++ -o test/tester  test/tester.cpp $(INC) $(LDFLAGS) -lwiscrpcsvc
 
 default:
 	@echo "Running default target"
