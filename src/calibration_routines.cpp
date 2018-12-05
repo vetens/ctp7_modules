@@ -1148,6 +1148,8 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     std::string regName = std::get<0>(map_dacSelect[dacSelect]);
     LOGGER->log_message(LogManager::INFO, stdsprintf("Scanning DAC: %s",regName.c_str()));
     uint32_t adcAddr[24];
+    uint32_t adcCacheUpdateAddr[24];
+    bool foundAdcCached=false;
     for(int vfatN=0; vfatN<24; ++vfatN){
         //Skip Masked VFATs
         if ( !( (notmask >> vfatN) & 0x1)) continue;
@@ -1157,10 +1159,29 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
 
         //Get ADC address
         if(useExtRefADC){ //Case: Use ADC with external reference
-            adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1");
+            //for backward compatibility, use ADC1 instead of ADC1_CACHED if it exists
+            lmdb::val key, db_res;
+
+            key.assign(strRegBase+"ADC1_CACHED");
+            foundAdcCached = la->dbi.get(la->rtxn,key,db_res);
+            if(foundAdcCached){
+                adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1_CACHED");
+                adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC1_UPDATE");                
+            }
+            else
+                adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1");
         } //End Case: Use ADC with external reference
         else{ //Case: Use ADC with internal reference
-            adcAddr[vfatN] = getAddress(la, strRegBase + "ADC0");
+            //for backward compatibility, use ADC0 instead of ADC0_CACHED if it exists
+            lmdb::val key, db_res;
+            key.assign(strRegBase+"ADC0_CACHED");
+            foundAdcCached = la->dbi.get(la->rtxn,key,db_res);
+            if(foundAdcCached) {
+                adcAddr[vfatN] = getAddress(la, strRegBase + "ADC0_CACHED");
+                adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC0_UPDATE");
+            }
+            else
+                adcAddr[vfatN] = getAddress(la, strRegBase + "ADC0");
         } //End Case: Use ADC with internal reference
     } //End Loop over VFATs
 
@@ -1182,8 +1203,8 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     std::this_thread::sleep_for(std::chrono::seconds(1)); //I noticed that DAC values behave weirdly immediately after VFAT is placed in run mode (probably voltage/current takes a moment to stabalize)
 
     //Scan the DAC
-    uint32_t adcVal=0;
-    uint32_t Temp;
+
+    uint32_t nReads=100;
     for(uint32_t dacVal=dacMin; dacVal<=dacMax; dacVal += dacStep){ //Loop over DAC values
         for(int vfatN=0; vfatN<24; ++vfatN){ //Loop over VFATs
             //Skip masked VFATs
@@ -1199,12 +1220,19 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
             //Set DAC value
                 std::string strDacReg = stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.",ohN,vfatN) + regName;
                 writeReg(la, strDacReg, dacVal);
-                for(int i=0; i<100; ++i){ //Read 100 times and take avg value
+                //Read nReads times and take avg value
+                uint32_t adcVal=0;
+                for(int i=0; i<nReads; ++i){
                     //Read the ADC
-                    Temp = readRawAddress(adcAddr[vfatN], la->response);
-                    adcVal = adcVal + Temp;
+                    if (foundAdcCached){
+                        //either reading or writing this register will trigger a cache update
+                        readRawAddress(adcCacheUpdateAddr[vfatN], la->response);
+                        //updating the cache takes 20 us, including a 50% safety factor
+                        std::this_thread::sleep_for(std::chrono::microseconds(20));
+                    }
+                    adcVal += readRawAddress(adcAddr[vfatN], la->response);
                 }
-                adcVal = adcVal/100;
+                adcVal = adcVal/nReads;
                 //Store value
                 int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
                 vec_dacScanData[idx] = ((ohN & 0xf) << 23) + ((vfatN & 0x1f) << 18) + ((adcVal & 0x3ff) << 8) + (dacVal & 0xff);
