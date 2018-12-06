@@ -88,8 +88,8 @@ lib/optohybrid.so: src/optohybrid.cpp
 lib/calibration_routines.so: src/calibration_routines.cpp
 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,calibration_routines.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:optohybrid.so -l:vfat3.so -l:amc.so
 
-lib/gbt.so: src/gbt.cpp include/gbt.h include/moduleapi.h include/memhub.h include/utils.h
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,gbt.so -o $@ $< -l:memhub.so
+lib/gbt.so: src/gbt.cpp include/gbt.h include/gbt_constants.h include/moduleapi.h include/memhub.h include/utils.h lib/utils.so
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,gbt.so -o $@ $< -l:memhub.so -l:utils.so
 
 clean: cleanrpm
 	-rm -rf lib/*.so
