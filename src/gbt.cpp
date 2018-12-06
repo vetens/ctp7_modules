@@ -20,6 +20,63 @@
     response->set_string("error", message); \
     return error_code; }
 
+void writeGBTConfig(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    // ohN key
+    const uint32_t ohN = request->get_word("ohN");
+    const uint32_t ohMax = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (ohN >= ohMax)
+        EMIT_RPC_ERROR(response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), )
+
+    // gbtN key
+    const uint32_t gbtN = request->get_word("gbtN");
+    if (gbtN >= gbt::gbtsPerOH)
+        EMIT_RPC_ERROR(response, stdsprintf("The gbtN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", gbtN, gbt::gbtsPerOH),)
+
+    // config key
+    const uint32_t configSize = request->get_binarydata_size("config");
+    if (configSize != gbt::configSize)
+        EMIT_RPC_ERROR(response, stdsprintf("The provided configuration has not the correct size. It is %u registers long while this methods expects %hu 8-bits registers.", configSize, gbt::configSize), );
+
+    gbt::config_t config{};
+    request->get_binarydata("config", config.data(), config.size());
+
+    // Write the configuration
+    writeGBTConfigLocal(&la, ohN, gbtN, config);
+
+    return;
+} //End writeGBTConfig(...)
+
+bool writeGBTConfigLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const gbt::config_t &config){
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Writing the configuration of OH #%u - GBTX #%u.", ohN, gbtN));
+
+    // ohN check
+    const uint32_t ohMax = readReg(la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (ohN >= ohMax)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
+
+    // gbtN check
+    if (gbtN >= gbt::gbtsPerOH)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", gbtN, gbt::gbtsPerOH), true)
+
+    // Write all the registers
+    for (size_t address = 0; address < gbt::configSize; address++){
+        if (writeGBTRegLocal(la, ohN, gbtN, static_cast<uint16_t>(address), config[address]))
+            return true;
+    }
+
+    return false;
+} //End writeGBTConfigLocal(...)
+
 bool writeGBTRegLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const uint16_t address, const uint8_t value){
     // Check that the GBT exists
     if (gbtN >= gbt::gbtsPerOH)
@@ -53,6 +110,7 @@ extern "C" {
             LOGGER->log_message(LogManager::ERROR, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
         }
+        modmgr->register_method("gbt", "writeGBTConfig", writeGBTConfig);
     }
 }
 
