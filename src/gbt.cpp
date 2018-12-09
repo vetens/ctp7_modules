@@ -77,6 +77,72 @@ bool writeGBTConfigLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN,
     return false;
 } //End writeGBTConfigLocal(...)
 
+void writeGBTPhase(const RPCMsg *request, RPCMsg *response){
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
+    // ohN key
+    const uint32_t ohN = request->get_word("ohN");
+    const uint32_t ohMax = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (ohN >= ohMax)
+        EMIT_RPC_ERROR(response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), )
+
+    // vfatN key
+    const uint32_t vfatN = request->get_word("vfatN");
+    if (vfatN >= gbt::vfatsPerOH)
+        EMIT_RPC_ERROR(response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", vfatN, gbt::vfatsPerOH), )
+
+    // phase key
+    const uint8_t phase = request->get_word("phase");
+    if (phase < gbt::phaseMin)
+        EMIT_RPC_ERROR(response, stdsprintf("The phase parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phase, gbt::phaseMin), )
+    if (phase > gbt::phaseMax)
+        EMIT_RPC_ERROR(response, stdsprintf("The phase parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phase, gbt::phaseMax), )
+
+    // Write the phase
+    writeGBTPhaseLocal(&la, ohN, vfatN, phase);
+
+    return;
+} //End writeGBTPhase
+
+bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN, const uint8_t phase){
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Writing the VFAT #%u phase of OH #%u.", vfatN, ohN));
+
+    // ohN check
+    const uint32_t ohMax = readReg(la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (ohN >= ohMax)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
+
+    // vfatN check
+    if (vfatN >= gbt::vfatsPerOH)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of VFAT's per OH (%u).", vfatN, gbt::vfatsPerOH), true)
+
+    // phase check
+    if (phase < gbt::phaseMin)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The phase parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phase, gbt::phaseMin), true)
+    if (phase > gbt::phaseMax)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The phase parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phase, gbt::phaseMax), true)
+
+    // Write the triplcated phase registers
+    const uint32_t gbtN = gbt::elinkMappings::vfatToGBT[vfatN];
+
+    for(unsigned char regN = 0; regN < 3; regN++){
+        const uint16_t regAddress = gbt::elinkMappings::elinkToRegisters[gbt::elinkMappings::vfatToElink[vfatN]][regN];
+
+        if (writeGBTRegLocal(la, ohN, gbtN, regAddress, phase))
+            return true;
+    }
+
+    return false;
+} //End writeGBTPhaseLocal
+
 bool writeGBTRegLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const uint16_t address, const uint8_t value){
     // Check that the GBT exists
     if (gbtN >= gbt::gbtsPerOH)
@@ -111,6 +177,7 @@ extern "C" {
             return; // Do not register our functions, we depend on memsvc.
         }
         modmgr->register_method("gbt", "writeGBTConfig", writeGBTConfig);
+        modmgr->register_method("gbt", "writeGBTPhase", writeGBTPhase);
     }
 }
 
