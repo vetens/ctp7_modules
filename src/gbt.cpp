@@ -13,16 +13,6 @@
 #include <thread>
 #include <chrono>
 
-/*! \brief This macro is used to terminate a function if an error occurs. It logs the message, write it to the `error` RPC key and returns the `error_code` value.
- *  \param response A pointer to the RPC response object.
- *  \param message The `std::string` error message.
- *  \param error_code Value which is passed to the `return` statement.
- */
-#define EMIT_RPC_ERROR(response, message, error_code){ \
-    LOGGER->log_message(LogManager::ERROR, message); \
-    response->set_string("error", message); \
-    return error_code; }
-
 void scanGBTPhases(const RPCMsg *request, RPCMsg *response){
     auto env = lmdb::env::create();
     env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
