@@ -22,14 +22,13 @@
  *  - `word phaseStep` : Step to scan the phases.
  *
  *  The method returns the following RPC keys :
- *  - `word_array results` : Array of word containing the results of the scans. See details of the `scanGBTPhase` function for a description of the words.
+ *  - `word_array OHX.VFATY` : Array of word containing the results of the scans. See details of the `scanGBTPhase` function for a description of the words.
  *  - `string error` : If an error occurs, this keys exists and contains the error message.
  */
 void scanGBTPhases(const RPCMsg *request, RPCMsg *response);
 
 /*! \brief Local callable version of `scanGBTPhase`.
  *  \param[in, out] la Local arguments structure.
- *  \param[out] results A `std::vector` containing the results of the scan. See details for the items description.
  *  \param[in] ohN OptoHybrid index number.
  *  \param[in] N The number of times the scan must performed.
  *  \param[in] phaseMin Lowest phase to scan (min = 0).
@@ -41,15 +40,12 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response);
  *
  *  The scan seeks for valid RX phases for the VFAT's of one OptoHybrid. A phase is considered valid when `LINK_GOOD = 1`, `SYNC_ERR_CNT = 0` and `CFG_RUN != 0xdeaddead`. In order to improve the reliability of the scan, it is repeated `N` times.
  *
- *  Each item of the results vector is composed as follow :
- *  - [31:28] : ohN
- *  - [27:24] : phase
- *  - [23:0] : result of the N scans (and) for the i^th VFAT. A `1` indicates a good phase while a `0` indicates a bad phase.
+ *  The results are returned as RPC keys named `OHX.VFATY` where X is the index of the OptoHyrid and Y the index of the VFAT within this OptoHybrid.
+ *  Each key is a word array of 16 elements for the 16 possible phases ordered from phase 0 to phase 15.
+ *  Each word is the number of time the scan was "good" out of the total number of scan requested, N.
  *
- *  The length of the vector is determined by `phaseMin`, `phaseMax` and `phaseStep` : 
- *  (`phaseMax` - `phaseMin` + 1)/`phaseStep`
  */
-bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uint32_t ohN, const uint32_t N = 1, const uint8_t phaseMin = gbt::PHASE_MIN, const uint8_t phaseMax = gbt::PHASE_MAX, const uint8_t phaseStep = 1);
+bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N = 1, const uint8_t phaseMin = gbt::PHASE_MIN, const uint8_t phaseMax = gbt::PHASE_MAX, const uint8_t phaseStep = 1);
 
 /*! \brief Write the GBT configuration of one OptoHybrid.
  *  \param[in] request RPC response message.

@@ -10,6 +10,7 @@
 #include "memhub.h"
 #include "utils.h"
 
+#include <array>
 #include <thread>
 #include <chrono>
 
@@ -32,16 +33,13 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response){
     const uint8_t phaseStep = request->get_word("phaseStep");
 
     // Perform the scan
-    std::vector<uint32_t> results;
-    if (scanGBTPhasesLocal(&la, results, ohN, N, phaseMin, phaseMax, phaseStep))
+    if (scanGBTPhasesLocal(&la, ohN, N, phaseMin, phaseMax, phaseStep))
         return;
-
-    response->set_word_array("results", results);
 
     return;
 } //Enc scanGBTPhase
 
-bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uint32_t ohN, const uint32_t N, const uint8_t phaseMin, const uint8_t phaseMax, const uint8_t phaseStep){
+bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, const uint8_t phaseMin, const uint8_t phaseMax, const uint8_t phaseStep){
     LOGGER->log_message(LogManager::INFO, stdsprintf("Scanning the phases for OH #%u.", ohN));
 
     // ohN check
@@ -61,16 +59,11 @@ bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uin
     if (phaseMax > gbt::PHASE_MAX)
         EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMax parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phaseMax, gbt::PHASE_MAX), true)
 
+    // Results array
+    std::vector<std::vector<uint32_t>> results(oh::VFATS_PER_OH, std::vector<uint32_t>(16));
+
     // Perform the scan
     for(uint8_t phase = phaseMin; phase <= phaseMax; phase += phaseStep){
-        // Each measurement is composed as such :
-        //  - [31:28] : OH number
-        //  - [27:24] : Phase value
-        //  - [23:0] : VFAT i status
-        uint32_t result = ((ohN << 28) & 0xf0000000) |
-                          ((phase << 24) & 0x0f000000) |
-                          0x00ffffff;
-
         // Set the new phases
         for(uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++){
             if (writeGBTPhaseLocal(la, ohN, vfatN, phase))
@@ -93,13 +86,14 @@ bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uin
 
                 // If no errors, the phase is good
                 if (linkGood && syncErrCnt && cfgRun)
-                    continue;
-
-                result &= ~(0x1 << vfatN);
+                    results[vfatN][phase]++;
             }
         }
+    }
 
-        results.push_back(result);
+    // Write the results to RPC keys
+    for(uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++){
+        la->response->set_word_array(stdsprintf("OH%u.VFAT%u", ohN, vfatN), results[vfatN]);
     }
 
     return false;
