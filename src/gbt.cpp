@@ -50,16 +50,16 @@ bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uin
         EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
 
     // phaseMin check
-    if (phaseMin < gbt::phaseMin)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMin parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phaseMin, gbt::phaseMin), true)
-    if (phaseMin > gbt::phaseMax)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMin parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phaseMin, gbt::phaseMax), true)
+    if (phaseMin < gbt::PHASE_MIN)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMin parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phaseMin, gbt::PHASE_MIN), true)
+    if (phaseMin > gbt::PHASE_MAX)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMin parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phaseMin, gbt::PHASE_MAX), true)
 
     // phaseMax check
-    if (phaseMax < gbt::phaseMin)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMax parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phaseMax, gbt::phaseMin), true)
-    if (phaseMax > gbt::phaseMax)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMax parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phaseMax, gbt::phaseMax), true)
+    if (phaseMax < gbt::PHASE_MIN)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMax parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phaseMax, gbt::PHASE_MIN), true)
+    if (phaseMax > gbt::PHASE_MAX)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMax parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phaseMax, gbt::PHASE_MAX), true)
 
     // Perform the scan
     for(uint8_t phase = phaseMin; phase <= phaseMax; phase += phaseStep){
@@ -72,7 +72,7 @@ bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uin
                           0x00ffffff;
 
         // Set the new phases
-        for(uint32_t vfatN = 0; vfatN < oh::vfatsPerOH; vfatN++){
+        for(uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++){
             if (writeGBTPhaseLocal(la, ohN, vfatN, phase))
                 return true;
         }
@@ -86,7 +86,7 @@ bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uin
             std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
             // Check the VFAT status
-            for(uint32_t vfatN = 0; vfatN < oh::vfatsPerOH; vfatN++){
+            for(uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++){
                 const bool linkGood = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.LINK_GOOD", ohN, vfatN)) == 1);
                 const bool syncErrCnt = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.SYNC_ERR_CNT", ohN, vfatN)) == 0);
                 const bool cfgRun = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN)) != 0xdeaddead);
@@ -122,8 +122,8 @@ void writeGBTConfig(const RPCMsg *request, RPCMsg *response){
 
     // We must check the size of the config key
     const uint32_t configSize = request->get_binarydata_size("config");
-    if (configSize != gbt::configSize)
-        EMIT_RPC_ERROR(response, stdsprintf("The provided configuration has not the correct size. It is %u registers long while this methods expects %hu 8-bits registers.", configSize, gbt::configSize), );
+    if (configSize != gbt::CONFIG_SIZE)
+        EMIT_RPC_ERROR(response, stdsprintf("The provided configuration has not the correct size. It is %u registers long while this methods expects %hu 8-bits registers.", configSize, gbt::CONFIG_SIZE), );
 
     gbt::config_t config{};
     request->get_binarydata("config", config.data(), config.size());
@@ -143,11 +143,11 @@ bool writeGBTConfigLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN,
         EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
 
     // gbtN check
-    if (gbtN >= gbt::gbtsPerOH)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", gbtN, gbt::gbtsPerOH), true)
+    if (gbtN >= gbt::GBTS_PER_OH)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", gbtN, gbt::GBTS_PER_OH), true)
 
     // Write all the registers
-    for (size_t address = 0; address < gbt::configSize; address++){
+    for (size_t address = 0; address < gbt::CONFIG_SIZE; address++){
         if (writeGBTRegLocal(la, ohN, gbtN, static_cast<uint16_t>(address), config[address]))
             return true;
     }
@@ -186,20 +186,20 @@ bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN,
         EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
 
     // vfatN check
-    if (vfatN >= oh::vfatsPerOH)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of VFAT's per OH (%u).", vfatN, oh::vfatsPerOH), true)
+    if (vfatN >= oh::VFATS_PER_OH)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of VFAT's per OH (%u).", vfatN, oh::VFATS_PER_OH), true)
 
     // phase check
-    if (phase < gbt::phaseMin)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phase parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phase, gbt::phaseMin), true)
-    if (phase > gbt::phaseMax)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phase parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phase, gbt::phaseMax), true)
+    if (phase < gbt::PHASE_MIN)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The phase parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phase, gbt::PHASE_MIN), true)
+    if (phase > gbt::PHASE_MAX)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The phase parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phase, gbt::PHASE_MAX), true)
 
     // Write the triplicated phase registers
-    const uint32_t gbtN = gbt::elinkMappings::vfatToGBT[vfatN];
+    const uint32_t gbtN = gbt::elinkMappings::VFAT_TO_GBT[vfatN];
 
     for(unsigned char regN = 0; regN < 3; regN++){
-        const uint16_t regAddress = gbt::elinkMappings::elinkToRegisters[gbt::elinkMappings::vfatToElink[vfatN]][regN];
+        const uint16_t regAddress = gbt::elinkMappings::ELINK_TO_REGISTERS[gbt::elinkMappings::VFAT_TO_ELINK[vfatN]][regN];
 
         if (writeGBTRegLocal(la, ohN, gbtN, regAddress, phase))
             return true;
@@ -210,18 +210,18 @@ bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN,
 
 bool writeGBTRegLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const uint16_t address, const uint8_t value){
     // Check that the GBT exists
-    if (gbtN >= gbt::gbtsPerOH)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) is larger than the number of GBT's per OH (%u).", gbtN, gbt::gbtsPerOH), true)
+    if (gbtN >= gbt::GBTS_PER_OH)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) is larger than the number of GBT's per OH (%u).", gbtN, gbt::GBTS_PER_OH), true)
 
     // Check that the address is writable
-    if (address >= gbt::configSize)
-        EMIT_RPC_ERROR(la->response, stdsprintf("GBT has %hu writable addresses while the provided address is %hu.", gbt::configSize-1, address), true)
+    if (address >= gbt::CONFIG_SIZE)
+        EMIT_RPC_ERROR(la->response, stdsprintf("GBT has %hu writable addresses while the provided address is %hu.", gbt::CONFIG_SIZE-1, address), true)
 
     // GBT registers are 8 bits long
     writeReg(la, "GEM_AMC.SLOW_CONTROL.IC.READ_WRITE_LENGTH", 1);
 
     // Select the link number
-    const uint32_t linkN = ohN*gbt::gbtsPerOH + gbtN;
+    const uint32_t linkN = ohN*gbt::GBTS_PER_OH + gbtN;
     writeReg(la, "GEM_AMC.SLOW_CONTROL.IC.GBTX_LINK_SELECT", linkN);
 
     // Write to the register

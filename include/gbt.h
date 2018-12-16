@@ -49,7 +49,7 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response);
  *  The length of the vector is determined by `phaseMin`, `phaseMax` and `phaseStep` : 
  *  (`phaseMax` - `phaseMin` + 1)/`phaseStep`
  */
-bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uint32_t ohN, const uint32_t N = 1, const uint8_t phaseMin = gbt::phaseMin, const uint8_t phaseMax = gbt::phaseMax, const uint8_t phaseStep = 1);
+bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uint32_t ohN, const uint32_t N = 1, const uint8_t phaseMin = gbt::PHASE_MIN, const uint8_t phaseMax = gbt::PHASE_MAX, const uint8_t phaseStep = 1);
 
 /*! \brief Write the GBT configuration of one OptoHybrid.
  *  \param[in] request RPC response message.
