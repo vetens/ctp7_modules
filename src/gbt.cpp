@@ -24,28 +24,11 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response){
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
 
-    // ohN key
+    // Get the keys
     const uint32_t ohN = request->get_word("ohN");
-    const uint32_t ohMax = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-    if (ohN >= ohMax)
-        EMIT_RPC_ERROR(response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), )
-
-    // N key
     const uint32_t N = request->get_word("N");
-
-    // phases config keys
     const uint8_t phaseMin = request->get_word("phaseMin");
-    if (phaseMin < gbt::phaseMin)
-        EMIT_RPC_ERROR(response, stdsprintf("The phaseMin parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phaseMin, gbt::phaseMin), )
-    if (phaseMin > gbt::phaseMax)
-        EMIT_RPC_ERROR(response, stdsprintf("The phaseMin parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phaseMin, gbt::phaseMax), )
-
     const uint8_t phaseMax = request->get_word("phaseMax");
-    if (phaseMax < gbt::phaseMin)
-        EMIT_RPC_ERROR(response, stdsprintf("The phaseMax parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phaseMax, gbt::phaseMin), )
-    if (phaseMax > gbt::phaseMax)
-        EMIT_RPC_ERROR(response, stdsprintf("The phaseMax parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phaseMax, gbt::phaseMax), )
-
     const uint8_t phaseStep = request->get_word("phaseStep");
 
     // Perform the scan
@@ -59,7 +42,7 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response){
 } //Enc scanGBTPhase
 
 bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uint32_t ohN, const uint32_t N, const uint8_t phaseMin, const uint8_t phaseMax, const uint8_t phaseStep){
-    LOGGER->log_message(LogManager::INFO, stdsprintf("Scannng the phases for OH #%u.", ohN));
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Scanning the phases for OH #%u.", ohN));
 
     // ohN check
     const uint32_t ohMax = readReg(la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
@@ -133,18 +116,11 @@ void writeGBTConfig(const RPCMsg *request, RPCMsg *response){
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
 
-    // ohN key
+    // Get the keys
     const uint32_t ohN = request->get_word("ohN");
-    const uint32_t ohMax = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-    if (ohN >= ohMax)
-        EMIT_RPC_ERROR(response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), )
-
-    // gbtN key
     const uint32_t gbtN = request->get_word("gbtN");
-    if (gbtN >= gbt::gbtsPerOH)
-        EMIT_RPC_ERROR(response, stdsprintf("The gbtN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", gbtN, gbt::gbtsPerOH),)
 
-    // config key
+    // We must check the size of the config key
     const uint32_t configSize = request->get_binarydata_size("config");
     if (configSize != gbt::configSize)
         EMIT_RPC_ERROR(response, stdsprintf("The provided configuration has not the correct size. It is %u registers long while this methods expects %hu 8-bits registers.", configSize, gbt::configSize), );
@@ -190,23 +166,10 @@ void writeGBTPhase(const RPCMsg *request, RPCMsg *response){
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
 
-    // ohN key
+    // Get the keys
     const uint32_t ohN = request->get_word("ohN");
-    const uint32_t ohMax = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-    if (ohN >= ohMax)
-        EMIT_RPC_ERROR(response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), )
-
-    // vfatN key
     const uint32_t vfatN = request->get_word("vfatN");
-    if (vfatN >= oh::vfatsPerOH)
-        EMIT_RPC_ERROR(response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", vfatN, oh::vfatsPerOH), )
-
-    // phase key
     const uint8_t phase = request->get_word("phase");
-    if (phase < gbt::phaseMin)
-        EMIT_RPC_ERROR(response, stdsprintf("The phase parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phase, gbt::phaseMin), )
-    if (phase > gbt::phaseMax)
-        EMIT_RPC_ERROR(response, stdsprintf("The phase parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phase, gbt::phaseMax), )
 
     // Write the phase
     writeGBTPhaseLocal(&la, ohN, vfatN, phase);
@@ -232,7 +195,7 @@ bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN,
     if (phase > gbt::phaseMax)
         EMIT_RPC_ERROR(la->response, stdsprintf("The phase parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phase, gbt::phaseMax), true)
 
-    // Write the triplcated phase registers
+    // Write the triplicated phase registers
     const uint32_t gbtN = gbt::elinkMappings::vfatToGBT[vfatN];
 
     for(unsigned char regN = 0; regN < 3; regN++){
