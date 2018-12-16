@@ -4,7 +4,7 @@
  */
 
 #include "gbt.h"
-#include "gbt_constants.h"
+#include "hw_constants.h"
 
 #include "moduleapi.h"
 #include "memhub.h"

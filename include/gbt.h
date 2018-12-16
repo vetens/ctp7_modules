@@ -6,7 +6,7 @@
 #ifndef GBT_H
 #define GBT_H
 
-#include "gbt_constants.h"
+#include "hw_constants.h"
 
 #include "utils.h"
 

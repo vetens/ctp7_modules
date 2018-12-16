@@ -1,10 +1,10 @@
 /*! \file
- *  \brief Header containing the constants for the GBT module.
+ *  \brief Header containing the hardware related constants.
  *  \author Laurent Pétré <lpetre@ulb.ac.be>
  */
 
-#ifndef GBT_CONSTANTS_H
-#define GBT_CONSTANTS_H
+#ifndef HW_CONSTANTS_H
+#define HW_CONSTANTS_H
 
 #include <stdint.h>
 #include <array>
