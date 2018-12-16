@@ -5,6 +5,7 @@
 
 #include "gbt.h"
 #include "hw_constants.h"
+#include "hw_constants_checks.h"
 
 #include "moduleapi.h"
 #include "memhub.h"
@@ -48,16 +49,12 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
         EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
 
     // phaseMin check
-    if (phaseMin < gbt::PHASE_MIN)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMin parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phaseMin, gbt::PHASE_MIN), true)
-    if (phaseMin > gbt::PHASE_MAX)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMin parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phaseMin, gbt::PHASE_MAX), true)
+    if (gbt::checkPhase(la->response, phaseMin))
+        return true;
 
     // phaseMax check
-    if (phaseMax < gbt::PHASE_MIN)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMax parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phaseMax, gbt::PHASE_MIN), true)
-    if (phaseMax > gbt::PHASE_MAX)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phaseMax parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phaseMax, gbt::PHASE_MAX), true)
+    if (gbt::checkPhase(la->response, phaseMax))
+        return true;
 
     // Results array
     std::vector<std::vector<uint32_t>> results(oh::VFATS_PER_OH, std::vector<uint32_t>(16));
@@ -184,10 +181,8 @@ bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN,
         EMIT_RPC_ERROR(la->response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of VFAT's per OH (%u).", vfatN, oh::VFATS_PER_OH), true)
 
     // phase check
-    if (phase < gbt::PHASE_MIN)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phase parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phase, gbt::PHASE_MIN), true)
-    if (phase > gbt::PHASE_MAX)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The phase parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phase, gbt::PHASE_MAX), true)
+    if (gbt::checkPhase(la->response, phase))
+        return true;
 
     // Write the triplicated phase registers
     const uint32_t gbtN = gbt::elinkMappings::VFAT_TO_GBT[vfatN];
