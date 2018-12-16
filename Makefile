@@ -26,6 +26,8 @@ IncludeDirs += ${BUILD_HOME}/xhal/xhalcore/include
 #IncludeDirs += /opt/cactus/include
 INC=$(IncludeDirs:%=-I%)
 
+CFLAGS += -DGEM_VARIANT="ge11"
+
 LDFLAGS+= -L${BUILD_HOME}/xhal/xhalarm/lib
 LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
 

@@ -99,12 +99,12 @@ bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uin
                           0x00ffffff;
 
         // Set the new phases
-        for(uint32_t vfatN = 0; vfatN < gbt::vfatsPerOH; vfatN++){
+        for(uint32_t vfatN = 0; vfatN < oh::vfatsPerOH; vfatN++){
             if (writeGBTPhaseLocal(la, ohN, vfatN, phase))
                 return true;
         }
 
-	// Wait for the phases to be set
+        // Wait for the phases to be set
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         for (uint32_t repN = 0; repN < N; repN++){
@@ -113,7 +113,7 @@ bool scanGBTPhasesLocal(localArgs *la, std::vector<uint32_t> &results, const uin
             std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
             // Check the VFAT status
-            for(uint32_t vfatN = 0; vfatN < gbt::vfatsPerOH; vfatN++){
+            for(uint32_t vfatN = 0; vfatN < oh::vfatsPerOH; vfatN++){
                 const bool linkGood = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.LINK_GOOD", ohN, vfatN)) == 1);
                 const bool syncErrCnt = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.SYNC_ERR_CNT", ohN, vfatN)) == 0);
                 const bool cfgRun = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN)) != 0xdeaddead);
@@ -208,8 +208,8 @@ void writeGBTPhase(const RPCMsg *request, RPCMsg *response){
 
     // vfatN key
     const uint32_t vfatN = request->get_word("vfatN");
-    if (vfatN >= gbt::vfatsPerOH)
-        EMIT_RPC_ERROR(response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", vfatN, gbt::vfatsPerOH), )
+    if (vfatN >= oh::vfatsPerOH)
+        EMIT_RPC_ERROR(response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", vfatN, oh::vfatsPerOH), )
 
     // phase key
     const uint8_t phase = request->get_word("phase");
@@ -233,8 +233,8 @@ bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN,
         EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
 
     // vfatN check
-    if (vfatN >= gbt::vfatsPerOH)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of VFAT's per OH (%u).", vfatN, gbt::vfatsPerOH), true)
+    if (vfatN >= oh::vfatsPerOH)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of VFAT's per OH (%u).", vfatN, oh::vfatsPerOH), true)
 
     // phase check
     if (phase < gbt::phaseMin)
