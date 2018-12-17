@@ -6,12 +6,13 @@
  */
 
 #include "amc.h"
+#include "amc/ttc.h"
+#include "amc/daq.h"
+
 #include <chrono>
 #include <string>
 #include <time.h>
 #include <thread>
-#include <utility>
-#include "utils.h"
 #include <vector>
 
 uint32_t checkPLLLockLocal(localArgs * la, uint32_t readAttempts){
@@ -775,10 +776,46 @@ extern "C" {
             LOGGER->log_message(LogManager::ERROR, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
         }
-        modmgr->register_method("amc", "checkPLLLock", checkPLLLock);
-        modmgr->register_method("amc", "getOHVFATMask", getOHVFATMask);
+        modmgr->register_method("amc", "checkPLLLock",           checkPLLLock);
+        modmgr->register_method("amc", "getOHVFATMask",          getOHVFATMask);
         modmgr->register_method("amc", "getOHVFATMaskMultiLink", getOHVFATMaskMultiLink);
-        modmgr->register_method("amc", "sbitReadOut", sbitReadOut);
-        modmgr->register_method("amc", "ttcMMCMPhaseShift", ttcMMCMPhaseShift);
+        modmgr->register_method("amc", "sbitReadOut",            sbitReadOut);
+        modmgr->register_method("amc", "ttcMMCMPhaseShift",      ttcMMCMPhaseShift);
+
+        // DAQ module methods (from amc/daq)
+        modmgr->register_method("amc", "enableDAQLink",           enableDAQLink);
+        modmgr->register_method("amc", "disableDAQLink",          disableDAQLink);
+        modmgr->register_method("amc", "setZS",                   setZS);
+        modmgr->register_method("amc", "resetDAQLink",            resetDAQLink);
+        modmgr->register_method("amc", "setDAQLinkInputTimeout",  setDAQLinkInputTimeout);
+        modmgr->register_method("amc", "setDAQLinkRunType",       setDAQLinkRunType);
+        modmgr->register_method("amc", "setDAQLinkRunParameter",  setDAQLinkRunParameter);
+        modmgr->register_method("amc", "setDAQLinkRunParameters", setDAQLinkRunParameters);
+
+        modmgr->register_method("amc", "configureDAQModule",      configureDAQModule);
+
+        // TTC module methods (from amc/ttc)
+        modmgr->register_method("amc", "ttcModuleReset",     ttcModuleReset);
+        modmgr->register_method("amc", "ttcMMCMReset",       ttcMMCMReset);
+        modmgr->register_method("amc", "ttcMMCMPhaseShift",  ttcMMCMPhaseShift);
+        modmgr->register_method("amc", "checkPLLLock",       checkPLLLock);
+        modmgr->register_method("amc", "getMMCMPhaseMean",   getMMCMPhaseMean);
+        modmgr->register_method("amc", "getMMCMPhaseMedian", getMMCMPhaseMedian);
+        modmgr->register_method("amc", "getGTHPhaseMean",    getGTHPhaseMean);
+        modmgr->register_method("amc", "getGTHPhaseMedian",  getGTHPhaseMedian);
+        modmgr->register_method("amc", "ttcCounterReset",    ttcCounterReset);
+        modmgr->register_method("amc", "getL1AEnable",       getL1AEnable);
+        modmgr->register_method("amc", "setL1AEnable",       setL1AEnable);
+        modmgr->register_method("amc", "getTTCConfig",       getTTCConfig);
+        modmgr->register_method("amc", "setTTCConfig",       setTTCConfig);
+        modmgr->register_method("amc", "getTTCStatus",       getTTCStatus);
+        modmgr->register_method("amc", "getTTCErrorCount",   getTTCErrorCount);
+        modmgr->register_method("amc", "getTTCCounter",      getTTCCounter);
+        modmgr->register_method("amc", "getL1AID",           getL1AID);
+        modmgr->register_method("amc", "getL1ARate",         getL1ARate);
+        modmgr->register_method("amc", "getTTCSpyBuffer",    getTTCSpyBuffer);
+
+        // SCA module methods (from amc/sca)
+        // modmgr->register_method("amc", "scaHardResetEnable", scaHardResetEnable);
     }
 }

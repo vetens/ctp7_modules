@@ -9,7 +9,6 @@
 #define AMC_H
 
 #include "utils.h"
-#include <unistd.h>
 
 /*! \fn uint32_t checkPLLLockLocal(localArgs * la, uint32_t readAttempts)
  *  \brief Resets the PLL and checks if it relocks

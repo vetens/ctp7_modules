@@ -12,6 +12,8 @@
 #include "memhub.h"
 #include "lmdb_cpp_wrapper.h"
 #include "xhal/utils/XHALXMLParser.h"
+
+#include <unistd.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -21,17 +23,21 @@
 #include <iterator>
 #include <cstdio>
 
-memsvc_handle_t memsvc; /// \var global memory service handle required for registers read/write operations
+extern memsvc_handle_t memsvc; /// \var global memory service handle required for registers read/write operations
 
 /*! \struct localArgs
  *  Contains arguments required to execute the method locally
  */
 struct localArgs {
     lmdb::txn & rtxn; /*!< LMDB transaction handle */
-    lmdb::dbi & dbi; /*!< LMDB individual database handle */
+    lmdb::dbi & dbi;  /*!< LMDB individual database handle */
     RPCMsg *response; /*!< RPC response message */
 };
 
+/*!
+ * \brief returns a set up localArgs structure
+ */
+struct localArgs getLocalArgs(RPCMsg *response);
 
 template<typename Out>
 void split(const std::string &s, char delim, Out result) {
@@ -42,15 +48,10 @@ void split(const std::string &s, char delim, Out result) {
         *(result++) = item;
     }
 }
-std::vector<std::string> split(const std::string &s, char delim) {
-    std::vector<std::string> elems;
-    split(s, delim, std::back_inserter(elems));
-    return elems;
-}
 
-std::string serialize(xhal::utils::Node n) {
-  return std::to_string((uint32_t)n.real_address)+"|"+n.permission+"|"+std::to_string((uint32_t)n.mask);
-}
+std::vector<std::string> split(const std::string &s, char delim);
+
+std::string serialize(xhal::utils::Node n);
 
 /*! \brief This macro is used to terminate a function if an error occurs. It logs the message, write it to the `error` RPC key and returns the `error_code` value.
  *  \param response A pointer to the RPC response object.
