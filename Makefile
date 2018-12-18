@@ -13,9 +13,9 @@ PackageDir   := pkg/$(ShortPackage)
 Arch         := arm
 Packager     := Mykhailo Dalchenko
 
-CTP7_MODULES_VER_MAJOR=1
-CTP7_MODULES_VER_MINOR=0
-CTP7_MODULES_VER_PATCH=0
+CTP7_MODULES_VER_MAJOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[1];}' | awk '{split($$0,b,":"); print b[2];}')
+CTP7_MODULES_VER_MINOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[2];}' | awk '{split($$0,b,":"); print b[2];}')
+CTP7_MODULES_VER_PATCH:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[3];}' | awk '{split($$0,b,":"); print b[2];}')
 
 include $(BUILD_HOME)//$(Package)/config/mfZynq.mk
 include $(BUILD_HOME)//$(Package)/config/mfCommonDefs.mk
@@ -30,7 +30,8 @@ LDFLAGS+= -L${BUILD_HOME}/xhal/xhalarm/lib
 LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
 
 SRCS= $(shell echo ${BUILD_HOME}/${Package}/src/*.cpp)
-TARGET_LIBS  = lib/memory.so
+TARGET_LIBS  = lib/memhub.so
+TARGET_LIBS += lib/memory.so
 TARGET_LIBS += lib/optical.so
 TARGET_LIBS += lib/utils.so
 TARGET_LIBS += lib/extras.so
@@ -56,17 +57,20 @@ build: $(TARGET_LIBS)
 
 _all: $(TARGET_LIBS)
 
+lib/memhub.so: src/memhub.cpp 
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,memhub.so -o $@ $< -lwisci2c -lmemsvc 
+
 lib/memory.so: src/memory.cpp 
-	$(CXX) $(CFLAGS) $(INC) $(LDFLAGS) -fPIC -shared -o $@ $< -lwisci2c
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,memory.so -o $@ $< -lwisci2c -l:memhub.so
 
 lib/optical.so: src/optical.cpp 
 	$(CXX) $(CFLAGS) $(INC) $(LDFLAGS) -fPIC -shared -o $@ $< -lwisci2c
 
 lib/utils.so: src/utils.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,utils.so -o $@ $< -lwisci2c -lxhal -llmdb
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,utils.so -o $@ $< -lwisci2c -lxhal -llmdb -l:memhub.so
 
 lib/extras.so: src/extras.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,extras.so -o $@ $< -lwisci2c -lxhal -llmdb
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,extras.so -o $@ $< -lwisci2c -lxhal -llmdb -l:memhub.so
 
 lib/amc.so: src/amc.cpp
 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,amc.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so

@@ -127,7 +127,7 @@ uint32_t getMask(localArgs * la, const std::string & regName){
 void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response){
   uint32_t data[1];
   data[0] = value;
-  if (memsvc_write(memsvc, address, 1, data) != 0) {
+  if (memhub_write(memsvc, address, 1, data) != 0) {
   	response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
   	LOGGER->log_message(LogManager::INFO, stdsprintf("write memsvc error: %s", memsvc_get_last_error(memsvc)));
   }
@@ -135,7 +135,7 @@ void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response){
 
 uint32_t readRawAddress(uint32_t address, RPCMsg* response){
   uint32_t data[1];
-  if (memsvc_read(memsvc, address, 1, data) != 0) {
+  if (memhub_read(memsvc, address, 1, data) != 0) {
   	response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
   	LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
     return 0xdeaddead;
@@ -171,7 +171,7 @@ void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response) {
   uint32_t data[1];
   uint32_t address = stoi(tmp[0]);
   data[0] = value;
-  if (memsvc_write(memsvc, address, 1, data) != 0) {
+  if (memhub_write(memsvc, address, 1, data) != 0) {
   	response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
   	LOGGER->log_message(LogManager::INFO, stdsprintf("write memsvc error: %s", memsvc_get_last_error(memsvc)));
   }
@@ -187,7 +187,7 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response) {
   int n_current_tries = 0;
   while (true)
   {
-      if (memsvc_read(memsvc, address, 1, data) != 0)
+      if (memhub_read(memsvc, address, 1, data) != 0)
       {
           if (n_current_tries < 9)
           {
@@ -268,7 +268,7 @@ uint32_t readReg(localArgs * la, const std::string & regName) {
     uint32_t address,mask;
     address = stoll(tmp[0]);
     mask = stoll(tmp[2]);
-    if (memsvc_read(memsvc, address, 1, data) != 0) {
+    if (memhub_read(memsvc, address, 1, data) != 0) {
     	//response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
     	LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
       return 0xdeaddead;
@@ -331,7 +331,7 @@ extern "C" {
 	const char *module_version_key = "utils v1.0.1";
 	int module_activity_color = 4;
 	void module_init(ModuleManager *modmgr) {
-		if (memsvc_open(&memsvc) != 0) {
+		if (memhub_open(&memsvc) != 0) {
 			LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
 			LOGGER->log_message(LogManager::ERROR, "Unable to load module");
 			return; // Do not register our functions, we depend on memsvc.

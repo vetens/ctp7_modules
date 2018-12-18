@@ -8,7 +8,8 @@
 #define UTILS_H
 
 #include "moduleapi.h"
-#include <libmemsvc.h>
+//#include <libmemsvc.h>
+#include "memhub.h"
 #include "lmdb_cpp_wrapper.h"
 #include "xhal/utils/XHALXMLParser.h"
 #include <iostream>
