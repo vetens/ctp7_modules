@@ -37,6 +37,8 @@ void getmonTRIGGERmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
   la->response->set_word("OR_TRIGGER_RATE",readReg(la,"GEM_AMC.TRIGGER.STATUS.OR_TRIGGER_RATE"));
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
   for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
@@ -72,6 +74,8 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 void getmonTRIGGEROHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
   for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
@@ -157,6 +161,8 @@ void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
 void getmonDAQOHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
   for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if(!((ohMask >> ohN) & 0x1)){
@@ -206,6 +212,8 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
 
 void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
 {
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
   std::string t1,t2;
   for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
@@ -271,6 +279,8 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
 
     //Turn on monitoring for requested links
     writeReg(la, "GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF", (~ohMask) & 0x3fc);
+    int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (NOH_local < NOH) NOH = NOH_local;
 
     for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
         // If this Optohybrid is masked skip it
@@ -374,6 +384,8 @@ void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
 void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
     std::string strKeyName;
     std::string strRegBase;
+    int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (NOH_local < NOH) NOH = NOH_local;
 
     if (fw_version_check("getmonOHSysmon", la) == 3){
         for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
@@ -491,6 +503,8 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
 
 void getmonSCALocal(localArgs * la, int NOH)
 {
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
   std::string t1,t2;
   la->response->set_word("SCA.STATUS.READY", readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.STATUS.READY"));
   la->response->set_word("SCA.STATUS.CRITICAL_ERROR", readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.STATUS.CRITICAL_ERROR"));
