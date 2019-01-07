@@ -91,9 +91,8 @@ void setTTCConfigLocal(localArgs* la,
 uint32_t getTTCStatusLocal(localArgs* la)
 {
   LOGGER->log_message(LogManager::WARNING,"getTTCStatusLocal not fully implemented");
-  // return readReg(la, "GEM_AMC.TTC.STATUS.BC0.LOCKED");
-  // return readReg(la, "GEM_AMC.TTC.STATUS.BC0.LOCKED");
-  uint32_t retval = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.DATE");
+  // uint32_t retval = readReg(la, "GEM_AMC.TTC.STATUS");
+  uint32_t retval = readReg(la, "GEM_AMC.TTC.STATUS.BC0.LOCKED");
   std::stringstream msg;
   msg << "getTTCStatusLocal TTC status reads " << std::hex << std::setw(8) << retval << std::dec;
   LOGGER->log_message(LogManager::DEBUG,msg.str());
@@ -162,13 +161,15 @@ uint32_t getTTCSpyBufferLocal(localArgs* la)
 /** RPC callbacks */
 void ttcModuleReset(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   ttcModuleResetLocal(&la);
 }
 
 void ttcMMCMReset(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   // LocalArgs la = getLocalArgs(response);
   ttcMMCMResetLocal(&la);
 }
@@ -199,32 +200,37 @@ void getGTHPhaseMedian(const RPCMsg *request, RPCMsg *response)
 
 void ttcCounterReset(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   ttcCounterResetLocal(&la);
 }
 void getL1AEnable(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   getL1AEnableLocal(&la);
 }
 
 void setL1AEnable(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   bool en = request->get_word("enable");
   setL1AEnableLocal(&la, en);
 }
 
 void getTTCConfig(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   uint8_t cmd = request->get_word("cmd");
   getTTCConfigLocal(&la, cmd);
 }
 
 void setTTCConfig(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   uint8_t cmd = request->get_word("cmd");
   uint8_t val = request->get_word("value");
   setTTCConfigLocal(&la, cmd, val);
@@ -232,7 +238,8 @@ void setTTCConfig(const RPCMsg *request, RPCMsg *response)
 
 void getTTCStatus(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   uint32_t status = getTTCStatusLocal(&la);
   // uint32_t status = 0xdeadbeef;
   response->set_word("result",status);
@@ -240,32 +247,37 @@ void getTTCStatus(const RPCMsg *request, RPCMsg *response)
 
 void getTTCErrorCount(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   bool single = request->get_word("single");
   getTTCErrorCountLocal(&la, single);
 }
 
 void getTTCCounter(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   uint8_t cmd = request->get_word("cmd");
   getTTCCounterLocal(&la, cmd);
 }
 
 void getL1AID(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   getL1AIDLocal(&la);
 }
 
 void getL1ARate(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   getL1ARateLocal(&la);
 }
 
 void getTTCSpyBuffer(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   getTTCSpyBufferLocal(&la);
 }

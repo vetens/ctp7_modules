@@ -193,33 +193,38 @@ void setDAQLinkRunParametersLocal(localArgs* la, uint32_t const& rparams)
 /** RPC callbacks */
 void enableDAQLink(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   uint32_t enableMask = request->get_word("enableMask");
   enableDAQLinkLocal(&la, enableMask);
 }
 
 void disableDAQLink(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   disableDAQLinkLocal(&la);
 }
 
 void setZS(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   bool enable = request->get_word("enable");
   setZSLocal(&la,enable);
 }
 
 void disableZS(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   disableZSLocal(&la);
 }
 
 void resetDAQLink(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   // what if these are not provided, want to use the function defaults, or should these be defined upstream?
   uint32_t davTO       = request->get_word("davTO");
   uint32_t ttsOverride = request->get_word("ttsOverride");
@@ -307,21 +312,24 @@ void getDAQLinkRunParameter(const RPCMsg *request, RPCMsg *response)
 
 void setDAQLinkInputTimeout(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   uint32_t inputTO    = request->get_word("inputTO");
   setDAQLinkInputTimeoutLocal(&la, inputTO);
 }
 
 void setDAQLinkRunType(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   uint32_t runType    = request->get_word("runType");
   setDAQLinkRunTypeLocal(&la, runType);
 }
 
 void setDAQLinkRunParameter(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   uint8_t parN        = request->get_word("parameterN");
   uint8_t runPar      = request->get_word("runParameter");
   setDAQLinkRunParameterLocal(&la, parN, runPar);
@@ -329,7 +337,8 @@ void setDAQLinkRunParameter(const RPCMsg *request, RPCMsg *response)
 
 void setDAQLinkRunParameters(const RPCMsg *request, RPCMsg *response)
 {
-  struct localArgs la = getLocalArgs(response);
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
   uint32_t runPars    = request->get_word("runParameters");
   setDAQLinkRunParametersLocal(&la, runPars);
 }
@@ -337,4 +346,6 @@ void setDAQLinkRunParameters(const RPCMsg *request, RPCMsg *response)
 /** Composite RPC methods */
 void configureDAQModule(const RPCMsg *request, RPCMsg *response)
 {
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
 }
