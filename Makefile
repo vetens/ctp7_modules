@@ -37,23 +37,6 @@ LDFLAGS+= -L${BUILD_HOME}/xhal/xhalarm/lib
 LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
 LDFLAGS+= -L/opt/wiscrpcsvc/lib
 
-SRCS= $(shell echo ${BUILD_HOME}/${Package}/src/**/*.cpp)
-SRCS= $(shell find ${BUILD_HOME}/${Package}/src -iname '*.cpp')
-TARGET_LIBS  = lib/memhub.so
-TARGET_LIBS += lib/memory.so
-TARGET_LIBS += lib/optical.so
-TARGET_LIBS += lib/utils.so
-TARGET_LIBS += lib/extras.so
-TARGET_LIBS += lib/amc.so
-TARGET_LIBS += lib/daq_monitor.so
-TARGET_LIBS += lib/vfat3.so
-TARGET_LIBS += lib/optohybrid.so
-TARGET_LIBS += lib/calibration_routines.so
-TARGET_LIBS += lib/gbt.so
-
-# $(info SRCS is $(SRCS))
-# $(info TARGET_LIBS is $(TARGET_LIBS))
-
 .PHONY: clean rpc prerpm
 
 default:
@@ -141,6 +124,22 @@ build: $(TargetLibraries)
 
 _all: $(TargetLibraries)
 	@echo Executing _all stage
+
+# SRCS= $(shell echo ${BUILD_HOME}/${Package}/src/**/*.cpp)
+# SRCS= $(shell find ${BUILD_HOME}/${Package}/src -iname '*.cpp')
+# TARGET_LIBS  = lib/memhub.so
+# TARGET_LIBS += lib/memory.so
+# TARGET_LIBS += lib/optical.so
+# TARGET_LIBS += lib/utils.so
+# TARGET_LIBS += lib/extras.so
+# TARGET_LIBS += lib/amc.so
+# TARGET_LIBS += lib/daq_monitor.so
+# TARGET_LIBS += lib/vfat3.so
+# TARGET_LIBS += lib/optohybrid.so
+# TARGET_LIBS += lib/calibration_routines.so
+
+# $(info SRCS is $(SRCS))
+# $(info TARGET_LIBS is $(TARGET_LIBS))
 
 # build: $(TARGET_LIBS)
 
