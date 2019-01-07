@@ -129,7 +129,7 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
 
         //Get VFAT Mask
         uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
-        
+
         LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring on OH%i for Selection %i",ohN,dacSelect));
         configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
     } //End Loop over all Optohybrids
@@ -314,7 +314,7 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
             NOH = NOH_requested;
         else
             LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
-    }    
+    }
     uint32_t adcData[24] = {0};
     uint32_t adcDataAll[12*24] = {0};
     for(unsigned int ohN=0; ohN<NOH; ++ohN){
@@ -327,7 +327,7 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
 
         //Get VFAT Mask
         uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
-        
+
         //Get all ADC values
         readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, vfatMask);
 

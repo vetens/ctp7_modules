@@ -1162,7 +1162,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
             //for backward compatibility, use ADC1 instead of ADC1_CACHED if it exists
             if((foundAdcCached = la->dbi.get(la->rtxn, strRegBase + "ADC1_CACHED"))){
                 adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1_CACHED");
-                adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC1_UPDATE");                
+                adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC1_UPDATE");
             }
             else
                 adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1");
