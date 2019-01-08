@@ -53,7 +53,7 @@ preprpm: default
 PackageSourceDir=$(BUILD_HOME)/$(Project)/src
 PackageIncludeDir=$(BUILD_HOME)/$(Project)/include
 PackageLibraryDir=$(BUILD_HOME)/$(Project)/lib
-PackageObjectDir=$(PackageLibraryDir)/linux
+PackageObjectDir=$(PackageSourceDir)/linux/$(Arch)
 Sources        := $(wildcard $(PackageSourceDir)/*.cpp) $(wildcard $(PackageSourceDir)/*/*.cpp)
 TargetObjects  := $(subst $(BUILD_HOME)/$(Project)/src/,, $(patsubst %.cpp,%.o, $(Sources)))
 # TargetObjects  := $(subst $(BUILD_HOME)/$(Project)/src/,$(BUILD_HOME)/$(Project)/lib/linux/, $(Sources:%.cpp=%.o))
@@ -89,33 +89,43 @@ $(TargetObjects): $(wildcard $(PackageSourceDir)/$(patsubst %.o,, $@)/*.cpp) $(w
 # * fix to change dependencies to file targets rather than phonies, so that a rebuild won't always touch everything?
 
 memhub: memhub.o
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing memhub stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$< $(BASE_LINKS) -lmemsvc
 memory: memory.o memhub
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing memory stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$< $(BASE_LINKS) -lmemhub
 optical: optical.o memhub
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing optical stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$< $(BASE_LINKS) -lmemhub
 utils : utils.o memhub
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing utils stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$< $(BASE_LINKS) -lmemhub
 extras: extras.o memhub utils
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing extras stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so
 amc: % : %/ttc.o %/daq.o %.o utils extras
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing amc stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so
 daq_monitor: daq_monitor.o amc
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing daq_monitor stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so -l:lib/amc.so
 vfat3:  vfat3.o amc
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing vfat3 stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so -l:lib/amc.so
 optohybrid: optohybrid.o amc
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing optohybrid stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so -l:lib/amc.so
 calibration_routines: calibration_routines.o optohybrid vfat3
+	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing calibration_routines stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so -l:lib/optohybrid.so -l:lib/vfat3.so -l:lib/amc.so
 
@@ -214,7 +224,7 @@ test: test/tester.cpp
 clean: cleanrpm
 	@echo Cleaning up all built files
 	-rm -rf $(PackageDir)
-	-rm -rf lib/linux
+	-rm -rf src/linux
 	-rm -rf lib
 
 cleandoc:
