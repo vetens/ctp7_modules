@@ -21,20 +21,20 @@ include $(BUILD_HOME)/$(Package)/config/mfZynq.mk
 include $(BUILD_HOME)/$(Package)/config/mfCommonDefs.mk
 include $(BUILD_HOME)/$(Package)/config/mfRPMRules.mk
 
-IncludeDirs  = ${BUILD_HOME}/$(Package)/include
-IncludeDirs += ${BUILD_HOME}/xhal/xhalcore/include
-#IncludeDirs += /opt/cactus/include
+IncludeDirs = ${BUILD_HOME}/$(Package)/include
+IncludeDirs+= /opt/xhal/include
+#IncludeDirs+= /opt/cactus/include
 IncludeDirs+= /opt/wiscrpcsvc/include
 INC=$(IncludeDirs:%=-I%)
 
 ifndef GEM_VARIANT
-	GEM_VARIANT = ge11
+GEM_VARIANT = ge11
 endif
 
 CFLAGS += -DGEM_VARIANT="${GEM_VARIANT}"
 
-LDFLAGS+= -L${BUILD_HOME}/xhal/xhalarm/lib
 LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
+LDFLAGS+= -L/opt/xhal/lib/arm
 LDFLAGS+= -L/opt/wiscrpcsvc/lib
 
 .PHONY: clean rpc prerpm
