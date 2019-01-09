@@ -27,16 +27,26 @@ void ttcMMCMResetLocal(localArgs* la);
 
 /*!
  * \brief Shift the phase of the MMCM of the TTC module
- * \param shiftOutOfLockFirst to shift of lock before looking for a good lock
- * \param useBC0Locked to determine the good phase region, rather than the PLL lock status
- * \param doScan whether to roll around multiple times for monitoring purposes
+ * \details Performs the locking procedure performs up to 3840 shifts (full width of one good + bad region).
+ * \details If shiftOutOfLockFirst is true, then the procedure will:
+ *  * first shift into a bad region (not an edge)
+ *  * find the next good lock status
+ *  * shift halfway through the region (1920 for BC0_LOCKED, 1000 for PLL_LOCKED)
+ * \details If shiftOutOfLockFirst is false, then the procedure will find X consecutive "good" locks for X = 200 (50) for BC0_LOCKED (PLL_LOCKED).
+ * \details It will then reverse direction and shift backwards halfway.
+ * \details If a bad lock is encountered it will reset and try again.  Otherwise it will take the phase at the back half point
+ * \param la Local arguments structure
+ * \param shiftOutOfLockFirst controls whether the procedure will force a relock
+ * \useBC0Locked controls whether the procedure will use the BC0_LOCKED or the PLL_LOCKED register.  Note for GEM_AMC FW > 1.13.0 BC0_LOCKED doesn't work.
+ * \param doScan tells the procedure to run through the full possibility of phases several times, and just logs the place where it found a lock
  */
 void ttcMMCMPhaseShiftLocal(localArgs* la, bool shiftOutOfLockFirst=false, bool useBC0Locked=false, bool doScan=false);
 
 /*!
- * \brief Check the lock status of the MMCM PLL
- * \param Number of times to read the PLL lock status
- * \returns Lock count of the MMCM PLL
+ * \brief Resets the MMCM PLL and checks if it relocks
+ * \param la Local arguments structure
+ * \param readAttempts Specifies the number of times to reset the PLL and check for a relock
+ * \return Returns the number of times the MMCM PLL relocked
  */
 int checkPLLLockLocal(localArgs* la, int readAttempts);
 
@@ -127,6 +137,11 @@ uint32_t getL1ARateLocal(localArgs* la);
 uint32_t getTTCSpyBufferLocal(localArgs* la);
 
 /** RPC callbacks */
+/*! 
+ *  \brief RPC method callbacks contain two parameters
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
 void ttcModuleReset(    const RPCMsg *request, RPCMsg *response);
 void ttcMMCMReset(      const RPCMsg *request, RPCMsg *response);
 void ttcMMCMPhaseShift( const RPCMsg *request, RPCMsg *response);
