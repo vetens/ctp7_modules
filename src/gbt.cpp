@@ -46,7 +46,7 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
     // ohN check
     const uint32_t ohMax = readReg(la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     if (ohN >= ohMax)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true);
 
     // phaseMin check
     if (gbt::checkPhase(la->response, phaseMin))
@@ -114,7 +114,7 @@ void writeGBTConfig(const RPCMsg *request, RPCMsg *response){
     // We must check the size of the config key
     const uint32_t configSize = request->get_binarydata_size("config");
     if (configSize != gbt::CONFIG_SIZE)
-        EMIT_RPC_ERROR(response, stdsprintf("The provided configuration has not the correct size. It is %u registers long while this methods expects %hu 8-bits registers.", configSize, gbt::CONFIG_SIZE), );
+        EMIT_RPC_ERROR(response, stdsprintf("The provided configuration has not the correct size. It is %u registers long while this methods expects %hu 8-bits registers.", configSize, gbt::CONFIG_SIZE), (void)"");
 
     gbt::config_t config{};
     request->get_binarydata("config", config.data(), config.size());
@@ -131,11 +131,11 @@ bool writeGBTConfigLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN,
     // ohN check
     const uint32_t ohMax = readReg(la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     if (ohN >= ohMax)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true);
 
     // gbtN check
     if (gbtN >= gbt::GBTS_PER_OH)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", gbtN, gbt::GBTS_PER_OH), true)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", gbtN, gbt::GBTS_PER_OH), true);
 
     // Write all the registers
     for (size_t address = 0; address < gbt::CONFIG_SIZE; address++){
@@ -174,11 +174,11 @@ bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN,
     // ohN check
     const uint32_t ohMax = readReg(la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     if (ohN >= ohMax)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The ohN parameter supplied (%u) exceeds the number of OH's supported by the CTP7 (%u).", ohN, ohMax), true);
 
     // vfatN check
     if (vfatN >= oh::VFATS_PER_OH)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of VFAT's per OH (%u).", vfatN, oh::VFATS_PER_OH), true)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The vfatN parameter supplied (%u) exceeds the number of VFAT's per OH (%u).", vfatN, oh::VFATS_PER_OH), true);
 
     // phase check
     if (gbt::checkPhase(la->response, phase))
@@ -200,11 +200,11 @@ bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN,
 bool writeGBTRegLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const uint16_t address, const uint8_t value){
     // Check that the GBT exists
     if (gbtN >= gbt::GBTS_PER_OH)
-        EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) is larger than the number of GBT's per OH (%u).", gbtN, gbt::GBTS_PER_OH), true)
+        EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) is larger than the number of GBT's per OH (%u).", gbtN, gbt::GBTS_PER_OH), true);
 
     // Check that the address is writable
     if (address >= gbt::CONFIG_SIZE)
-        EMIT_RPC_ERROR(la->response, stdsprintf("GBT has %hu writable addresses while the provided address is %hu.", gbt::CONFIG_SIZE-1, address), true)
+        EMIT_RPC_ERROR(la->response, stdsprintf("GBT has %hu writable addresses while the provided address is %hu.", gbt::CONFIG_SIZE-1, address), true);
 
     // GBT registers are 8 bits long
     writeReg(la, "GEM_AMC.SLOW_CONTROL.IC.READ_WRITE_LENGTH", 1);
