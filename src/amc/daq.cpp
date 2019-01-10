@@ -44,131 +44,157 @@ void resetDAQLinkLocal(localArgs* la, uint32_t const& davTO, uint32_t const& tts
 
 uint32_t getDAQLinkControlLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkControl not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkStatusLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkStatus not implemented");
   return 0x0;
 }
 
 bool daqLinkReadyLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"daqLinkReady not implemented");
   return true;
 }
 
 bool daqClockLockedLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"daqClockLocked not implemented");
   return true;
 }
 
 bool daqTTCReadyLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"daqTTCReady not implemented");
   return true;
 }
 
 uint8_t daqTTSStateLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"daqTTSState not implemented");
   return 0x0;
 }
 
 bool daqAlmostFullLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"daqAlmostFull not implemented");
   return true;
 }
 
 bool l1aFIFOIsEmptyLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"l1aFIFOIsEmpty not implemented");
   return true;
 }
 
 bool l1aFIFOIsAlmostFullLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"l1aFIFOIsAlmostFull not implemented");
   return true;
 }
 
 bool l1aFIFOIsFullLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"l1aFIFOIsFull not implemented");
   return true;
 }
 
 bool l1aFIFOIsUnderflowLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"l1aFIFOIsUnderflow not implemented");
   return true;
 }
 
 uint32_t getDAQLinkEventsSentLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkEventsSent not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkL1AIDLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkL1AID not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkL1ARateLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkL1ARate not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkDisperErrorsLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkDisperErrors not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkNonidentifiableErrorsLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkNonidentifiableErrors not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkInputMaskLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkInputMask not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkDAVTimeoutLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkDAVTimeout not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkDAVTimerLocal(localArgs* la, bool const& max)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkDAVTimer not implemented");
   return 0x0;
 }
 
 uint32_t getLinkDAQStatusLocal(localArgs* la,    uint8_t const& gtx)
 {
+  LOGGER->log_message(LogManager::WARNING,"getLinkDAQStatus not implemented");
   return 0x0;
 }
 
 uint32_t getLinkDAQCountersLocal(localArgs* la,  uint8_t const& gtx, uint8_t const& mode)
 {
+  LOGGER->log_message(LogManager::WARNING,"getLinkDAQCounters not implemented");
   return 0x0;
 }
 
 uint32_t getLinkLastDAQBlockLocal(localArgs* la, uint8_t const& gtx)
 {
+  LOGGER->log_message(LogManager::WARNING,"getLinkLastDAQBlock not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkInputTimeoutLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkInputTimeout not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkRunTypeLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkRunType not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkRunParametersLocal(localArgs* la)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkRunParameters not implemented");
   return 0x0;
 }
 
 uint32_t getDAQLinkRunParameterLocal(localArgs* la, uint8_t const& parameter)
 {
+  LOGGER->log_message(LogManager::WARNING,"getDAQLinkRunParameter not implemented");
   return 0x0;
 }
 
