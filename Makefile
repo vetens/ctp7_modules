@@ -26,6 +26,12 @@ IncludeDirs += ${BUILD_HOME}/xhal/xhalcore/include
 #IncludeDirs += /opt/cactus/include
 INC=$(IncludeDirs:%=-I%)
 
+ifndef GEM_VARIANT
+	GEM_VARIANT = ge11
+endif
+
+CFLAGS += -DGEM_VARIANT="${GEM_VARIANT}"
+
 LDFLAGS+= -L${BUILD_HOME}/xhal/xhalarm/lib
 LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
 
@@ -40,6 +46,7 @@ TARGET_LIBS += lib/daq_monitor.so
 TARGET_LIBS += lib/vfat3.so
 TARGET_LIBS += lib/optohybrid.so
 TARGET_LIBS += lib/calibration_routines.so
+TARGET_LIBS += lib/gbt.so
 
 .PHONY: clean rpc prerpm
 
@@ -86,6 +93,9 @@ lib/optohybrid.so: src/optohybrid.cpp
 
 lib/calibration_routines.so: src/calibration_routines.cpp
 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,calibration_routines.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:optohybrid.so -l:vfat3.so -l:amc.so
+
+lib/gbt.so: src/gbt.cpp include/gbt.h include/hw_constants.h include/hw_constants_checks.h include/moduleapi.h include/memhub.h include/utils.h lib/utils.so
+	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,gbt.so -o $@ $< -l:memhub.so -l:utils.so
 
 clean: cleanrpm
 	-rm -rf lib/*.so
