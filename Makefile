@@ -31,9 +31,9 @@ ifndef GEM_VARIANT
 GEM_VARIANT = ge11
 endif
 
-CFLAGS += -DGEM_VARIANT="${GEM_VARIANT}"
+CFLAGS += -DGEM_VARIANT="$(GEM_VARIANT)"
 
-LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
+LDFLAGS+= -L$(BUILD_HOME)/$(Package)/lib
 LDFLAGS+= -L/opt/xhal/lib/arm
 LDFLAGS+= -L/opt/wiscrpcsvc/lib
 
@@ -60,7 +60,7 @@ TargetObjects  := $(subst $(BUILD_HOME)/$(Project)/src/,, $(patsubst %.cpp,%.o, 
 # TargetObjects  := $(subst $(BUILD_HOME)/$(Project)/src/,$(BUILD_HOME)/$(Project)/lib/linux/, $(patsubst %.cpp,%.o, $(Sources)))
 
 ## Specific groupings of functionality: all objects should be built into at most one of the libraries
-TargetLibraries:= memhub memory optical utils extras amc daq_monitor vfat3 optohybrid calibration_routines
+TargetLibraries:= memhub memory optical utils extras amc daq_monitor vfat3 optohybrid calibration_routines gbt
 
 $(info Sources is $(Sources))
 $(info TargetObjects is $(TargetObjects))
@@ -128,6 +128,11 @@ calibration_routines: calibration_routines.o optohybrid vfat3
 	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing calibration_routines stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so -l:lib/optohybrid.so -l:lib/vfat3.so -l:lib/amc.so
+
+gbt: gbt.o utils
+	$(MakeDir) $(PackageLibraryDir)
+	@echo Executing gbt stage
+	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so
 
 build: $(TargetLibraries)
 	@echo Executing build stage
@@ -213,8 +218,8 @@ _all: $(TargetLibraries)
 # lib/calibration_routines.so: src/calibration_routines.cpp
 # 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,calibration_routines.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:optohybrid.so -l:vfat3.so -l:amc.so
 
-lib/gbt.so: src/gbt.cpp include/gbt.h include/hw_constants.h include/hw_constants_checks.h include/moduleapi.h include/memhub.h include/utils.h lib/utils.so
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,gbt.so -o $@ $< -l:memhub.so -l:utils.so
+# lib/gbt.so: src/gbt.cpp include/gbt.h include/hw_constants.h include/hw_constants_checks.h include/moduleapi.h include/memhub.h include/utils.h lib/utils.so
+# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,gbt.so -o $@ $< -l:memhub.so -l:utils.so
 
 .PHONY: test
 ### local (PC) test functions, need standard gcc toolchain, dirs, and flags
