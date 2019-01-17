@@ -108,7 +108,7 @@ extras: extras.o memhub utils
 	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing extras stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so
-amc: % : %/ttc.o %/daq.o %.o utils extras
+amc: % : %/ttc.o %/sca.o %/daq.o %.o utils extras
 	$(MakeDir) $(PackageLibraryDir)
 	@echo Executing amc stage
 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so
