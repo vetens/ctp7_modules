@@ -170,7 +170,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
       }
     }
 
-    pllLockCnt = checkPLLLockLocal(la,readAttempts);
+    pllLockCnt = checkPLLLockLocal(la, readAttempts);
     phase      = readReg(la,"GEM_AMC.TTC.STATUS.CLK.TTC_PM_PHASE_MEAN");
     phaseNs    = phase * 0.01860119;
     uint32_t gthPhase = readReg(la,"TTC.STATUS.CLK.GTH_PM_PHASE_MEAN");
@@ -566,28 +566,67 @@ int checkPLLLockLocal(localArgs* la, int readAttempts)
   return lockCnt;
 }
 
-uint32_t getMMCMPhaseMeanLocal(localArgs* la)
+// FIXME: can maybe abstract this to getPhase(clk, mode, reads)
+double getMMCMPhaseMeanLocal(localArgs* la, int readAttempts)
 {
-  LOGGER->log_message(LogManager::WARNING,"getMMCMPhaseMean not yet implemented");
-  return 0x0;
+  if (readAttempts < 1) {
+    return double(readReg(la, "GEM_AMC.TTC.STATUS.CLK.TTC_PM_PHASE_MEAN"));
+  } else if (readAttempts < 2) {
+    return double(readReg(la, "GEM_AMC.TTC.STATUS.CLK.TTC_PM_PHASE"));
+  } else {
+    double mean = 0.;
+    for (int read = 0; read < readAttempts; ++read) {
+      mean += readReg(la, "GEM_AMC.TTC.STATUS.CLK.TTC_PM_PHASE");
+    }
+    return mean/readAttempts;
+  }
 }
 
-uint32_t getGTHPhaseMeanLocal(localArgs* la)
+double getGTHPhaseMeanLocal(localArgs* la, int readAttempts)
 {
-  LOGGER->log_message(LogManager::WARNING,"getGTHPhaseMean not yet implemented");
-  return 0x0;
+  if (readAttempts < 1) {
+    return double(readReg(la, "GEM_AMC.TTC.STATUS.CLK.GTH_PM_PHASE_MEAN"));
+  } else if (readAttempts < 2) {
+    return double(readReg(la, "GEM_AMC.TTC.STATUS.CLK.GTH_PM_PHASE"));
+  } else {
+    double mean = 0.;
+    for (int read = 0; read < readAttempts; ++read) {
+      mean += readReg(la, "GEM_AMC.TTC.STATUS.CLK.GTH_PM_PHASE");
+    }
+    return mean/readAttempts;
+  }
 }
 
-uint32_t getMMCMPhaseMedianLocal(localArgs* la)
+double getMMCMPhaseMedianLocal(localArgs* la, int readAttempts)
 {
   LOGGER->log_message(LogManager::WARNING,"getMMCMPhaseMedian not yet implemented");
-  return 0x0;
+  if (readAttempts < 1) {
+    return double(readReg(la, "GEM_AMC.TTC.STATUS.CLK.TTC_PM_PHASE_MEAN"));
+  } else if (readAttempts < 2) {
+    return double(readReg(la, "GEM_AMC.TTC.STATUS.CLK.TTC_PM_PHASE"));
+  } else {
+    double mean = 0.;
+    for (int read = 0; read < readAttempts; ++read) {
+      mean += readReg(la, "GEM_AMC.TTC.STATUS.CLK.TTC_PM_PHASE");
+    }
+    return mean/readAttempts;
+  }
 }
 
-uint32_t getGTHPhaseMedianLocal(localArgs* la)
+double getGTHPhaseMedianLocal(localArgs* la, int readAttempts)
 {
-  LOGGER->log_message(LogManager::WARNING,"getGTHPhaseMedian not yet implemented");
-  return 0x0;
+  LOGGER->log_message(LogManager::WARNING,"getGTHPhaseMedian not yet implemented, returning the mean");
+  if (readAttempts < 1) {
+    return double(readReg(la, "GEM_AMC.TTC.STATUS.CLK.GTH_PM_PHASE_MEAN"));
+  } else if (readAttempts < 2) {
+    return double(readReg(la, "GEM_AMC.TTC.STATUS.CLK.GTH_PM_PHASE"));
+  } else {
+    double mean = 0.;
+    for (int read = 0; read < readAttempts; ++read) {
+      mean += readReg(la, "GEM_AMC.TTC.STATUS.CLK.GTH_PM_PHASE");
+    }
+    return mean/readAttempts;
+  }
 }
 
 void ttcCounterResetLocal(localArgs* la)
@@ -744,32 +783,36 @@ void getMMCMPhaseMean(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
-  uint32_t res = getMMCMPhaseMeanLocal(&la);
-  response->set_word("result", res);
+  uint32_t reads = request->get_word("reads");
+  double res = getMMCMPhaseMeanLocal(&la, reads);
+  response->set_word("phase", res);
 }
 
 void getMMCMPhaseMedian(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
-  uint32_t res = getMMCMPhaseMedianLocal(&la);
-  response->set_word("result", res);
+  uint32_t reads = request->get_word("reads");
+  double res = getMMCMPhaseMedianLocal(&la, reads);
+  response->set_word("phase", res);
 }
 
 void getGTHPhaseMean(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
-  uint32_t res = getGTHPhaseMeanLocal(&la);
-  response->set_word("result", res);
+  uint32_t reads = request->get_word("reads");
+  double res = getGTHPhaseMeanLocal(&la, reads);
+  response->set_word("phase", res);
 }
 
 void getGTHPhaseMedian(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
-  uint32_t res = getGTHPhaseMedianLocal(&la);
-  response->set_word("result", res);
+  uint32_t reads = request->get_word("reads");
+  double res = getGTHPhaseMedianLocal(&la, reads);
+  response->set_word("phase", res);
 }
 
 void ttcCounterReset(const RPCMsg *request, RPCMsg *response)

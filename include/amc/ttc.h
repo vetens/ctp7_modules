@@ -52,27 +52,35 @@ int checkPLLLockLocal(localArgs* la, int readAttempts);
 
 /*!
  * \brief Get the mean value of the MMCM phase
- * \returns Mean value (calculated in firmware) of the MMCH phase
+ * \param readAttempts Specifies the number of times to read the MMCM phase and compute the mean
+ *        * 0 means read the mean calculated in the FW
+ *        * 1+ means read the mean compute the mean of the specified number of reads
+ * \returns Mean value of the MMCH phase
  */
-uint32_t getMMCMPhaseMeanLocal(localArgs* la);
+double getMMCMPhaseMeanLocal(localArgs* la, int readAttempts);
 
 /*!
  * \brief Get the mean value of the GTH phase
+ * \param readAttempts Specifies the number of times to read the GTH phase and compute the mean
+ *        * 0 means read the mean calculated in the FW
+ *        * 1+ means read the mean compute the mean of the specified number of reads
  * \returns Mean value (calculated in firmware) of the GTH phase
  */
-uint32_t getGTHPhaseMeanLocal(localArgs* la);
+double getGTHPhaseMeanLocal(localArgs* la, int readAttempts);
 
 /*!
  * \brief Get the median value of the MMCM phase
+ * \param readAttempts Specifies the number of times to read the MMCM phase and compute the median
  * \returns Median value of the MMCH phase
  */
-uint32_t getMMCMPhaseMedianLocal(localArgs* la);
+double getMMCMPhaseMedianLocal(localArgs* la, int readAttempts);
 
 /*!
  * \brief Get the median value of the GTH phase
+ * \param readAttempts Specifies the number of times to read the GTH phase and compute the median
  * \returns Median value of the GTH phase
  */
-uint32_t getGTHPhaseMedianLocal(localArgs* la);
+double getGTHPhaseMedianLocal(localArgs* la, int readAttempts);
 
 /*!
  * \brief Reset the counters of the TTC module
@@ -137,7 +145,7 @@ uint32_t getL1ARateLocal(localArgs* la);
 uint32_t getTTCSpyBufferLocal(localArgs* la);
 
 /** RPC callbacks */
-/*! 
+/*!
  *  \brief RPC method callbacks contain two parameters
  *  \param request RPC request message
  *  \param response RPC response message
