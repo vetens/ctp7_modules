@@ -518,21 +518,23 @@ void configureDAQModule(const RPCMsg *request, RPCMsg *response)
   bool doPhaseShift = request->get_word("doPhaseShift");
   uint32_t runType  = request->get_word("runType");
 
-  scaHardResetEnableLocal(&la,false);
+  // FIXME: Should the full routine be run in the event of an error?
+  // Curently none of these calls will throw/error directly, could handle that here?
+  scaHardResetEnableLocal(&la, false);
   ttcCounterResetLocal(&la);
 
   // FIXME: if we include this as part of the sequence, needs to go in amc.cpp (links with ttc.cpp)
   if (doPhaseShift) {
-    bool relock = request->get_word("relock");
+    bool relock        = request->get_word("relock");
     bool bc0LockPSMode = request->get_word("bc0LockPSMode");
-    ttcMMCMPhaseShiftLocal(&la,relock, bc0LockPSMode);
+    ttcMMCMPhaseShiftLocal(&la, relock, bc0LockPSMode);
   }
 
-  setL1AEnableLocal(&la,false);
+  setL1AEnableLocal(&la, false);
   disableDAQLinkLocal(&la);
   resetDAQLinkLocal(&la);
-  enableDAQLinkLocal(&la, 0x4); // FIXME
-  setZSLocal(&la,enableZS);
-  setDAQLinkRunTypeLocal(&la,0x0);
-  setDAQLinkRunParametersLocal(&la,0xfaac);
+  enableDAQLinkLocal(&la,  0x4); // FIXME
+  setZSLocal(&la, enableZS);
+  setDAQLinkRunTypeLocal(&la, 0x0);
+  setDAQLinkRunParametersLocal(&la, 0xfaac);
 }
