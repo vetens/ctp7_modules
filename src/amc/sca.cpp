@@ -7,7 +7,7 @@
 
 void scaModuleResetLocal(localArgs* la)
 {
-  writeReg(la, "GEM_AMC.SLOW_CONTROL.SCA.CTRL.MODULE_RESET", uint32_t(en));
+  writeReg(la, "GEM_AMC.SLOW_CONTROL.SCA.CTRL.MODULE_RESET", 0x1);
 }
 
 void scaHardResetEnableLocal(localArgs* la, bool en)
