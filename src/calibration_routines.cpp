@@ -1149,7 +1149,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     LOGGER->log_message(LogManager::INFO, stdsprintf("Scanning DAC: %s",regName.c_str()));
     uint32_t adcAddr[24];
     uint32_t adcCacheUpdateAddr[24];
-    bool foundAdcCached=false;
+    bool foundAdcCached = false;
     for(int vfatN=0; vfatN<24; ++vfatN){
         //Skip Masked VFATs
         if ( !( (notmask >> vfatN) & 0x1)) continue;
@@ -1160,11 +1160,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
         //Get ADC address
         if(useExtRefADC){ //Case: Use ADC with external reference
             //for backward compatibility, use ADC1 instead of ADC1_CACHED if it exists
-            lmdb::val key, db_res;
-
-            key.assign(strRegBase+"ADC1_CACHED");
-            foundAdcCached = la->dbi.get(la->rtxn,key,db_res);
-            if(foundAdcCached){
+            if((foundAdcCached = la->dbi.get(la->rtxn, strRegBase + "ADC1_CACHED"))){
                 adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1_CACHED");
                 adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC1_UPDATE");                
             }
@@ -1173,10 +1169,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
         } //End Case: Use ADC with external reference
         else{ //Case: Use ADC with internal reference
             //for backward compatibility, use ADC0 instead of ADC0_CACHED if it exists
-            lmdb::val key, db_res;
-            key.assign(strRegBase+"ADC0_CACHED");
-            foundAdcCached = la->dbi.get(la->rtxn,key,db_res);
-            if(foundAdcCached) {
+            if((foundAdcCached = la->dbi.get(la->rtxn, strRegBase + "ADC0_CACHED"))){
                 adcAddr[vfatN] = getAddress(la, strRegBase + "ADC0_CACHED");
                 adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC0_UPDATE");
             }
