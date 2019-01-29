@@ -249,7 +249,8 @@ extern "C" {
         modmgr->register_method("amc", "setDAQLinkRunParameter",  setDAQLinkRunParameter);
         modmgr->register_method("amc", "setDAQLinkRunParameters", setDAQLinkRunParameters);
 
-        modmgr->register_method("amc", "configureDAQModule",      configureDAQModule);
+        modmgr->register_method("amc", "configureDAQModule",   configureDAQModule);
+        modmgr->register_method("amc", "enableDAQModule",      enableDAQModule);
 
         // TTC module methods (from amc/ttc)
         modmgr->register_method("amc", "ttcModuleReset",     ttcModuleReset);

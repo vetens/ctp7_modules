@@ -249,5 +249,6 @@ void setDAQLinkRunParameter(const RPCMsg *request, RPCMsg *response);
 
 /** Composite functions, no specific "local" function defined */
 void configureDAQModule(const RPCMsg *request, RPCMsg *response);
+void enableDAQModule(const RPCMsg *request, RPCMsg *response);
 
 #endif

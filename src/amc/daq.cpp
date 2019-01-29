@@ -533,8 +533,24 @@ void configureDAQModule(const RPCMsg *request, RPCMsg *response)
   setL1AEnableLocal(&la, false);
   disableDAQLinkLocal(&la);
   resetDAQLinkLocal(&la);
-  enableDAQLinkLocal(&la,  0x4); // FIXME
+  enableDAQLinkLocal(&la, 0x4); // FIXME
   setZSLocal(&la, enableZS);
   setDAQLinkRunTypeLocal(&la, 0x0);
   setDAQLinkRunParametersLocal(&la, 0xfaac);
+}
+
+void enableDAQModule(const RPCMsg *request, RPCMsg *response)
+{
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
+
+  bool enableZS     = request->get_word("enableZS");
+
+  // FIXME: Should the full routine be run in the event of an error?
+  // Curently none of these calls will throw/error directly, could handle that here?
+  ttcModuleResetLocal(&la);
+  enableDAQLinkLocal(&la, 0x4); // FIXME
+  resetDAQLinkLocal(&la);
+  setZSLocal(&la, enableZS);
+  setL1AEnableLocal(&la, true);
 }
