@@ -41,6 +41,29 @@ void getmonDAQOHmainLocal(localArgs * la, int NOH=12, int ohMask=0xfff);
  */
 void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response);
 
+/*! \fn void getmonGBTLinkLocal(const RPCMsg *request, RPCMsg *response);
+ *  \brief Local version of getmonGBTLink
+ *  \param la Local arguments
+ *  \param NOH Number of optohybrids in FW
+ *  \param doReset boolean if true (false) a link reset will (not) be sent
+ */
+void getmonGBTLinkLocal(localArgs * la, int NOH=12, bool doReset=false);
+
+/*! \fn void getmonGBTLink(const RPCMsg *request, RPCMsg *response);
+ *  \brief Reads the GBT link status registers (READY, WAS_NOT_READY, etc...) for a particular ohMask
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void getmonGBTLink(const RPCMsg *request, RPCMsg *response);
+
+/*! \fn void getmonOHLinkmain(const RPCMsg *request, RPCMsg *response)
+ *  \brief Checks the status of the GBT and VFAT links on this OH in one RPC call
+ *  \details Expects the "NOH" RPC key specifying the number of optohybrids.  No local callable version
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void getmonOHLink(const RPCMsg *request, RPCMsg *response);
+
 /*! \fn void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
  *  \brief Local version of getmonOHmain
  *  \param la Local arguments
@@ -136,5 +159,20 @@ void getmonTTCmainLocal(localArgs * la);
  *  \param response RPC response message
  */
 void getmonTTCmain(const RPCMsg *request, RPCMsg *response);
+
+/*! \fn void getmonVFATLinkLocal(const RPCMsg *request, RPCMsg *response);
+ *  \brief Local version of getmonVFATLink
+ *  \param la Local arguments
+ *  \param NOH Number of optohybrids in FW
+ *  \param doReset boolean if true (false) a link reset will (not) be sent
+ */
+void getmonVFATLinkLocal(localArgs * la, int NOH=12, bool doReset=false);
+
+/*! \fn void getmonVFATLink(const RPCMsg *request, RPCMsg *response);
+ *  \brief Reads the VFAT link status registers (LINK_GOOD, SYNC_ERR_CNT, etc...) for a particular ohMask
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void getmonVFATLink(const RPCMsg *request, RPCMsg *response);
 
 #endif

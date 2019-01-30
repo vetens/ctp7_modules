@@ -6,6 +6,7 @@
 
 #include "amc.h"
 #include "daq_monitor.h"
+#include "hw_constants.h"
 #include <string>
 #include "utils.h"
 
@@ -260,6 +261,108 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
   getmonDAQOHmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
+
+void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
+{
+    std::string regName, respName; //regName used for read/write, respName sets word in RPC response
+
+    for (int ohN=0; ohN < NOH; ++ohN){
+        for(unsigned int gbtN=0; gbtN < gbt::GBTS_PER_OH; ++gbtN){
+            //Ready
+            respName = stdsprintf("OH%i.GBT%i.READY",ohN,gbtN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.GBT%i_READY",ohN,gbtN);
+            la->response->set_word(respName,readReg(la, regName));
+
+            //Was not ready
+            respName = stdsprintf("OH%i.GBT%i.WAS_NOT_READY",ohN,gbtN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.GBT%i_WAS_NOT_READY",ohN,gbtN);
+            la->response->set_word(respName,readReg(la, regName));
+
+            //Rx had overflow
+            respName = stdsprintf("OH%i.GBT%i.RX_HAD_OVERFLOW",ohN,gbtN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.GBT%i_RX_HAD_OVERFLOW",ohN,gbtN);
+            la->response->set_word(respName,readReg(la, regName));
+
+            //Rx had underflow
+            respName = stdsprintf("OH%i.GBT%i.RX_HAD_UNDERFLOW",ohN,gbtN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.GBT%i_RX_HAD_UNDERFLOW",ohN,gbtN);
+            la->response->set_word(respName,readReg(la, regName));
+        } //End Loop Over GBT's
+    } //End Loop Over All OH's
+
+    //Reset Requested?
+    if (doReset)
+    {
+         writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+    }
+
+    return;
+} //End getmonGBTLinkLocal()
+
+void getmonGBTLink(const RPCMsg *request, RPCMsg *response)
+{
+  auto env = lmdb::env::create();
+  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"/address_table.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
+  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested > NOH) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
+    }
+    NOH = NOH_requested;
+  }
+
+  bool doReset = false;
+  if(request->get_key_exists("doReset") ) {
+    doReset = request->get_word("doReset");
+  }
+
+  getmonGBTLinkLocal(&la, NOH, doReset);
+  rtxn.abort();
+
+  return;
+} //End getmonGBTLink()
+
+void getmonOHLink(const RPCMsg *request, RPCMsg *response)
+{
+  auto env = lmdb::env::create();
+  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"/address_table.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
+  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested > NOH) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
+    }
+    NOH = NOH_requested;
+  }
+
+  bool doReset = false;
+  if(request->get_key_exists("doReset") ) {
+    doReset = request->get_word("doReset");
+  }
+
+  getmonGBTLinkLocal(&la, NOH, doReset);
+  getmonVFATLinkLocal(&la, NOH, doReset);
+  rtxn.abort();
+
+  return;
+} //End getmonOHLink()
 
 void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
 {
@@ -707,6 +810,75 @@ void getmonSCA(const RPCMsg *request, RPCMsg *response){
   rtxn.abort();
 } //End getmonSCA()
 
+void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
+{
+    std::string regName, respName; //regName used for read/write, respName sets word in RPC response
+    bool vfatOutOfSync = false;
+
+    for (int ohN=0; ohN < NOH; ++ohN){
+        for(unsigned int vfatN=0; vfatN < oh::VFATS_PER_OH; ++vfatN){
+            //Sync Error Counters
+            respName = stdsprintf("OH%i.VFAT%i.SYNC_ERR_CNT",ohN,vfatN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.SYNC_ERR_CNT",ohN,vfatN);
+            int nSyncErrs = readReg(la,regName);
+            la->response->set_word(respName,nSyncErrs);
+            if( nSyncErrs > 0 ){
+                vfatOutOfSync = true;
+            }
+
+            //DAQ Event Counters
+            respName = stdsprintf("OH%i.VFAT%i.DAQ_EVENT_CNT",ohN,vfatN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.DAQ_EVENT_CNT",ohN,vfatN);
+            la->response->set_word(respName,readReg(la,regName));
+
+            //DAQ CRC Error Counters
+            respName = stdsprintf("OH%i.VFAT%i.DAQ_CRC_ERROR_CNT",ohN,vfatN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.DAQ_CRC_ERROR_CNT",ohN,vfatN);
+            la->response->set_word(respName,readReg(la,regName));
+        } //End Loop Over VFAT's
+    } //End Loop Over All OH's
+
+    //Reset Requested?
+    if (doReset && vfatOutOfSync)
+    {
+         writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+    }
+
+    return;
+} //End getmonVFATLinkLocal()
+
+void getmonVFATLink(const RPCMsg *request, RPCMsg *response)
+{
+  auto env = lmdb::env::create();
+  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  std::string gem_path = std::getenv("GEM_PATH");
+  std::string lmdb_data_file = gem_path+"/address_table.mdb";
+  env.open(lmdb_data_file.c_str(), 0, 0664);
+  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+
+  if (request->get_key_exists("NOH")){
+    unsigned int NOH_requested = request->get_word("NOH");
+    if (NOH_requested > NOH) {
+      LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
+    }
+    NOH = NOH_requested;
+  }
+
+  bool doReset = false;
+  if(request->get_key_exists("doReset") ) {
+    doReset = request->get_word("doReset");
+  }
+
+  getmonVFATLinkLocal(&la, NOH, doReset);
+  rtxn.abort();
+
+  return;
+} //End getmonVFATLink()
+
 extern "C" {
     const char *module_version_key = "daq_monitor v1.0.1";
     int module_activity_color = 4;
@@ -721,9 +893,12 @@ extern "C" {
         modmgr->register_method("daq_monitor", "getmonTRIGGEROHmain", getmonTRIGGEROHmain);
         modmgr->register_method("daq_monitor", "getmonDAQmain", getmonDAQmain);
         modmgr->register_method("daq_monitor", "getmonDAQOHmain", getmonDAQOHmain);
+        modmgr->register_method("daq_monitor", "getmonGBTLink", getmonGBTLink);
+        modmgr->register_method("daq_monitor", "getmonOHLink", getmonOHLink);
         modmgr->register_method("daq_monitor", "getmonOHmain", getmonOHmain);
         modmgr->register_method("daq_monitor", "getmonOHSCAmain", getmonOHSCAmain);
         modmgr->register_method("daq_monitor", "getmonOHSysmon", getmonOHSysmon);
         modmgr->register_method("daq_monitor", "getmonSCA", getmonSCA);
+        modmgr->register_method("daq_monitor", "getmonVFATLink", getmonVFATLink);
     }
 }
