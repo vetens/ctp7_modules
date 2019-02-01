@@ -294,6 +294,9 @@ void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
     if (doReset)
     {
          writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+
+         //Apply recursion once
+         getmonGBTLinkLocal(la, NOH, false); //Returned information will reflect post reset values
     }
 
     return;
@@ -842,6 +845,9 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
     if (doReset && vfatOutOfSync)
     {
          writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+
+         //Apply recursion once
+         getmonVFATLinkLocal(la, NOH, false); //Returned information will reflect post reset values
     }
 
     return;
