@@ -5,12 +5,15 @@
  *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
+#include "vfat3.h"
 #include <algorithm>
 #include <chrono>
 #include "optohybrid.h"
 #include <thread>
-#include "vfat3.h"
 #include "amc.h"
+#include "reedmuller.h"
+#include <iomanip>
+#include <memory>
 
 uint32_t vfatSyncCheckLocal(localArgs * la, uint32_t ohN)
 {
@@ -537,6 +540,90 @@ void statusVFAT3s(const RPCMsg *request, RPCMsg *response) {
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     statusVFAT3sLocal(&la, ohN);
     rtxn.abort();
+}
+
+uint16_t decodeChipID(uint32_t encChipID)
+{
+  // can the generator be static to limit creation/destruction of resources?
+  // convert to c++ new[]/delete[] ?
+  // convert to c++ smart ponters?
+  static int *encoded = 0;
+  static int *decoded = 0;
+  // static std::shared_ptr<int> encoded = 0;
+  // static std::shared_ptr<int> decoded = 0;
+  static reedmuller rm = 0;
+
+  if ((!(rm = reedmuller_init(2, 5)))
+      // || (!(encoded = (int*) calloc(rm->n, sizeof(int))))
+      // || (!(decoded = (int*) calloc(rm->k, sizeof(int))))) {
+      || (!(encoded = new int[rm->n]))
+      || (!(decoded = new int[rm->k]))
+      // || (!(encoded = std::make_shared<int[]>(rm->n)))
+      // || (!(decoded = std::make_shared<int[]>(rm->k)))
+      ) {
+    std::stringstream errmsg;
+    errmsg << "Out of memory";
+
+    reedmuller_free(rm);
+    // free(encoded);
+    // free(decoded);
+    delete [] encoded;
+    delete [] decoded;
+
+    throw std::runtime_error(errmsg.str());
+  }
+
+  uint32_t maxcode = reedmuller_maxdecode(rm);
+  if (encChipID > maxcode) {
+    std::stringstream errmsg;
+    errmsg << std::hex << std::setw(8) << std::setfill('0') << encChipID
+           << " is larger than the maximum decodeable by RM(2,5)"
+           << std::hex << std::setw(8) << std::setfill('0') << maxcode
+           << std::dec;
+    throw std::range_error(errmsg.str());
+  }
+
+  for (int j=0; j < rm->n; ++j)
+    encoded[(rm->n-j-1)] = (encChipID>>j) &0x1;
+
+  int result = reedmuller_decode(rm, encoded, decoded);
+
+  uint16_t decChipID = 0x0;
+
+  if (result) {
+    char tmp_decoded[1024];
+    char* dp = tmp_decoded;
+
+    for (int j=0; j < rm->k; ++j)
+      dp += sprintf(dp,"%d", decoded[j]);
+
+    char *p;
+    errno = 0;
+
+    uint32_t conv = strtoul(tmp_decoded, &p, 2);
+    if (errno != 0 || *p != '\0') {
+      std::stringstream errmsg;
+      errmsg << "Unable to convert " << std::string(tmp_decoded) << " to int type";
+
+      reedmuller_free(rm);
+      // free(encoded);
+      // free(decoded);
+      delete [] encoded;
+      delete [] decoded;
+
+      throw std::runtime_error(errmsg.str());
+    } else {
+      decChipID = conv;
+    }
+  }
+
+  reedmuller_free(rm);
+  // free(encoded);
+  // free(decoded);
+  delete [] encoded;
+  delete [] decoded;
+
+  return decChipID;
 }
 
 extern "C" {

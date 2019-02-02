@@ -7,9 +7,9 @@
 
 #ifndef VFAT3_H
 #define VFAT3_H
+
 #include "utils.h"
 #include <string>
-
 
 /*! \fn uint32_t vfatSyncCheckLocal(localArgs * la, uint32_t ohN)
  *  \brief Local callable version of vfatSyncCheck
@@ -151,5 +151,12 @@ void statusVFAT3sLocal(localArgs * la, uint32_t ohN);
  *  \param response RPC responce message
  */
 void statusVFAT3s(const RPCMsg *request, RPCMsg *response);
+
+/*!
+ *  \brief Decode a Reed--Muller encoded VFAT3 ChipID
+ *  \param encChipID 32-bit encoded chip ID to decode
+ *  \return decoded VFAT3 chip ID
+ */
+uint16_t decodeChipID(uint32_t encChipID);
 
 #endif

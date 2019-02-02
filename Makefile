@@ -27,6 +27,7 @@ IncludeDirs = $(PackageBase)/include
 IncludeDirs+= /opt/xhal/include
 # IncludeDirs+= /opt/cactus/include
 IncludeDirs+= /opt/wiscrpcsvc/include
+IncludeDirs+= /opt/reedmuller/include
 INC=$(IncludeDirs:%=-I%)
 
 ifndef GEM_VARIANT
@@ -41,6 +42,7 @@ LDFLAGS+= -Wl,--as-needed
 LibraryDirs = $(PackageBase)/lib
 LibraryDirs+= /opt/xhal/lib/arm
 LibraryDirs+= /opt/wiscrpcsvc/lib
+LibraryDirs+= /opt/reedmuller/lib/arm
 Libraries=$(LibraryDirs:%=-L%)
 
 .PHONY: clean rpc prerpm
@@ -126,7 +128,7 @@ daq_monitor: amc extras utils
 	$(MAKE) $(PackageLibraryDir)/daq_monitor.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
 vfat3: optohybrid amc extras utils
-	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so) -lreedmuller)
 	$(MAKE) $(PackageLibraryDir)/vfat3.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
 optohybrid: amc extras utils
