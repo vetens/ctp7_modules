@@ -26,7 +26,7 @@ void scaModuleResetLocal(localArgs* la);
 void scaHardResetEnableLocal(localArgs* la, bool en);
 
 /** RPC callbacks */
-/*! 
+/*!
  *  \brief RPC method callbacks contain two parameters
  *  \param request RPC request message
  *  \param response RPC response message
