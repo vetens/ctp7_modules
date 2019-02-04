@@ -277,38 +277,27 @@ uint32_t applyMask(uint32_t data, uint32_t mask) {
 }
 
 uint32_t readReg(localArgs * la, const std::string & regName) {
-  LOGGER->log_message(LogManager::WARNING, stdsprintf("Called readReg on %s", regName.c_str()));
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
-  LOGGER->log_message(LogManager::WARNING, "Key assigned");
   found = la->dbi.get(la->rtxn,key,db_res);
-  LOGGER->log_message(LogManager::WARNING, stdsprintf("Found %s %i", regName.c_str(), found));
   if (found){
-    LOGGER->log_message(LogManager::WARNING, stdsprintf("Found %s", regName.c_str()));
     std::vector<std::string> tmp;
     std::string t_db_res = std::string(db_res.data());
-    LOGGER->log_message(LogManager::WARNING, "Got db handle");
     t_db_res = t_db_res.substr(0,db_res.size());
-    LOGGER->log_message(LogManager::WARNING, "Got substring");
     tmp = split(t_db_res,'|');
-    LOGGER->log_message(LogManager::WARNING, "Split");
     std::size_t found = tmp[1].find_first_of("r");
-    LOGGER->log_message(LogManager::WARNING, "Found");
     if (found==std::string::npos) {
-      LOGGER->log_message(LogManager::WARNING, "Really found");
-    	//response->set_string("error", std::string("No read permissions"));
+    	// response->set_string("error", std::string("No read permissions"));
     	LOGGER->log_message(LogManager::ERROR, stdsprintf("No read permissions for %s", regName.c_str()));
       return 0xdeaddead;
     }
     uint32_t data[1];
     uint32_t address,mask;
     address = stoll(tmp[0]);
-    LOGGER->log_message(LogManager::WARNING, stdsprintf("Address obtained 0x%x", address));
     mask = stoll(tmp[2]);
-    LOGGER->log_message(LogManager::WARNING, stdsprintf("Mask obtained 0x%x", mask));
     if (memhub_read(memsvc, address, 1, data) != 0) {
-    	//response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
+    	// response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
     	LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
       return 0xdeaddead;
     }
@@ -319,7 +308,7 @@ uint32_t readReg(localArgs * la, const std::string & regName) {
     }
   } else {
   	LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    //response->set_string("error", "Register not found");
+    // response->set_string("error", "Register not found");
     return 0xdeaddead;
   }
 }
