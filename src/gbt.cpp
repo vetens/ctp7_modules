@@ -28,7 +28,7 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response){
 
     // Get the keys
     const uint32_t ohN = request->get_word("ohN");
-    const uint32_t N = request->get_word("N");
+    const uint32_t N = request->get_word("nScans");
     const uint8_t phaseMin = request->get_word("phaseMin");
     const uint8_t phaseMax = request->get_word("phaseMax");
     const uint8_t phaseStep = request->get_word("phaseStep");
