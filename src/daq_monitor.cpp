@@ -75,7 +75,7 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
     }
     NOH = NOH_requested;
   }
-  
+
   getmonTRIGGERmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -141,7 +141,7 @@ void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
@@ -241,7 +241,7 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
@@ -288,7 +288,7 @@ void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
       continue;
     }
     t1 = stdsprintf("OH%s.FW_VERSION",std::to_string(ohN).c_str());
-    if (fw_version_check("getmonOHmain",la) == 3) 
+    if (fw_version_check("getmonOHmain",la) == 3)
     {
       uint32_t t_fwver=0xffffffff;
       t2 = stdsprintf("GEM_AMC.OH.OH%s.FPGA.CONTROL.RELEASE.VERSION.MAJOR",std::to_string(ohN).c_str());
@@ -345,7 +345,7 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
@@ -360,7 +360,7 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
     }
     NOH = NOH_requested;
   }
- 
+
   getmonOHmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -500,7 +500,7 @@ void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
@@ -515,7 +515,7 @@ void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
     }
     NOH = NOH_requested;
   }
- 
+
   getmonOHSCAmainLocal(&la, NOH, ohMask);
   rtxn.abort();
 }
@@ -658,7 +658,7 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
   auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
   auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};  
+  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
   if(request->get_key_exists("ohMask")){
