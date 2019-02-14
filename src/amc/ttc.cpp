@@ -21,9 +21,9 @@ void ttcMMCMResetLocal(localArgs* la)
 }
 
 void ttcMMCMPhaseShiftLocal(localArgs* la,
-                            bool shiftOutOfLockFirst,
-                            bool useBC0Locked,
-                            bool doScan)
+                            bool relock,
+                            bool modeBC0,
+                            bool scan)
 {
   const int PLL_LOCK_READ_ATTEMPTS = 10;
 
@@ -76,10 +76,10 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
   uint32_t readAttempts = 1;
   int maxShift = 7680+(7680/2);
 
-  if (!useBC0Locked) {
+  if (!modeBC0) {
     readAttempts = PLL_LOCK_READ_ATTEMPTS;
   }
-  if (doScan) {
+  if (scan) {
     readAttempts = PLL_LOCK_READ_ATTEMPTS;
     maxShift = 23040;
   }
@@ -192,7 +192,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
       << ", PLL lock count = "    << pllLockCnt;
     LOGGER->log_message(LogManager::DEBUG, msg.str());
 
-    if (useBC0Locked) {
+    if (modeBC0) {
       if (!firstUnlockFound) {
         bestLockFound = false;
         if (bc0Locked == 0) {
@@ -203,7 +203,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
           nGoodLocks += 1;
         }
 
-        if (shiftOutOfLockFirst) {
+        if (relock) {
           if (nBadLocks > 100) {
             firstUnlockFound = true;
             msg.clear();
@@ -250,7 +250,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
                 << ", phase ns = "   << phaseNs << "ns.";
             LOGGER->log_message(LogManager::INFO, msg.str());
             bestLockFound    = true;
-            if (doScan) {
+            if (scan) {
               writeReg(la,"GEM_AMC.TTC.CTRL.PA_MANUAL_SHIFT_DIR",1);
               writeReg(la,"GEM_AMC.TTC.CTRL.PA_GTH_MANUAL_SHIFT_DIR",0);
               bestLockFound    = false;
@@ -298,7 +298,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
               << " good locks " << nGoodLocks;
           LOGGER->log_message(LogManager::INFO, msg.str());
           bestLockFound = true;
-          if (doScan) {
+          if (scan) {
             nextLockFound    = false;
             firstUnlockFound = false;
             nGoodLocks       = 0;
@@ -320,7 +320,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
           nGoodLocks += 1;
         }
 
-        if (shiftOutOfLockFirst) {
+        if (relock) {
           if (nBadLocks > 500) {
             firstUnlockFound = true;
             msg.clear();
@@ -366,7 +366,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
                   << ", phase ns = "   << phaseNs << "ns.";
               LOGGER->log_message(LogManager::INFO, msg.str());
               bestLockFound = true;
-              if (doScan) {
+              if (scan) {
                 writeReg(la,"GEM_AMC.TTC.CTRL.PA_MANUAL_SHIFT_DIR",1);
                 writeReg(la,"GEM_AMC.TTC.CTRL.PA_GTH_MANUAL_SHIFT_DIR",0);
                 bestLockFound    = false;
@@ -414,7 +414,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
                 << ", good locks " << nGoodLocks;
             LOGGER->log_message(LogManager::INFO, msg.str());
             bestLockFound = true;
-            if (doScan) {
+            if (scan) {
               nextLockFound    = false;
               firstUnlockFound = false;
               nGoodLocks       = 0;
@@ -427,7 +427,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
         }
       }
     } else {
-      if (shiftOutOfLockFirst && (pllLockCnt < PLL_LOCK_READ_ATTEMPTS) && !firstUnlockFound) {
+      if (relock && (pllLockCnt < PLL_LOCK_READ_ATTEMPTS) && !firstUnlockFound) {
         firstUnlockFound = true;
         msg.clear();
         msg.str(std::string());
@@ -436,12 +436,12 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
             << ", mmcm phase ns = "       << phaseNs << "ns"
             << ", pllLockCnt = "          << pllLockCnt
             << ", firstUnlockFound = "    << firstUnlockFound
-            << ", shiftOutOfLockFirst = " << shiftOutOfLockFirst;
+            << ", relock = " << relock;
         LOGGER->log_message(LogManager::WARNING, msg.str());
       }
 
       if (pllLockCnt == PLL_LOCK_READ_ATTEMPTS) {
-        if (!shiftOutOfLockFirst) {
+        if (!relock) {
           if (nGoodLocks == 50) {
             reversingForLock = true;
             msg.clear();
@@ -464,7 +464,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
 
             LOGGER->log_message(LogManager::INFO, msg.str());
             bestLockFound    = true;
-            if (doScan) {
+            if (scan) {
               writeReg(la,"GEM_AMC.TTC.CTRL.PA_MANUAL_SHIFT_DIR",1);
               writeReg(la,"GEM_AMC.TTC.CTRL.PA_GTH_MANUAL_SHIFT_DIR",0);
               bestLockFound    = false;
@@ -475,7 +475,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
               break;
             }
           }
-        } else if (firstUnlockFound || !shiftOutOfLockFirst) {
+        } else if (firstUnlockFound || !relock) {
           if (!nextLockFound) {
             msg.clear();
             msg.str(std::string());
@@ -490,7 +490,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
 
           if (nShiftsSinceLock > 500) {
             bestLockFound = true;
-            if (!doScan)
+            if (!scan)
               break;
             nextLockFound    = false;
             firstUnlockFound = false;
@@ -504,7 +504,7 @@ void ttcMMCMPhaseShiftLocal(localArgs* la,
       } else if (nextLockFound) {
         if (nShiftsSinceLock > 500) {
           bestLockFound = true;
-          if (!doScan)
+          if (!scan)
             break;
           nextLockFound    = false;
           firstUnlockFound = false;
@@ -753,11 +753,11 @@ void ttcMMCMPhaseShift(const RPCMsg *request, RPCMsg *response)
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
 
-  bool shiftOutOfLockFirst = request->get_word("shiftOutOfLockFirst");
-  bool useBC0Locked        = request->get_word("useBC0Locked");
-  bool doScan              = request->get_word("doScan");
+  bool relock  = request->get_word("relock");
+  bool modeBC0 = request->get_word("modeBC0");
+  bool scan    = request->get_word("scan");
 
-  ttcMMCMPhaseShiftLocal(&la, shiftOutOfLockFirst, useBC0Locked, doScan);
+  ttcMMCMPhaseShiftLocal(&la, relock, modeBC0, scan);
 
   return;
 }
