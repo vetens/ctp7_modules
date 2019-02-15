@@ -37,7 +37,7 @@ void ttcMMCMResetLocal(localArgs* la);
  * \details If a bad lock is encountered it will reset and try again.  Otherwise it will take the phase at the back half point
  * \param la Local arguments structure
  * \param relock controls whether the procedure will force a relock
- * \modeBC0 controls whether the procedure will use the BC0_LOCKED or the PLL_LOCKED register.  Note for GEM_AMC FW > 1.13.0 BC0_LOCKED doesn't work.
+ * \param modeBC0 controls whether the procedure will use the BC0_LOCKED or the PLL_LOCKED register.  Note for GEM_AMC FW > 1.13.0 BC0_LOCKED doesn't work.
  * \param scan tells the procedure to run through the full possibility of phases several times, and just logs the place where it found a lock
  */
 void ttcMMCMPhaseShiftLocal(localArgs* la, bool relock=false, bool modeBC0=false, bool scan=false);
