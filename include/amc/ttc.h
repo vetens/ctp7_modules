@@ -28,19 +28,19 @@ void ttcMMCMResetLocal(localArgs* la);
 /*!
  * \brief Shift the phase of the MMCM of the TTC module
  * \details Performs the locking procedure performs up to 3840 shifts (full width of one good + bad region).
- * \details If shiftOutOfLockFirst is true, then the procedure will:
+ * \details If relock is true, then the procedure will:
  *  * first shift into a bad region (not an edge)
  *  * find the next good lock status
  *  * shift halfway through the region (1920 for BC0_LOCKED, 1000 for PLL_LOCKED)
- * \details If shiftOutOfLockFirst is false, then the procedure will find X consecutive "good" locks for X = 200 (50) for BC0_LOCKED (PLL_LOCKED).
+ * \details If relock is false, then the procedure will find X consecutive "good" locks for X = 200 (50) for BC0_LOCKED (PLL_LOCKED).
  * \details It will then reverse direction and shift backwards halfway.
  * \details If a bad lock is encountered it will reset and try again.  Otherwise it will take the phase at the back half point
  * \param la Local arguments structure
- * \param shiftOutOfLockFirst controls whether the procedure will force a relock
- * \useBC0Locked controls whether the procedure will use the BC0_LOCKED or the PLL_LOCKED register.  Note for GEM_AMC FW > 1.13.0 BC0_LOCKED doesn't work.
- * \param doScan tells the procedure to run through the full possibility of phases several times, and just logs the place where it found a lock
+ * \param relock controls whether the procedure will force a relock
+ * \param modeBC0 controls whether the procedure will use the BC0_LOCKED or the PLL_LOCKED register.  Note for GEM_AMC FW > 1.13.0 BC0_LOCKED doesn't work.
+ * \param scan tells the procedure to run through the full possibility of phases several times, and just logs the place where it found a lock
  */
-void ttcMMCMPhaseShiftLocal(localArgs* la, bool shiftOutOfLockFirst=false, bool useBC0Locked=false, bool doScan=false);
+void ttcMMCMPhaseShiftLocal(localArgs* la, bool relock=false, bool modeBC0=false, bool scan=false);
 
 /*!
  * \brief Resets the MMCM PLL and checks if it relocks
