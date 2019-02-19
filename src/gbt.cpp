@@ -34,8 +34,12 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response){
     const uint8_t phaseStep = request->get_word("phaseStep");
 
     // Perform the scan
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Calling Local Method for OH #%u.", ohN));
     if (scanGBTPhasesLocal(&la, ohN, N, phaseMin, phaseMax, phaseStep))
+    {
+        LOGGER->log_message(LogManager::INFO, stdsprintf("GBT Scan for OH #%u Failed.", ohN));
         return;
+    }
 
     return;
 } //Enc scanGBTPhase
