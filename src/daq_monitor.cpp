@@ -264,8 +264,13 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
 
 void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
 {
-    std::string regName, respName; //regName used for read/write, respName sets word in RPC response
+    //Reset Requested?
+    if (doReset)
+    {
+         writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+    }
 
+    std::string regName, respName; //regName used for read/write, respName sets word in RPC response
     for (int ohN=0; ohN < NOH; ++ohN){
         for(unsigned int gbtN=0; gbtN < gbt::GBTS_PER_OH; ++gbtN){
             //Ready
@@ -289,15 +294,6 @@ void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
             la->response->set_word(respName,readReg(la, regName));
         } //End Loop Over GBT's
     } //End Loop Over All OH's
-
-    //Reset Requested?
-    if (doReset)
-    {
-         writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
-
-         //Apply recursion once
-         getmonGBTLinkLocal(la, NOH, false); //Returned information will reflect post reset values
-    }
 
     return;
 } //End getmonGBTLinkLocal()
@@ -815,9 +811,14 @@ void getmonSCA(const RPCMsg *request, RPCMsg *response){
 
 void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
 {
+    //Reset Requested?
+    if (doReset)
+    {
+         writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+    }
+
     std::string regName, respName; //regName used for read/write, respName sets word in RPC response
     bool vfatOutOfSync = false;
-
     for (int ohN=0; ohN < NOH; ++ohN){
         for(unsigned int vfatN=0; vfatN < oh::VFATS_PER_OH; ++vfatN){
             //Sync Error Counters
@@ -841,13 +842,10 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
         } //End Loop Over VFAT's
     } //End Loop Over All OH's
 
-    //Reset Requested?
-    if (doReset && vfatOutOfSync)
+    //Set OOS flag (out of sync)
+    if(vfatOutOfSync)
     {
-         writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
-
-         //Apply recursion once
-         getmonVFATLinkLocal(la, NOH, false); //Returned information will reflect post reset values
+        la->response->set_string("error","One or more VFATs found to be out of sync\n");
     }
 
     return;
