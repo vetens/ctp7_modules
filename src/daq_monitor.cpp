@@ -845,7 +845,7 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
     //Set OOS flag (out of sync)
     if(vfatOutOfSync)
     {
-        la->response->set_string("error","One or more VFATs found to be out of sync\n");
+        la->response->set_string("warning","One or more VFATs found to be out of sync\n");
     }
 
     return;
