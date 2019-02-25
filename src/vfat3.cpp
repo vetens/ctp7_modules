@@ -129,7 +129,7 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
 
         //Get VFAT Mask
         uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
-        
+
         LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring on OH%i for Selection %i",ohN,dacSelect));
         configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
     } //End Loop over all Optohybrids
@@ -261,10 +261,14 @@ void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t vfatMas
 
 void readVFAT3ADCLocal(localArgs * la, uint32_t * outData, uint32_t ohN, bool useExtRefADC, uint32_t mask){
     if(useExtRefADC){ //Case: Use ADC with external reference
-        broadcastReadLocal(la, outData, ohN, "ADC1", mask);
+        broadcastReadLocal(la, outData, ohN, "ADC1_UPDATE", mask);
+        std::this_thread::sleep_for(std::chrono::microseconds(20));
+        broadcastReadLocal(la, outData, ohN, "ADC1_CACHED", mask);
     } //End Case: Use ADC with external reference
     else{ //Case: Use ADC with internal reference
-        broadcastReadLocal(la, outData, ohN, "ADC0", mask);
+        broadcastReadLocal(la, outData, ohN, "ADC0_UPDATE", mask);
+        std::this_thread::sleep_for(std::chrono::microseconds(20));
+        broadcastReadLocal(la, outData, ohN, "ADC0_CACHED", mask);
     } //End Case: Use ADC with internal reference
 
     return;
@@ -314,7 +318,7 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
             NOH = NOH_requested;
         else
             LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
-    }    
+    }
     uint32_t adcData[24] = {0};
     uint32_t adcDataAll[12*24] = {0};
     for(unsigned int ohN=0; ohN<NOH; ++ohN){
@@ -327,7 +331,7 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
 
         //Get VFAT Mask
         uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
-        
+
         //Get all ADC values
         readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, vfatMask);
 
