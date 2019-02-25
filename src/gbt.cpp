@@ -28,14 +28,14 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response){
 
     // Get the keys
     const uint32_t ohN = request->get_word("ohN");
-    const uint32_t N = request->get_word("nScans");
+    const uint32_t nScans = request->get_word("nScans");
     const uint8_t phaseMin = request->get_word("phaseMin");
     const uint8_t phaseMax = request->get_word("phaseMax");
     const uint8_t phaseStep = request->get_word("phaseStep");
 
     // Perform the scan
     LOGGER->log_message(LogManager::INFO, stdsprintf("Calling Local Method for OH #%u.", ohN));
-    if (scanGBTPhasesLocal(&la, ohN, N, phaseMin, phaseMax, phaseStep))
+    if (scanGBTPhasesLocal(&la, ohN, nScans, phaseMin, phaseMax, phaseStep))
     {
         LOGGER->log_message(LogManager::INFO, stdsprintf("GBT Scan for OH #%u Failed.", ohN));
         return;
