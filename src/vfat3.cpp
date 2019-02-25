@@ -261,10 +261,14 @@ void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t vfatMas
 
 void readVFAT3ADCLocal(localArgs * la, uint32_t * outData, uint32_t ohN, bool useExtRefADC, uint32_t mask){
     if(useExtRefADC){ //Case: Use ADC with external reference
-        broadcastReadLocal(la, outData, ohN, "ADC1", mask);
+        broadcastReadLocal(la, outData, ohN, "ADC1_UPDATE", mask);
+        std::this_thread::sleep_for(std::chrono::microseconds(20));
+        broadcastReadLocal(la, outData, ohN, "ADC1_CACHED", mask);
     } //End Case: Use ADC with external reference
     else{ //Case: Use ADC with internal reference
-        broadcastReadLocal(la, outData, ohN, "ADC0", mask);
+        broadcastReadLocal(la, outData, ohN, "ADC0_UPDATE", mask);
+        std::this_thread::sleep_for(std::chrono::microseconds(20));
+        broadcastReadLocal(la, outData, ohN, "ADC0_CACHED", mask);
     } //End Case: Use ADC with internal reference
 
     return;
