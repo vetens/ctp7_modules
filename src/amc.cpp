@@ -188,7 +188,7 @@ std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acq
         }
 
         acquisitionTime=difftime(time(NULL),startTime);
-        if(acquisitionTime > acquireTime){
+        if(uint32_t(acquisitionTime) > acquireTime){
             acquire=false;
         }
     } //End readout sbits
