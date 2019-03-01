@@ -21,9 +21,11 @@ include $(BUILD_HOME)/$(Package)/config/mfZynq.mk
 include $(BUILD_HOME)/$(Package)/config/mfCommonDefs.mk
 include $(BUILD_HOME)/$(Package)/config/mfRPMRules.mk
 
-IncludeDirs = ${BUILD_HOME}/$(Package)/include
+PackageBase = $(BUILD_HOME)/$(Package)
+ProjectBase = $(BUILD_HOME)/$(Project)
+IncludeDirs = $(PackageBase)/include
 IncludeDirs+= /opt/xhal/include
-#IncludeDirs+= /opt/cactus/include
+# IncludeDirs+= /opt/cactus/include
 IncludeDirs+= /opt/wiscrpcsvc/include
 INC=$(IncludeDirs:%=-I%)
 
@@ -31,15 +33,19 @@ ifndef GEM_VARIANT
 GEM_VARIANT = ge11
 endif
 
-CFLAGS += -DGEM_VARIANT="$(GEM_VARIANT)"
+CFLAGS+= -DGEM_VARIANT="$(GEM_VARIANT)"
+CFLAGS+= -std=c++1y -O3 -pthread -fPIC
 
-LDFLAGS+= -L$(BUILD_HOME)/$(Package)/lib
-LDFLAGS+= -L/opt/xhal/lib/arm
-LDFLAGS+= -L/opt/wiscrpcsvc/lib
+LDFLAGS+= -Wl,--as-needed
+
+LibraryDirs = $(PackageBase)/lib
+LibraryDirs+= /opt/xhal/lib/arm
+LibraryDirs+= /opt/wiscrpcsvc/lib
+Libraries=$(LibraryDirs:%=-L%)
 
 .PHONY: clean rpc prerpm
 
-default:
+default: build
 	@echo "Running default target"
 	$(MakeDir) $(PackageDir)
 
@@ -50,187 +56,112 @@ preprpm: default
 	@echo "Running preprpm target"
 	@cp -rf lib $(PackageDir)
 
-PackageSourceDir=$(BUILD_HOME)/$(Project)/src
-PackageIncludeDir=$(BUILD_HOME)/$(Project)/include
-PackageLibraryDir=$(BUILD_HOME)/$(Project)/lib
-PackageObjectDir=$(PackageSourceDir)/linux/$(Arch)
-Sources        := $(wildcard $(PackageSourceDir)/*.cpp) $(wildcard $(PackageSourceDir)/*/*.cpp)
-TargetObjects  := $(subst $(BUILD_HOME)/$(Project)/src/,, $(patsubst %.cpp,%.o, $(Sources)))
-# TargetObjects  := $(subst $(BUILD_HOME)/$(Project)/src/,$(BUILD_HOME)/$(Project)/lib/linux/, $(Sources:%.cpp=%.o))
-# TargetObjects  := $(subst $(BUILD_HOME)/$(Project)/src/,$(BUILD_HOME)/$(Project)/lib/linux/, $(patsubst %.cpp,%.o, $(Sources)))
+PackageSourceDir =$(ProjectBase)/src
+PackageIncludeDir=$(ProjectBase)/include
+PackageLibraryDir=$(ProjectBase)/lib
+PackageObjectDir =$(PackageSourceDir)/linux/$(Arch)
+# PackageObjectDir=$(PackageSourceDir)/linux
+Sources      := $(wildcard $(PackageSourceDir)/*.cpp) $(wildcard $(PackageSourceDir)/*/*.cpp)
+Dependencies := $(patsubst $(PackageSourceDir)/%.cpp, $(PackageObjectDir)/%.d, $(Sources))
+TargetObjects:= $(patsubst %.d,%.o,$(Dependencies))
 
-## Specific groupings of functionality: all objects should be built into at most one of the libraries
 TargetLibraries:= memhub memory optical utils extras amc daq_monitor vfat3 optohybrid calibration_routines gbt
 
-$(info Sources is $(Sources))
-$(info TargetObjects is $(TargetObjects))
-$(info TargetLibraries is $(TargetLibraries))
+## Variable that allows the generic rule to link properly against the dependencies listed above
+# EXTRA_LINKS:=
 
 # Everything links against these three
 BASE_LINKS = -lxhal -llmdb -lwisci2c
 
-.PHONY: $(TargetObjects)
-.PHONY: $(TargetLibraries)
+## Generic shared object creation rule
+$(PackageLibraryDir)/%.so: $(PackageObjectDir)/%.o
+	$(MakeDir) $(@D)
+	$(CXX) $(LDFLAGS) $(Libraries) -shared -Wl,-soname,$@ -o $@ $< $(EXTRA_LINKS) $(BASE_LINKS)
 
-## Build all object files the same way, they don't require any special treatment for now
-## * only if their dependencies become complicated do we need special rules
-$(TargetObjects): $(wildcard $(PackageSourceDir)/$(patsubst %.o,, $@)/*.cpp) $(wildcard $(PackageIncludeDir)/$(patsubst %.o,, $@)/*.h)
-	$(MakeDir) $(shell dirname $(PackageObjectDir)/$@)
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) -fPIC -c -o $(PackageObjectDir)/$@ $(patsubst %.o,%.cpp, $(PackageSourceDir)/$@)
+## adapted from http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
+## Generic object creation rule, generate dependencies and use them later
+$(PackageObjectDir)/%.o: $(PackageSourceDir)/%.cpp
+	$(MakeDir) $(@D)
+	$(CXX) $(CFLAGS) -c $(INC) -MT $@ -MMD -MP -MF $(@D)/$(*F).Td -o $@ $<
+	mv $(@D)/$(*F).Td $(@D)/$(*F).d
+# this was to prevent an older object than dependency file (for some versions of gcc)
+	touch $@
 
-## This needs to be able to dynamically determine dependent targets and link time dependencies before it can be used
-# $(TargetLibraries): $(TargetObjects) $(wildcard $(patsubst %.o,%, $(TargetObjects))/*.o)
-# $(TargetLibraries): % : %.o %/*.o $(wildcard %.o,%, $(TargetObjects))/*.o)
-# 	$(MakeDir) $(PackageLibraryDir)
-# 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -lmemsvc
+## dummy rule for dependencies
+$(PackageObjectDir)/%.d:
 
-## Further generalization to this would be fantastic, but may not be possible
-# * rename libraries to lib<name>.so so that we can link with -l<name>?
-# * fix to change dependencies to file targets rather than phonies, so that a rebuild won't always touch everything?
+## mark dependencies and objects as not auto-removed
+.PRECIOUS: $(PackageObjectDir)/%.d
+.PRECIOUS: $(PackageObjectDir)/%.o
 
-memhub: memhub.o
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing memhub stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$< $(BASE_LINKS) -lmemsvc
-memory: memory.o memhub
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing memory stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$< $(BASE_LINKS) -lmemhub
-optical: optical.o memhub
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing optical stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$< $(BASE_LINKS) -lmemhub
-utils : utils.o memhub
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing utils stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$< $(BASE_LINKS) -lmemhub
-extras: extras.o memhub utils
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing extras stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so
-amc: % : %/ttc.o %/sca.o %/daq.o %.o utils extras
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing amc stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so
-daq_monitor: daq_monitor.o amc
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing daq_monitor stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so -l:lib/amc.so
-vfat3:  vfat3.o amc
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing vfat3 stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so -l:lib/amc.so
-optohybrid: optohybrid.o amc
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing optohybrid stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so -l:lib/amc.so
-calibration_routines: calibration_routines.o optohybrid vfat3
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing calibration_routines stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so -l:lib/extras.so -l:lib/optohybrid.so -l:lib/vfat3.so -l:lib/amc.so
+## Force rule for all target library names
+$(TargetLibraries):
 
-gbt: gbt.o utils
-	$(MakeDir) $(PackageLibraryDir)
-	@echo Executing gbt stage
-	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,$@.so -o $(PackageLibraryDir)/$@.so $(PackageObjectDir)/$@.o $(wildcard $(PackageObjectDir)/$@/*.o) $(BASE_LINKS) -l:lib/utils.so
+## Define the target library dependencies
+memhub:
+	$(eval export EXTRA_LINKS=-lmemsvc)
+	$(MAKE) $(PackageLibraryDir)/memhub.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+memory: memhub
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/memory.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+optical: memhub
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/optical.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+utils: memhub
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/utils.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+extras: utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/extras.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+amc: utils extras
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/amc.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+daq_monitor: amc extras utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/daq_monitor.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+vfat3: amc extras utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/vfat3.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+optohybrid: amc extras utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/optohybrid.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+calibration_routines: optohybrid vfat3 amc extras utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/calibration_routines.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+gbt: utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/gbt.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
 build: $(TargetLibraries)
 	@echo Executing build stage
 
-_all: $(TargetLibraries)
+_all: build
 	@echo Executing _all stage
 
-# SRCS= $(shell echo ${BUILD_HOME}/${Package}/src/**/*.cpp)
-# SRCS= $(shell find ${BUILD_HOME}/${Package}/src -iname '*.cpp')
-# TARGET_LIBS  = lib/memhub.so
-# TARGET_LIBS += lib/memory.so
-# TARGET_LIBS += lib/optical.so
-# TARGET_LIBS += lib/utils.so
-# TARGET_LIBS += lib/extras.so
-# TARGET_LIBS += lib/amc.so
-# TARGET_LIBS += lib/daq_monitor.so
-# TARGET_LIBS += lib/vfat3.so
-# TARGET_LIBS += lib/optohybrid.so
-# TARGET_LIBS += lib/calibration_routines.so
-
-# $(info SRCS is $(SRCS))
-# $(info TARGET_LIBS is $(TARGET_LIBS))
-
-# build: $(TARGET_LIBS)
-
-# _all: $(TARGET_LIBS)
-
-# ## TODO
-# ### generate dependencies automatically, without needing to have specific rules for *every* file
-# $(PackageObjectDir)/%.o: src/%.cpp include/%.h
-# 	@echo "Running $(CXX) on $^ to create $@"
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) -fPIC -c -o $@ $^
-
-# ### make this generic, per target lib
-# ## need to also make the linking generic
-# ## linking, ar or ld, (static or dynamic)?
-# OBJ_FILES := $(wildcard $(PackageObjectDir)/*.o) $(wildcard $(PackageObjectDir)/**/*.o)
-# AMC_OBJ_FILES := $(wildcard $(PackageObjectDir)/amc/*.o)
-# # lib/amc.so: $(PackageObjectDir)/amc.o $(AMC_OBJ_FILES)
-# # 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,amc.so -o $@ $^ -l:utils -l:extras $(BASE_LINKS) -lmemsvc
-
-# # lib/%.so: $(filter %.o, $(OBJ_FILES))
-# # lib/memhub.so: src/memhub.cpp
-# lib/memhub.so: $(filter %memhub%, $(OBJ_FILES))
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,memhub.so -o $@ $< -lwisci2c -lmemsvc
-# 	# $(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,memhub.so -o $@ $< -lwisci2c -lmemsvc
-
-# lib/memory.so: src/memory.cpp
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,memory.so -o $@ $< -lwisci2c -l:memhub.so
-
-# lib/optical.so: src/optical.cpp
-# 	$(CXX) $(CFLAGS) $(INC) $(LDFLAGS) -fPIC -shared -o $@ $< -lwisci2c
-
-# lib/utils.so: src/utils.cpp include/utils.h
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,utils.so -o $@ $< -lwisci2c -lxhal -llmdb -l:memhub.so
-
-# lib/extras.so: src/extras.cpp
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,extras.so -o $@ $< -lwisci2c -lxhal -llmdb -l:memhub.so
-
-# ### AMC library dependencies #######################################################################################
-# lib/linux/amc/ttc.o: src/amc/ttc.cpp include/amc/ttc.h
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) -fPIC -c -o $@ $<
-
-# lib/linux/amc/daq.o: src/amc/daq.cpp include/amc/daq.h
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) -fPIC -c -o $@ $<
-
-# lib/linux/amc.o: src/amc.cpp include/amc.h
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) -fPIC -c -o $@ $<
-
-# lib/amc.so: lib/linux/amc/ttc.o lib/linux/amc/daq.o lib/linux/amc.o
-# 	$(CXX) $(LDFLAGS) -fPIC -shared -Wl,-soname,amc.so -o $@ $^ -l:utils.so -l:extras.so -lwisci2c -lxhal -llmdb
-# ####################################################################################################################
-
-# lib/daq_monitor.so: src/daq_monitor.cpp
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,daq_monitor.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:amc.so
-
-# lib/vfat3.so: src/vfat3.cpp
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,vfat3.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:amc.so
-
-# lib/optohybrid.so: src/optohybrid.cpp
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,optohybrid.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:amc.so
-
-# lib/calibration_routines.so: src/calibration_routines.cpp
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,calibration_routines.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:optohybrid.so -l:vfat3.so -l:amc.so
-
-# lib/gbt.so: src/gbt.cpp include/gbt.h include/hw_constants.h include/hw_constants_checks.h include/moduleapi.h include/memhub.h include/utils.h lib/utils.so
-# 	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,gbt.so -o $@ $< -l:memhub.so -l:utils.so
-
-.PHONY: test
 ### local (PC) test functions, need standard gcc toolchain, dirs, and flags
+.PHONY: test
 test: test/tester.cpp
 	g++ -O0 -g3 -fno-inline -o test/$@ $< $(INC) $(LDFLAGS) -lwiscrpcsvc
 
 clean: cleanrpm
-	@echo Cleaning up all built files
+	@echo Cleaning up all generated files
 	-rm -rf $(PackageDir)
-	-rm -rf src/linux
-	-rm -rf lib
+	-rm -rf $(Dependencies)
+	-rm -rf $(TargetObjects)
+	-rm -rf $(PackageObjectDir)
+	-rm -rf $(PackageLibraryDir)
 
 cleandoc:
 	@echo "TO DO"
+
+-include $(Dependencies)
