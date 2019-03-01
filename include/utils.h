@@ -68,11 +68,7 @@ void split(const std::string &s, char delim, Out result) {
 
 std::vector<std::string> split(const std::string &s, char delim);
 
-std::string serialize(xhal::utils::Node n) {
-  return std::to_string((uint32_t)n.real_address)
-    +"|"+n.permission+"|"+std::to_string((uint32_t)n.mask)
-    +"|"+n.mode+"|"+std::to_string((uint32_t)n.size);
-}
+std::string serialize(xhal::utils::Node n);
 
 /*! \brief This macro is used to terminate a function if an error occurs. It logs the message, write it to the `error` RPC key and returns the `error_code` value.
  *  \param response A pointer to the RPC response object.

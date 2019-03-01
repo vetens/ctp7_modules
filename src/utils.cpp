@@ -470,6 +470,7 @@ void writeBlock(const uint32_t& regAddr, const uint32_t* values, const size_t& s
 {
   // This function doesn't make sense with an offset, why would we specify an offset when accessing by register address?
   // Maybe just to do validation checks on the size?
+  return;
 }
 
 extern "C" {
