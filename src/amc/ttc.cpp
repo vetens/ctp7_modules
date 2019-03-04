@@ -552,7 +552,7 @@ int checkPLLLockLocal(localArgs* la, int readAttempts)
   std::stringstream msg;
   msg << "Executing checkPLLLock with " << readAttempts << " attempted relocks";
   LOGGER->log_message(LogManager::DEBUG, msg.str());
-  for (uint32_t i = 0; i < readAttempts; ++i ) {
+  for (int i = 0; i < readAttempts; ++i ) {
     writeReg(la,"GEM_AMC.TTC.CTRL.PA_MANUAL_PLL_RESET", 0x1);
 
     // wait 100us to allow the PLL to lock

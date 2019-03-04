@@ -1215,7 +1215,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
                 writeReg(la, strDacReg, dacVal);
                 //Read nReads times and take avg value
                 uint32_t adcVal=0;
-                for(int i=0; i<nReads; ++i){
+                for(uint32_t i=0; i<nReads; ++i){
                     //Read the ADC
                     if (foundAdcCached){
                         //either reading or writing this register will trigger a cache update
