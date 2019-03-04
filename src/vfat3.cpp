@@ -545,30 +545,18 @@ void statusVFAT3s(const RPCMsg *request, RPCMsg *response) {
 uint16_t decodeChipID(uint32_t encChipID)
 {
   // can the generator be static to limit creation/destruction of resources?
-  // convert to c++ new[]/delete[] ?
-  // convert to c++ smart ponters?
-  static int *encoded = 0;
-  static int *decoded = 0;
-  // static std::shared_ptr<int> encoded = 0;
-  // static std::shared_ptr<int> decoded = 0;
   static reedmuller rm = 0;
+  static std::unique_ptr<int[]> encoded = nullptr;
+  static std::unique_ptr<int[]> decoded = nullptr;
 
   if ((!(rm = reedmuller_init(2, 5)))
-      // || (!(encoded = (int*) calloc(rm->n, sizeof(int))))
-      // || (!(decoded = (int*) calloc(rm->k, sizeof(int))))) {
-      || (!(encoded = new int[rm->n]))
-      || (!(decoded = new int[rm->k]))
-      // || (!(encoded = std::make_shared<int[]>(rm->n)))
-      // || (!(decoded = std::make_shared<int[]>(rm->k)))
+      || (!(encoded = std::make_unique<int[]>(rm->n)))
+      || (!(decoded = std::make_unique<int[]>(rm->k)))
       ) {
     std::stringstream errmsg;
     errmsg << "Out of memory";
 
     reedmuller_free(rm);
-    // free(encoded);
-    // free(decoded);
-    delete [] encoded;
-    delete [] decoded;
 
     throw std::runtime_error(errmsg.str());
   }
@@ -584,18 +572,18 @@ uint16_t decodeChipID(uint32_t encChipID)
   }
 
   for (int j=0; j < rm->n; ++j)
-    encoded[(rm->n-j-1)] = (encChipID>>j) &0x1;
+    encoded.get()[(rm->n-j-1)] = (encChipID>>j) &0x1;
 
-  int result = reedmuller_decode(rm, encoded, decoded);
-
-  uint16_t decChipID = 0x0;
+  int result = reedmuller_decode(rm, encoded.get(), decoded.get());
 
   if (result) {
+    uint16_t decChipID = 0x0;
+
     char tmp_decoded[1024];
     char* dp = tmp_decoded;
 
     for (int j=0; j < rm->k; ++j)
-      dp += sprintf(dp,"%d", decoded[j]);
+      dp += sprintf(dp,"%d", decoded.get()[j]);
 
     char *p;
     errno = 0;
@@ -606,24 +594,72 @@ uint16_t decodeChipID(uint32_t encChipID)
       errmsg << "Unable to convert " << std::string(tmp_decoded) << " to int type";
 
       reedmuller_free(rm);
-      // free(encoded);
-      // free(decoded);
-      delete [] encoded;
-      delete [] decoded;
 
       throw std::runtime_error(errmsg.str());
     } else {
       decChipID = conv;
+      reedmuller_free(rm);
+      return decChipID;
+    }
+  } else {
+    std::stringstream errmsg;
+    errmsg << "Unable to decode message 0x"
+           << std::hex << std::setw(8) << std::setfill('0') << encChipID
+           << ", probably more than " << reedmuller_strength(rm) << " errors";
+
+    reedmuller_free(rm);
+    throw std::runtime_error(errmsg.str());
+  }
+}
+
+void getVFAT3ChipIDsLocal(localArgs * la, uint32_t ohN, bool rawID)
+{
+  std::string regName;
+
+  for(int vfatN = 0; vfatN < 24; vfatN++) {
+    char regBase [100];
+    sprintf(regBase, "GEM_AMC.OH.OH%i.GEB.VFAT%i.HW_CHIP_ID",ohN, vfatN);
+
+    regName = std::string(regBase);
+    uint32_t id = readReg(la,regName);
+    uint16_t decChipID = 0x0;
+    try {
+      decChipID = decodeChipID(id);
+      std::stringstream msg;
+      msg << "OH" << ohN << "::VFAT" << vfatN << ": chipID is:"
+          << std::hex<<std::setw(8)<<std::setfill('0')<<id<<std::dec
+          <<"(raw) or "
+          << std::hex<<std::setw(8)<<std::setfill('0')<<decChipID<<std::dec
+          << "(decoded)";
+      LOGGER->log_message(LogManager::INFO, msg.str());
+
+      if (rawID)
+        la->response->set_word(regName,id);
+      else
+        la->response->set_word(regName,decChipID);
+    } catch (std::runtime_error& e) {
+      std::stringstream errmsg;
+      errmsg << "Error decoding chipID: " << e.what()
+             << ", returning raw chipID";
+      LOGGER->log_message(LogManager::ERROR,errmsg.str());
+      la->response->set_word(regName,id);
     }
   }
+}
 
-  reedmuller_free(rm);
-  // free(encoded);
-  // free(decoded);
-  delete [] encoded;
-  delete [] decoded;
+void getVFAT3ChipIDs(const RPCMsg *request, RPCMsg *response)
+{
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
 
-  return decChipID;
+  uint32_t ohN = request->get_word("ohN");
+  bool rawID   = request->get_word("rawID");
+  LOGGER->log_message(LogManager::DEBUG, "Reading VFAT3 chipIDs");
+
+  getVFAT3ChipIDsLocal(&la, ohN, rawID);
+
+  rtxn.abort();
+  return;
 }
 
 extern "C" {
@@ -644,5 +680,6 @@ extern "C" {
         modmgr->register_method("vfat3", "setChannelRegistersVFAT3", setChannelRegistersVFAT3);
         modmgr->register_method("vfat3", "statusVFAT3s", statusVFAT3s);
         modmgr->register_method("vfat3", "vfatSyncCheck", vfatSyncCheck);
+        modmgr->register_method("vfat3", "getVFAT3ChipIDs", getVFAT3ChipIDs);
     }
 }

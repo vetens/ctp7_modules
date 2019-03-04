@@ -159,4 +159,12 @@ void statusVFAT3s(const RPCMsg *request, RPCMsg *response);
  */
 uint16_t decodeChipID(uint32_t encChipID);
 
+/*! \fn void statusVFAT3s(const RPCMsg *request, RPCMsg *response)
+ *  \brief Returns list of values of the most important VFAT3 register
+ *  \param request RPC request message
+ *  \param response RPC responce message
+ */
+void getVFAT3ChipIDsLocal(localArgs * la, uint32_t ohN, bool rawID=false);
+void getVFAT3ChipIDs(const RPCMsg *request, RPCMsg *response);
+
 #endif
