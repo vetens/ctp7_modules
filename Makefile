@@ -67,16 +67,15 @@ TargetObjects:= $(patsubst %.d,%.o,$(Dependencies))
 
 TargetLibraries:= memhub memory optical utils extras amc daq_monitor vfat3 optohybrid calibration_routines gbt
 
-## Variable that allows the generic rule to link properly against the dependencies listed above
-# EXTRA_LINKS:=
-
 # Everything links against these three
 BASE_LINKS = -lxhal -llmdb -lwisci2c
 
-## Generic shared object creation rule
-$(PackageLibraryDir)/%.so: $(PackageObjectDir)/%.o
+## Generic shared object creation rule, need to accomodate cases where we have lib.o lib/sub.o
+pc:=%
+.SECONDEXPANSION:
+$(PackageLibraryDir)/%.so: $$(filter $(PackageObjectDir)/$$*$$(pc).o, $(TargetObjects))
 	$(MakeDir) $(@D)
-	$(CXX) $(LDFLAGS) $(Libraries) -shared -Wl,-soname,$@ -o $@ $< $(EXTRA_LINKS) $(BASE_LINKS)
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(Libraries) -shared -Wl,-soname,$(*F).so -o $@ $^ $(EXTRA_LINKS) $(BASE_LINKS)
 
 ## adapted from http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
 ## Generic object creation rule, generate dependencies and use them later
@@ -126,7 +125,7 @@ daq_monitor: amc extras utils
 	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
 	$(MAKE) $(PackageLibraryDir)/daq_monitor.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
-vfat3: amc extras utils
+vfat3: optohybrid amc extras utils
 	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
 	$(MAKE) $(PackageLibraryDir)/vfat3.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
@@ -151,7 +150,7 @@ _all: build
 ### local (PC) test functions, need standard gcc toolchain, dirs, and flags
 .PHONY: test
 test: test/tester.cpp
-	g++ -O0 -g3 -fno-inline -o test/$@ $< $(INC) $(LDFLAGS) -lwiscrpcsvc
+	g++ -O0 -g3 -fno-inline -o test/$@ $< $(INC) $(LDFLAGS) -L/opt/wiscrpcsvc/lib -lwiscrpcsvc
 
 clean: cleanrpm
 	@echo Cleaning up all generated files
