@@ -554,11 +554,29 @@ uint16_t decodeChipID(uint32_t encChipID)
   }
 }
 
-void getVFAT3ChipIDsLocal(localArgs * la, uint32_t ohN, bool rawID)
+void getVFAT3ChipIDsLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask, bool rawID)
 {
+  //Determine the inverse of the vfatmask
+  uint32_t notmask = ~vfatMask & 0xFFFFFF;
+
+  //Check if VFATs are sync'd
+  uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
+  if( (notmask & goodVFATs) != notmask)
+  {
+      char errBuf[200];
+      sprintf(errBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
+      la->response->set_string("error",errBuf);
+      return;
+  }
+
   std::string regName;
 
   for(int vfatN = 0; vfatN < 24; vfatN++) {
+    // Check if vfat is masked
+    if(!((notmask >> vfatN) & 0x1)){
+        continue;
+    } //End check if VFAT is masked
+
     char regBase [100];
     sprintf(regBase, "GEM_AMC.OH.OH%i.GEB.VFAT%i.HW_CHIP_ID",ohN, vfatN);
 
@@ -594,11 +612,12 @@ void getVFAT3ChipIDs(const RPCMsg *request, RPCMsg *response)
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
 
-  uint32_t ohN = request->get_word("ohN");
-  bool rawID   = request->get_word("rawID");
+  uint32_t ohN      = request->get_word("ohN");
+  uint32_t vfatMask = request->get_word("vfatMask");
+  bool rawID        = request->get_word("rawID");
   LOGGER->log_message(LogManager::DEBUG, "Reading VFAT3 chipIDs");
 
-  getVFAT3ChipIDsLocal(&la, ohN, rawID);
+  getVFAT3ChipIDsLocal(&la, ohN, vfatMask, rawID);
 
   rtxn.abort();
 }

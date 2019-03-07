@@ -164,7 +164,7 @@ uint16_t decodeChipID(uint32_t encChipID);
  *  \param request RPC request message
  *  \param response RPC responce message
  */
-void getVFAT3ChipIDsLocal(localArgs * la, uint32_t ohN, bool rawID=false);
+void getVFAT3ChipIDsLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask=0xFF000000, bool rawID=false);
 void getVFAT3ChipIDs(const RPCMsg *request, RPCMsg *response);
 
 #endif
