@@ -602,32 +602,35 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     return;
 } //End sbitRateScanLocal(...)
 
-void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ohN, uint32_t vfatmask, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg)
+void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t ohMask=0x3FF)
 {
     char regBuf[200];
-    switch (fw_version_check("SBIT Rate Scan", la)) {
+    //TODO: check that OH mask does not exceeds 0x3FF
+    uint32_t vfatmask[12] = {0};
+    std::vector<std::unordered_map<uint32_t, uint32_t>*> origVFATmasks(12);
+    switch (fw_version_check("SBIT Rate Scan", la)){
         case 3:
         {
-            //Check if vfats are sync'd
-            uint32_t notmask = ~vfatmask & 0xFFFFFF;
-            uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-            if ( (notmask & goodVFATs) != notmask) {
-                sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
-                la->response->set_string("error",regBuf);
-                return;
+            // Loop over ohMask and retrieve VFAT masks
+            for (int i = 0; i < 12; ++i) {
+                if (ohMask >> i) & 0x1 {
+                    vfatmask[i] = getOHVFATMaskLocal(la, i);
+                    //If ch!=128 store the original channel mask settings
+                    //Then mask all other channels except for channel ch
+                    std::unordered_map<uint32_t, uint32_t> map_chanOrigMask[24]; //key -> reg addr; val -> reg value
+                    uint32_t notmask = ~vfatmask[i];
+                    if( ch != 128){
+                        for(int vfat = 0; vfat < 24; ++vfat){
+                            //Skip this vfat if it's masked
+                            if ( !( (notmask >> vfat) & 0x1)) continue;
+                            map_chanOrigMask[vfat] = setSingleChanMask(ohN,vfat,ch,la);
+                        } //End loop over all vfats
+                    } //End loop over vfat channels
+                    origVFATmasks[i] = map_chanOrigMask;
+                }
             }
 
-            //If ch!=128 store the original channel mask settings
-            //Then mask all other channels except for channel ch
-            std::unordered_map<uint32_t, uint32_t> map_chanOrigMask[24]; //key -> reg addr; val -> reg value
-            if ( ch != 128) {
-                for (int vfat=0; vfat<24; ++vfat) {
-                    //Skip this vfat if it's masked
-                    if ( !( (notmask >> vfat) & 0x1)) continue;
-                    map_chanOrigMask[vfat] = setSingleChanMask(ohN,vfat,ch,la);
-                } //End loop over all vfats
-            } //End Case: Measuring Rate for 1 channel
-
+            //TODO: Insert the block below in the loop above
             //Get the SBIT Rate Monitor Address
             uint32_t ohTrigRateAddr[25]; //idx 0->23 VFAT counters; idx 24 overall rate
             sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
