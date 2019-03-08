@@ -1149,7 +1149,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     LOGGER->log_message(LogManager::INFO, stdsprintf("Scanning DAC: %s",regName.c_str()));
     uint32_t adcAddr[24];
     uint32_t adcCacheUpdateAddr[24];
-    bool foundAdcCached=false;
+    bool foundAdcCached = false;
     for(int vfatN=0; vfatN<24; ++vfatN){
         //Skip Masked VFATs
         if ( !( (notmask >> vfatN) & 0x1)) continue;
@@ -1160,23 +1160,16 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
         //Get ADC address
         if(useExtRefADC){ //Case: Use ADC with external reference
             //for backward compatibility, use ADC1 instead of ADC1_CACHED if it exists
-            lmdb::val key, db_res;
-
-            key.assign(strRegBase+"ADC1_CACHED");
-            foundAdcCached = la->dbi.get(la->rtxn,key,db_res);
-            if(foundAdcCached){
+            if((foundAdcCached = la->dbi.get(la->rtxn, strRegBase + "ADC1_CACHED"))){
                 adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1_CACHED");
-                adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC1_UPDATE");                
+                adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC1_UPDATE");
             }
             else
                 adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1");
         } //End Case: Use ADC with external reference
         else{ //Case: Use ADC with internal reference
             //for backward compatibility, use ADC0 instead of ADC0_CACHED if it exists
-            lmdb::val key, db_res;
-            key.assign(strRegBase+"ADC0_CACHED");
-            foundAdcCached = la->dbi.get(la->rtxn,key,db_res);
-            if(foundAdcCached) {
+            if((foundAdcCached = la->dbi.get(la->rtxn, strRegBase + "ADC0_CACHED"))){
                 adcAddr[vfatN] = getAddress(la, strRegBase + "ADC0_CACHED");
                 adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC0_UPDATE");
             }
@@ -1222,7 +1215,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
                 writeReg(la, strDacReg, dacVal);
                 //Read nReads times and take avg value
                 uint32_t adcVal=0;
-                for(int i=0; i<nReads; ++i){
+                for(uint32_t i=0; i<nReads; ++i){
                     //Read the ADC
                     if (foundAdcCached){
                         //either reading or writing this register will trigger a cache update
@@ -1302,7 +1295,7 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
         // If this Optohybrid is masked skip it
         if(!((ohMask >> ohN) & 0x1)){
             int dacMax = std::get<2>(dacInfo.map_dacInfo[dacSelect]);
-            dacScanResults.resize( (dacMax+1)*24/dacStep );
+            dacScanResults.assign( (dacMax+1)*24/dacStep, 0xdeaddead );
             std::copy(dacScanResults.begin(), dacScanResults.end(), std::back_inserter(dacScanResultsAll));
             continue;
         }

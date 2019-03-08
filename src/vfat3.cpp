@@ -5,12 +5,15 @@
  *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
+#include "vfat3.h"
 #include <algorithm>
 #include <chrono>
 #include "optohybrid.h"
 #include <thread>
-#include "vfat3.h"
 #include "amc.h"
+#include "reedmuller.h"
+#include <iomanip>
+#include <memory>
 
 uint32_t vfatSyncCheckLocal(localArgs * la, uint32_t ohN)
 {
@@ -129,7 +132,7 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
 
         //Get VFAT Mask
         uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
-        
+
         LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring on OH%i for Selection %i",ohN,dacSelect));
         configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
     } //End Loop over all Optohybrids
@@ -261,10 +264,14 @@ void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t vfatMas
 
 void readVFAT3ADCLocal(localArgs * la, uint32_t * outData, uint32_t ohN, bool useExtRefADC, uint32_t mask){
     if(useExtRefADC){ //Case: Use ADC with external reference
-        broadcastReadLocal(la, outData, ohN, "ADC1", mask);
+        broadcastReadLocal(la, outData, ohN, "ADC1_UPDATE", mask);
+        std::this_thread::sleep_for(std::chrono::microseconds(20));
+        broadcastReadLocal(la, outData, ohN, "ADC1_CACHED", mask);
     } //End Case: Use ADC with external reference
     else{ //Case: Use ADC with internal reference
-        broadcastReadLocal(la, outData, ohN, "ADC0", mask);
+        broadcastReadLocal(la, outData, ohN, "ADC0_UPDATE", mask);
+        std::this_thread::sleep_for(std::chrono::microseconds(20));
+        broadcastReadLocal(la, outData, ohN, "ADC0_CACHED", mask);
     } //End Case: Use ADC with internal reference
 
     return;
@@ -314,7 +321,7 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
             NOH = NOH_requested;
         else
             LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
-    }    
+    }
     uint32_t adcData[24] = {0};
     uint32_t adcDataAll[12*24] = {0};
     for(unsigned int ohN=0; ohN<NOH; ++ohN){
@@ -327,7 +334,7 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
 
         //Get VFAT Mask
         uint32_t vfatMask = getOHVFATMaskLocal(&la, ohN);
-        
+
         //Get all ADC values
         readVFAT3ADCLocal(&la, adcData, ohN, useExtRefADC, vfatMask);
 
@@ -535,6 +542,126 @@ void statusVFAT3s(const RPCMsg *request, RPCMsg *response) {
     rtxn.abort();
 }
 
+uint16_t decodeChipID(uint32_t encChipID)
+{
+  // can the generator be static to limit creation/destruction of resources?
+  static reedmuller rm = 0;
+  static std::unique_ptr<int[]> encoded = nullptr;
+  static std::unique_ptr<int[]> decoded = nullptr;
+
+  if ((!(rm = reedmuller_init(2, 5)))
+      || (!(encoded = std::make_unique<int[]>(rm->n)))
+      || (!(decoded = std::make_unique<int[]>(rm->k)))
+      ) {
+    std::stringstream errmsg;
+    errmsg << "Out of memory";
+
+    reedmuller_free(rm);
+
+    throw std::runtime_error(errmsg.str());
+  }
+
+  uint32_t maxcode = reedmuller_maxdecode(rm);
+  if (encChipID > maxcode) {
+    std::stringstream errmsg;
+    errmsg << std::hex << std::setw(8) << std::setfill('0') << encChipID
+           << " is larger than the maximum decodeable by RM(2,5)"
+           << std::hex << std::setw(8) << std::setfill('0') << maxcode
+           << std::dec;
+    throw std::range_error(errmsg.str());
+  }
+
+  for (int j=0; j < rm->n; ++j)
+    encoded.get()[(rm->n-j-1)] = (encChipID>>j) &0x1;
+
+  int result = reedmuller_decode(rm, encoded.get(), decoded.get());
+
+  if (result) {
+    uint16_t decChipID = 0x0;
+
+    char tmp_decoded[1024];
+    char* dp = tmp_decoded;
+
+    for (int j=0; j < rm->k; ++j)
+      dp += sprintf(dp,"%d", decoded.get()[j]);
+
+    char *p;
+    errno = 0;
+
+    uint32_t conv = strtoul(tmp_decoded, &p, 2);
+    if (errno != 0 || *p != '\0') {
+      std::stringstream errmsg;
+      errmsg << "Unable to convert " << std::string(tmp_decoded) << " to int type";
+
+      reedmuller_free(rm);
+
+      throw std::runtime_error(errmsg.str());
+    } else {
+      decChipID = conv;
+      reedmuller_free(rm);
+      return decChipID;
+    }
+  } else {
+    std::stringstream errmsg;
+    errmsg << "Unable to decode message 0x"
+           << std::hex << std::setw(8) << std::setfill('0') << encChipID
+           << ", probably more than " << reedmuller_strength(rm) << " errors";
+
+    reedmuller_free(rm);
+    throw std::runtime_error(errmsg.str());
+  }
+}
+
+void getVFAT3ChipIDsLocal(localArgs * la, uint32_t ohN, bool rawID)
+{
+  std::string regName;
+
+  for(int vfatN = 0; vfatN < 24; vfatN++) {
+    char regBase [100];
+    sprintf(regBase, "GEM_AMC.OH.OH%i.GEB.VFAT%i.HW_CHIP_ID",ohN, vfatN);
+
+    regName = std::string(regBase);
+    uint32_t id = readReg(la,regName);
+    uint16_t decChipID = 0x0;
+    try {
+      decChipID = decodeChipID(id);
+      std::stringstream msg;
+      msg << "OH" << ohN << "::VFAT" << vfatN << ": chipID is:"
+          << std::hex<<std::setw(8)<<std::setfill('0')<<id<<std::dec
+          <<"(raw) or "
+          << std::hex<<std::setw(8)<<std::setfill('0')<<decChipID<<std::dec
+          << "(decoded)";
+      LOGGER->log_message(LogManager::INFO, msg.str());
+
+      if (rawID)
+        la->response->set_word(regName,id);
+      else
+        la->response->set_word(regName,decChipID);
+    } catch (std::runtime_error& e) {
+      std::stringstream errmsg;
+      errmsg << "Error decoding chipID: " << e.what()
+             << ", returning raw chipID";
+      LOGGER->log_message(LogManager::ERROR,errmsg.str());
+      la->response->set_word(regName,id);
+    }
+  }
+}
+
+void getVFAT3ChipIDs(const RPCMsg *request, RPCMsg *response)
+{
+  // struct localArgs la = getLocalArgs(response);
+  GETLOCALARGS(response);
+
+  uint32_t ohN = request->get_word("ohN");
+  bool rawID   = request->get_word("rawID");
+  LOGGER->log_message(LogManager::DEBUG, "Reading VFAT3 chipIDs");
+
+  getVFAT3ChipIDsLocal(&la, ohN, rawID);
+
+  rtxn.abort();
+  return;
+}
+
 extern "C" {
     const char *module_version_key = "vfat3 v1.0.1";
     int module_activity_color = 4;
@@ -553,5 +680,6 @@ extern "C" {
         modmgr->register_method("vfat3", "setChannelRegistersVFAT3", setChannelRegistersVFAT3);
         modmgr->register_method("vfat3", "statusVFAT3s", statusVFAT3s);
         modmgr->register_method("vfat3", "vfatSyncCheck", vfatSyncCheck);
+        modmgr->register_method("vfat3", "getVFAT3ChipIDs", getVFAT3ChipIDs);
     }
 }

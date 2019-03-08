@@ -6,11 +6,13 @@
  */
 
 #include "amc.h"
+#include "amc/ttc.h"
+#include "amc/daq.h"
+
 #include <chrono>
 #include <string>
 #include <time.h>
 #include <thread>
-#include "utils.h"
 #include <vector>
 
 unsigned int fw_version_check(const char* caller_name, localArgs *la)
@@ -94,7 +96,7 @@ void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response){
         else
             LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register value (%i), NOH request will be disregarded",NOH_requested,NOH));
     }
-    
+
     uint32_t ohVfatMaskArray[12];
     for(unsigned int ohN=0; ohN<NOH; ++ohN){
         // If this Optohybrid is masked skip it
@@ -186,7 +188,7 @@ std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acq
         }
 
         acquisitionTime=difftime(time(NULL),startTime);
-        if(acquisitionTime > acquireTime){
+        if(uint32_t(acquisitionTime) > acquireTime){
             acquire=false;
         }
     } //End readout sbits
@@ -222,6 +224,7 @@ void sbitReadOut(const RPCMsg *request, RPCMsg *response){
     return;
 } //End sbitReadOut()
 
+
 extern "C" {
     const char *module_version_key = "amc v1.0.1";
     int module_activity_color = 4;
@@ -231,8 +234,46 @@ extern "C" {
             LOGGER->log_message(LogManager::ERROR, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
         }
-        modmgr->register_method("amc", "getOHVFATMask", getOHVFATMask);
+
+        modmgr->register_method("amc", "getOHVFATMask",          getOHVFATMask);
         modmgr->register_method("amc", "getOHVFATMaskMultiLink", getOHVFATMaskMultiLink);
-        modmgr->register_method("amc", "sbitReadOut", sbitReadOut);
+        modmgr->register_method("amc", "sbitReadOut",            sbitReadOut);
+
+        // DAQ module methods (from amc/daq)
+        modmgr->register_method("amc", "enableDAQLink",           enableDAQLink);
+        modmgr->register_method("amc", "disableDAQLink",          disableDAQLink);
+        modmgr->register_method("amc", "setZS",                   setZS);
+        modmgr->register_method("amc", "resetDAQLink",            resetDAQLink);
+        modmgr->register_method("amc", "setDAQLinkInputTimeout",  setDAQLinkInputTimeout);
+        modmgr->register_method("amc", "setDAQLinkRunType",       setDAQLinkRunType);
+        modmgr->register_method("amc", "setDAQLinkRunParameter",  setDAQLinkRunParameter);
+        modmgr->register_method("amc", "setDAQLinkRunParameters", setDAQLinkRunParameters);
+
+        modmgr->register_method("amc", "configureDAQModule",   configureDAQModule);
+        modmgr->register_method("amc", "enableDAQModule",      enableDAQModule);
+
+        // TTC module methods (from amc/ttc)
+        modmgr->register_method("amc", "ttcModuleReset",     ttcModuleReset);
+        modmgr->register_method("amc", "ttcMMCMReset",       ttcMMCMReset);
+        modmgr->register_method("amc", "ttcMMCMPhaseShift",  ttcMMCMPhaseShift);
+        modmgr->register_method("amc", "checkPLLLock",       checkPLLLock);
+        modmgr->register_method("amc", "getMMCMPhaseMean",   getMMCMPhaseMean);
+        modmgr->register_method("amc", "getMMCMPhaseMedian", getMMCMPhaseMedian);
+        modmgr->register_method("amc", "getGTHPhaseMean",    getGTHPhaseMean);
+        modmgr->register_method("amc", "getGTHPhaseMedian",  getGTHPhaseMedian);
+        modmgr->register_method("amc", "ttcCounterReset",    ttcCounterReset);
+        modmgr->register_method("amc", "getL1AEnable",       getL1AEnable);
+        modmgr->register_method("amc", "setL1AEnable",       setL1AEnable);
+        modmgr->register_method("amc", "getTTCConfig",       getTTCConfig);
+        modmgr->register_method("amc", "setTTCConfig",       setTTCConfig);
+        modmgr->register_method("amc", "getTTCStatus",       getTTCStatus);
+        modmgr->register_method("amc", "getTTCErrorCount",   getTTCErrorCount);
+        modmgr->register_method("amc", "getTTCCounter",      getTTCCounter);
+        modmgr->register_method("amc", "getL1AID",           getL1AID);
+        modmgr->register_method("amc", "getL1ARate",         getL1ARate);
+        modmgr->register_method("amc", "getTTCSpyBuffer",    getTTCSpyBuffer);
+
+        // SCA module methods (from amc/sca)
+        // modmgr->register_method("amc", "scaHardResetEnable", scaHardResetEnable);
     }
 }

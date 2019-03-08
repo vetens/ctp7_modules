@@ -30,8 +30,8 @@ int memhub_open(memsvc_handle_t *handle) {
         perror("sem_open(3) error");
         exit(1);
     }
-   
-    // handle all signals in attempt to undo an active semaphore if the process is killed in the middle of a transaction.. 
+
+    // handle all signals in attempt to undo an active semaphore if the process is killed in the middle of a transaction..
     signal(SIGABRT, die);
     signal(SIGFPE, die);
     signal(SIGILL, die);
@@ -68,7 +68,7 @@ int memhub_write(memsvc_handle_t handle, uint32_t addr, uint32_t words, const ui
 void die(int signo) {
     int semval = 0;
     sem_getvalue(semaphore, &semval);
-    
+
     if (busy && (semval == 0)) {
         LOGGER->log_message(LogManager::ERROR, stdsprintf("[!] Application is dying, trying to undo an active semaphore..\n"));
         sem_post(semaphore);
@@ -76,4 +76,3 @@ void die(int signo) {
     LOGGER->log_message(LogManager::ERROR, stdsprintf("[!] Application was killed or died with signal %d (semaphore value at the time of the kill = %d)...\n", signo, semval));
     exit(1);
 }
-

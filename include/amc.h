@@ -9,7 +9,6 @@
 #define AMC_H
 
 #include "utils.h"
-#include <unistd.h>
 
 /*! \fn unsigned int fw_version_check(const char* caller_name, localArgs *la)
  *  \brief Returns AMC FW version
@@ -56,7 +55,7 @@ void getOHVFATMaskMultiLink(const RPCMsg *request, RPCMsg *response);
  */
 std::vector<uint32_t> sbitReadOutLocal(localArgs *la, uint32_t ohN, uint32_t acquireTime, bool *maxNetworkSizeReached);
 
-/*! \fn sbitReadOut(const RPCMsg *request, RPCMsg *response)
+/*! \fn void sbitReadOut(const RPCMsg *request, RPCMsg *response)
  *  \brief readout sbits using the SBIT Monitor.  See the local callable methods documentation for details.
  *  \param request RPC response message
  *  \param response RPC response message

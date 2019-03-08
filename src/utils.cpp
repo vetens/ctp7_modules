@@ -1,5 +1,34 @@
 #include "utils.h"
 
+memsvc_handle_t memsvc;
+
+struct localArgs getLocalArgs(RPCMsg *response)
+{
+    auto env = lmdb::env::create();
+    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    std::string gem_path       = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto dbi  = lmdb::dbi::open(rtxn, nullptr);
+    struct localArgs la = {.rtxn     = rtxn,
+                           .dbi      = dbi,
+                           .response = response};
+    return la;
+}
+
+std::vector<std::string> split(const std::string &s, char delim)
+{
+  std::vector<std::string> elems;
+  split(s, delim, std::back_inserter(elems));
+  return elems;
+}
+
+std::string serialize(xhal::utils::Node n)
+{
+  return std::to_string((uint32_t)n.real_address)+"|"+n.permission+"|"+std::to_string((uint32_t)n.mask);
+}
+
 void update_address_table(const RPCMsg *request, RPCMsg *response) {
   LOGGER->log_message(LogManager::INFO, "START UPDATE ADDRESS TABLE");
   std::string at_xml = request->get_string("at_xml");
@@ -8,11 +37,10 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
   std::string lmdb_lock_file = gem_path+"/address_table.mdb/lock.mdb";
   std::string lmdb_area_file = gem_path+"/address_table.mdb";
   xhal::utils::XHALXMLParser * m_parser = new xhal::utils::XHALXMLParser(at_xml.c_str());
-  try
-  {
+  try {
     m_parser->setLogLevel(0);
     m_parser->parseXML();
-  } catch (...){
+  } catch (...) {
     response->set_string("error", "XML parser failed");
     LOGGER->log_message(LogManager::INFO, "XML parser failed");
     return;
@@ -75,8 +103,8 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response) {
   std::string permissions;
   std::vector<std::string> temp;
   std::string t_value;
-  if (found){
-		LOGGER->log_message(LogManager::INFO, stdsprintf("Key: %s is found", regName.c_str()));
+  if (found) {
+    LOGGER->log_message(LogManager::INFO, stdsprintf("Key: %s is found", regName.c_str()));
     t_value = std::string(value.data());
     t_value = t_value.substr(0,value.size());
     temp = split(t_value,'|');
@@ -87,7 +115,7 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response) {
     response->set_word("address", reg_address);
     response->set_word("mask", reg_mask);
   } else {
-		LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
+    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
     response->set_string("error", "Register not found");
   }
   rtxn.abort();
@@ -260,7 +288,7 @@ uint32_t readReg(localArgs * la, const std::string & regName) {
     tmp = split(t_db_res,'|');
     std::size_t found = tmp[1].find_first_of("r");
     if (found==std::string::npos) {
-    	//response->set_string("error", std::string("No read permissions"));
+    	// response->set_string("error", std::string("No read permissions"));
     	LOGGER->log_message(LogManager::ERROR, stdsprintf("No read permissions for %s", regName.c_str()));
       return 0xdeaddead;
     }
@@ -269,7 +297,7 @@ uint32_t readReg(localArgs * la, const std::string & regName) {
     address = stoll(tmp[0]);
     mask = stoll(tmp[2]);
     if (memhub_read(memsvc, address, 1, data) != 0) {
-    	//response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
+    	// response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
     	LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
       return 0xdeaddead;
     }
@@ -280,7 +308,7 @@ uint32_t readReg(localArgs * la, const std::string & regName) {
     }
   } else {
   	LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    //response->set_string("error", "Register not found");
+    // response->set_string("error", "Register not found");
     return 0xdeaddead;
   }
 }

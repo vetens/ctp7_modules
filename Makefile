@@ -17,79 +17,152 @@ CTP7_MODULES_VER_MAJOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); pr
 CTP7_MODULES_VER_MINOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[2];}' | awk '{split($$0,b,":"); print b[2];}')
 CTP7_MODULES_VER_PATCH:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[3];}' | awk '{split($$0,b,":"); print b[2];}')
 
-include $(BUILD_HOME)//$(Package)/config/mfZynq.mk
-include $(BUILD_HOME)//$(Package)/config/mfCommonDefs.mk
-include $(BUILD_HOME)//$(Package)/config/mfRPMRules.mk
+include $(BUILD_HOME)/$(Package)/config/mfZynq.mk
+include $(BUILD_HOME)/$(Package)/config/mfCommonDefs.mk
+include $(BUILD_HOME)/$(Package)/config/mfRPMRules.mk
 
-IncludeDirs  = ${BUILD_HOME}/$(Package)/include
-IncludeDirs += ${BUILD_HOME}/xhal/xhalcore/include
-#IncludeDirs += /opt/cactus/include
+PackageBase = $(BUILD_HOME)/$(Package)
+ProjectBase = $(BUILD_HOME)/$(Project)
+IncludeDirs = $(PackageBase)/include
+IncludeDirs+= /opt/xhal/include
+# IncludeDirs+= /opt/cactus/include
+IncludeDirs+= /opt/wiscrpcsvc/include
+IncludeDirs+= /opt/reedmuller/include
 INC=$(IncludeDirs:%=-I%)
 
-LDFLAGS+= -L${BUILD_HOME}/xhal/xhalarm/lib
-LDFLAGS+= -L${BUILD_HOME}/$(Package)/lib
+ifndef GEM_VARIANT
+GEM_VARIANT = ge11
+endif
 
-SRCS= $(shell echo ${BUILD_HOME}/${Package}/src/*.cpp)
-TARGET_LIBS  = lib/memhub.so
-TARGET_LIBS += lib/memory.so
-TARGET_LIBS += lib/optical.so
-TARGET_LIBS += lib/utils.so
-TARGET_LIBS += lib/extras.so
-TARGET_LIBS += lib/amc.so
-TARGET_LIBS += lib/daq_monitor.so
-TARGET_LIBS += lib/vfat3.so
-TARGET_LIBS += lib/optohybrid.so
-TARGET_LIBS += lib/calibration_routines.so
+CFLAGS+= -DGEM_VARIANT="$(GEM_VARIANT)"
+CFLAGS+= -std=c++1y -O3 -pthread -fPIC
+
+LDFLAGS+= -Wl,--as-needed
+
+LibraryDirs = $(PackageBase)/lib
+LibraryDirs+= /opt/xhal/lib/arm
+LibraryDirs+= /opt/wiscrpcsvc/lib
+LibraryDirs+= /opt/reedmuller/lib/arm
+Libraries=$(LibraryDirs:%=-L%)
 
 .PHONY: clean rpc prerpm
 
-default:
+default: build
 	@echo "Running default target"
 	$(MakeDir) $(PackageDir)
 
 _rpmprep: preprpm
 	@echo "Running _rpmprep target"
+
 preprpm: default
 	@echo "Running preprpm target"
 	@cp -rf lib $(PackageDir)
 
-build: $(TARGET_LIBS)
+PackageSourceDir =$(ProjectBase)/src
+PackageIncludeDir=$(ProjectBase)/include
+PackageLibraryDir=$(ProjectBase)/lib
+PackageObjectDir =$(PackageSourceDir)/linux/$(Arch)
+# PackageObjectDir=$(PackageSourceDir)/linux
+Sources      := $(wildcard $(PackageSourceDir)/*.cpp) $(wildcard $(PackageSourceDir)/*/*.cpp)
+Dependencies := $(patsubst $(PackageSourceDir)/%.cpp, $(PackageObjectDir)/%.d, $(Sources))
+TargetObjects:= $(patsubst %.d,%.o,$(Dependencies))
 
-_all: $(TARGET_LIBS)
+TargetLibraries:= memhub memory optical utils extras amc daq_monitor vfat3 optohybrid calibration_routines gbt
 
-lib/memhub.so: src/memhub.cpp 
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,memhub.so -o $@ $< -lwisci2c -lmemsvc 
+# Everything links against these three
+BASE_LINKS = -lxhal -llmdb -lwisci2c
 
-lib/memory.so: src/memory.cpp 
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,memory.so -o $@ $< -lwisci2c -l:memhub.so
+## Generic shared object creation rule, need to accomodate cases where we have lib.o lib/sub.o
+pc:=%
+.SECONDEXPANSION:
+$(PackageLibraryDir)/%.so: $$(filter $(PackageObjectDir)/$$*$$(pc).o, $(TargetObjects))
+	$(MakeDir) $(@D)
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(Libraries) -shared -Wl,-soname,$(*F).so -o $@ $^ $(EXTRA_LINKS) $(BASE_LINKS)
 
-lib/optical.so: src/optical.cpp 
-	$(CXX) $(CFLAGS) $(INC) $(LDFLAGS) -fPIC -shared -o $@ $< -lwisci2c
+## adapted from http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
+## Generic object creation rule, generate dependencies and use them later
+$(PackageObjectDir)/%.o: $(PackageSourceDir)/%.cpp
+	$(MakeDir) $(@D)
+	$(CXX) $(CFLAGS) -c $(INC) -MT $@ -MMD -MP -MF $(@D)/$(*F).Td -o $@ $<
+	mv $(@D)/$(*F).Td $(@D)/$(*F).d
+# this was to prevent an older object than dependency file (for some versions of gcc)
+	touch $@
 
-lib/utils.so: src/utils.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,utils.so -o $@ $< -lwisci2c -lxhal -llmdb -l:memhub.so
+## dummy rule for dependencies
+$(PackageObjectDir)/%.d:
 
-lib/extras.so: src/extras.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,extras.so -o $@ $< -lwisci2c -lxhal -llmdb -l:memhub.so
+## mark dependencies and objects as not auto-removed
+.PRECIOUS: $(PackageObjectDir)/%.d
+.PRECIOUS: $(PackageObjectDir)/%.o
 
-lib/amc.so: src/amc.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,amc.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so
+## Force rule for all target library names
+$(TargetLibraries):
 
-lib/daq_monitor.so: src/daq_monitor.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,daq_monitor.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:amc.so
+## Define the target library dependencies
+memhub:
+	$(eval export EXTRA_LINKS=-lmemsvc)
+	$(MAKE) $(PackageLibraryDir)/memhub.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
-lib/vfat3.so: src/vfat3.cpp 
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,vfat3.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:amc.so
+memory: memhub
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/memory.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
-lib/optohybrid.so: src/optohybrid.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,optohybrid.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:amc.so
+optical: memhub
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/optical.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
-lib/calibration_routines.so: src/calibration_routines.cpp
-	$(CXX) $(CFLAGS) -std=c++1y -O3 -pthread $(INC) $(LDFLAGS) -fPIC -shared -Wl,-soname,calibration_routines.so -o $@ $< -lwisci2c -lxhal -llmdb -l:utils.so -l:extras.so -l:optohybrid.so -l:vfat3.so -l:amc.so
+utils: memhub
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/utils.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+extras: utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/extras.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+amc: utils extras
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/amc.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+daq_monitor: amc extras utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/daq_monitor.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+vfat3: optohybrid amc extras utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so) -lreedmuller)
+	$(MAKE) $(PackageLibraryDir)/vfat3.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+optohybrid: amc extras utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/optohybrid.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+calibration_routines: optohybrid vfat3 amc extras utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/calibration_routines.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+gbt: utils
+	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
+	$(MAKE) $(PackageLibraryDir)/gbt.so EXTRA_LINKS="$(EXTRA_LINKS)"
+
+build: $(TargetLibraries)
+	@echo Executing build stage
+
+_all: build
+	@echo Executing _all stage
+
+### local (PC) test functions, need standard gcc toolchain, dirs, and flags
+.PHONY: test
+test: test/tester.cpp
+	g++ -O0 -g3 -fno-inline -o test/$@ $< $(INC) $(LDFLAGS) -L/opt/wiscrpcsvc/lib -lwiscrpcsvc
 
 clean: cleanrpm
-	-rm -rf lib/*.so
+	@echo Cleaning up all generated files
 	-rm -rf $(PackageDir)
+	-rm -rf $(Dependencies)
+	-rm -rf $(TargetObjects)
+	-rm -rf $(PackageObjectDir)
+	-rm -rf $(PackageLibraryDir)
 
-cleandoc: 
+cleandoc:
 	@echo "TO DO"
+
+-include $(Dependencies)

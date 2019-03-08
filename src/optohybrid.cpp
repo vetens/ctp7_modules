@@ -553,7 +553,7 @@ void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
         uint32_t trimVal=0;
         for(int vfatN=0; vfatN<24; ++vfatN){
             if ((mask >> vfatN) & 0x1) continue; //skip masked VFATs
-            for(uint32_t chan=ch_min; chan<ch_max; ++chan){
+            for(uint32_t chan=ch_min; chan<=ch_max; ++chan){
                 trimVal = (0x3f & readReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan)));
                 writeReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan),trimVal);
                 if(chan>127){
@@ -565,7 +565,7 @@ void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
     else if (fw_maj == 3){
         for(int vfatN = 0; vfatN < 24; vfatN++){
             if ((mask >> vfatN) & 0x1) continue; //skip masked VFATs
-            for(uint32_t chan=ch_min; chan<ch_max; ++chan){
+            for(uint32_t chan=ch_min; chan<=ch_max; ++chan){
                 writeReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFAT%d.VFAT_CHANNELS.CHANNEL%d.CALPULSE_ENABLE", ohN, vfatN, chan), 0x0);
             }
         }
