@@ -626,80 +626,108 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t ohMask=0x3FF)
 {
     char regBuf[200];
-    //TODO: check that OH mask does not exceeds 0x3FF
+    // Check that OH mask does not exceeds 0x3FF
+    if (ohMask > 0x3FF) {
+         LOGGER->log_message(LogManager::ERROR, "sbitRateScan supports only up to 12 optohybrids per CTP7");
+         sprintf(regBuf,"sbitRateScan supports only up to 12 optohybrids per CTP7");
+         la->response->set_string("error",regBuf);
+         return;
+    }
     uint32_t vfatmask[12] = {0};
-    std::vector<std::unordered_map<uint32_t, uint32_t>*> origVFATmasks(12);
+    //std::vector<std::unordered_map<uint32_t, uint32_t>*> origVFATmasks(12);
+    std::unordered_map<uint32_t, uint32_t> origVFATmasks[12][24];
     switch (fw_version_check("SBIT Rate Scan", la)){
         case 3:
         {
             // Loop over ohMask and retrieve VFAT masks
-            for (int i = 0; i < 12; ++i) {
-                if (ohMask >> i) & 0x1 {
-                    vfatmask[i] = getOHVFATMaskLocal(la, i);
-                    //If ch!=128 store the original channel mask settings
-                    //Then mask all other channels except for channel ch
-                    std::unordered_map<uint32_t, uint32_t> map_chanOrigMask[24]; //key -> reg addr; val -> reg value
-                    uint32_t notmask = ~vfatmask[i];
-                    if( ch != 128){
-                        for(int vfat = 0; vfat < 24; ++vfat){
-                            //Skip this vfat if it's masked
-                            if ( !( (notmask >> vfat) & 0x1)) continue;
-                            map_chanOrigMask[vfat] = setSingleChanMask(ohN,vfat,ch,la);
-                        } //End loop over all vfats
-                    } //End loop over vfat channels
-                    origVFATmasks[i] = map_chanOrigMask;
-                }
-            }
+            if( ch != 128){
+                for (int ohN = 0; ohN < 12; ++ohN) {
+                    if ((ohMask >> ohN) & 0x1) {
+                        vfatmask[ohN] = getOHVFATMaskLocal(la, ohN);
+                        //If ch!=128 store the original channel mask settings
+                        //Then mask all other channels except for channel ch
+                        //std::unordered_map<uint32_t, uint32_t> map_chanOrigMask[24]; //key -> reg addr; val -> reg value
+                        uint32_t notmask = ~vfatmask[ohN];
+                            for(int vfat = 0; vfat < 24; ++vfat){
+                                //Skip this vfat if it's masked
+                                if ( !( (notmask >> vfat) & 0x1)) continue;
+                                //map_chanOrigMask[vfat] = setSingleChanMask(ohN,vfat,ch,la);
+                                origVFATmasks[ohN][vfat] = setSingleChanMask(ohN,vfat,ch,la);
+                            } //End loop over all vfats
+                        //origVFATmasks[ohN] = map_chanOrigMask;
+                    }
+                } //End loop over optohybrids
+            } //End loop over vfat channels
 
-            //TODO: Insert the block below in the loop above
             //Get the SBIT Rate Monitor Address
-            uint32_t ohTrigRateAddr[25]; //idx 0->23 VFAT counters; idx 24 overall rate
-            sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
-            ohTrigRateAddr[24] = getAddress(la, regBuf);
-            for(int vfat=0; vfat<24; ++vfat){
-                sprintf(regBuf,"GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.VFAT%i_SBITS",ohN,vfat);
-                ohTrigRateAddr[vfat] = getAddress(la, regBuf);
-            } //End Loop over all VFATs
+            uint32_t ohTrigRateAddr[12][25]; //idx 0->23 VFAT counters; idx 24 overall rate
+            for (int ohN = 0; ohN < 12; ++ohN) {
+                if ((ohMask >> ohN) & 0x1) {
+                    sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
+                    ohTrigRateAddr[ohN][24] = getAddress(la, regBuf);
+                    for(int vfat=0; vfat<24; ++vfat){
+                        sprintf(regBuf,"GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.VFAT%i_SBITS",ohN,vfat);
+                        ohTrigRateAddr[ohN][vfat] = getAddress(la, regBuf);
+                    } //End loop over all VFATs
+                }
+            } //End loop over optohybrids     
 
             //Take the VFATs out of slow control only mode
             writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
 
             //Prep the SBIT counters
-            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
-            writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98); //count for 1 second
+            for (int ohN = 0; ohN < 12; ++ohN) {
+                if ((ohMask >> ohN) & 0x1) {
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98); //count for 1 second
+                }
+            }
 
             //Loop from dacMin to dacMax in steps of dacStep
             for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
                 //Set the scan register value
-                for(int vfat=0; vfat<24; ++vfat){
-                    if ( !( (notmask >> vfat) & 0x1)) continue;
-                    sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfat,scanReg.c_str());
-                    writeReg(la, regBuf, dacVal);
-                } //End Loop Over all VFATs
+                for (int ohN = 0; ohN < 12; ++ohN) {
+                    if ((ohMask >> ohN) & 0x1) {
+                        uint32_t notmask = ~vfatmask[ohN];
+                        for(int vfat=0; vfat<24; ++vfat){
+                            if ( !( (notmask >> vfat) & 0x1)) continue;
+                            sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfat,scanReg.c_str());
+                            writeReg(la, regBuf, dacVal);
+                        } //End Loop Over all VFATs
 
-                //Reset the counters
-                writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.RESET",ohN), 0x1);
+                        //Reset the counters
+                        writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.RESET",ohN), 0x1);
 
-                //Wait just over 1 second
-                std::this_thread::sleep_for(std::chrono::milliseconds(1005));
+                        //Wait just over 1 second
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1005));
 
-                //Read the counters
-                int idx = (dacVal-dacMin)/dacStep;
-                outDataDacVal[idx] = dacVal;
-                outDataTrigRateOverall[idx] = readRawAddress(ohTrigRateAddr[24], la->response);
-                for(int vfat=0; vfat<24; ++vfat){
-                    if ( !( (notmask >> vfat) & 0x1)) continue;
+                        //Read the counters
+                        int idx = ohN*(dacMax-dacMin+1)/dacStep + (dacVal-dacMin)/dacStep;
+                        outDataDacVal[idx] = dacVal;
+                        outDataTrigRateOverall[idx] = readRawAddress(ohTrigRateAddr[ohN][24], la->response);
+                        for(int vfat=0; vfat<24; ++vfat){
+                            if ( !( (notmask >> vfat) & 0x1)) continue;
 
-                    idx = vfat*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
-                    outDataTrigRatePerVFAT[idx] = readRawAddress(ohTrigRateAddr[vfat], la->response);
-                }
+                            idx = ohN*24*(dacMax-dacMin+1)/dacStep + vfat*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
+                            outDataTrigRatePerVFAT[idx] = readRawAddress(ohTrigRateAddr[ohN][vfat], la->response);
+                        }
+                    } // End checking whether the OH is masked
+                } // End loop over optohybrids
             } //End Loop from dacMin to dacMax
 
             //Restore the original channel masks if specific channel was requested
             if( ch != 128) {
-                for(int vfat=0; vfat<24; ++vfat){
-                    if ( !( (notmask >> vfat) & 0x1)) continue;
-                    applyChanMask(map_chanOrigMask[vfat], la);
+                for (int ohN = 0; ohN < 12; ++ohN) {
+                    if ((ohMask >> ohN) & 0x1) {
+                        uint32_t notmask = ~vfatmask[ohN];
+                        //std::unordered_map<uint32_t, uint32_t> map_chanOrigMask[24]; //key -> reg addr; val -> reg value
+                        //map_chanOrigMask = origVFATmasks[ohN];
+                        for(int vfat=0; vfat<24; ++vfat){
+                            if ( !( (notmask >> vfat) & 0x1)) continue;
+                            //applyChanMask(map_chanOrigMask[vfat], la);
+                            applyChanMask(origVFATmasks[ohN][vfat], la);
+                        }
+                    }
                 }
             }
             break;
@@ -740,17 +768,20 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
     uint32_t outDataDacVal[(dacMax-dacMin+1)/dacStep];
     uint32_t outDataTrigRate[(dacMax-dacMin+1)/dacStep];
     if(isParallel){
-        uint32_t outDataTrigRatePerVFAT[24*(dacMax-dacMin+1)/dacStep];
-        sbitRateScanParallelLocal(&la, outDataDacVal, outDataTrigRatePerVFAT, outDataTrigRate, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg);
+        uint32_t outDataTrigRatePerVFAT[12*24*(dacMax-dacMin+1)/dacStep];
+        uint32_t outDataDacValPerOH[12*(dacMax-dacMin+1)/dacStep];
+        uint32_t outDataTrigRatePerOH[12*(dacMax-dacMin+1)/dacStep];
+        sbitRateScanParallelLocal(&la, outDataDacValPerOH, outDataTrigRatePerVFAT, outDataTrigRatePerOH, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg);
 
-        response->set_word_array("outDataVFATRate", outDataTrigRatePerVFAT, 24*(dacMax-dacMin+1)/dacStep);
+        response->set_word_array("outDataVFATRate", outDataTrigRatePerVFAT, 12*24*(dacMax-dacMin+1)/dacStep);
+        response->set_word_array("outDataDacValue", outDataDacValPerOH, 12*(dacMax-dacMin+1)/dacStep);
+        response->set_word_array("outDataCTP7Rate", outDataTrigRatePerOH, 12*(dacMax-dacMin+1)/dacStep);
     }
     else{
         sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, invertVFATPos, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
+        response->set_word_array("outDataDacValue", outDataDacVal, (dacMax-dacMin+1)/dacStep);
+        response->set_word_array("outDataCTP7Rate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
     }
-
-    response->set_word_array("outDataDacValue", outDataDacVal, (dacMax-dacMin+1)/dacStep);
-    response->set_word_array("outDataCTP7Rate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
 
     return;
 } //End sbitRateScan(...)
