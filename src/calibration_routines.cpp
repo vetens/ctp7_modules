@@ -720,8 +720,7 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
 {
     GETLOCALARGS(response);
 
-    uint32_t ohN = request->get_word("ohN");
-    uint32_t maskOh = request->get_word("maskOh");
+    uint32_t ohMask = request->get_word("ohMask");
     bool invertVFATPos = request->get_word("invertVFATPos");
     uint32_t ch = request->get_word("ch");
     uint32_t dacMin = request->get_word("dacMin");
@@ -737,7 +736,7 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
         uint32_t outDataTrigRatePerVFAT[12*24*(dacMax-dacMin+1)/dacStep];
         uint32_t outDataDacValPerOH[12*(dacMax-dacMin+1)/dacStep];
         uint32_t outDataTrigRatePerOH[12*(dacMax-dacMin+1)/dacStep];
-        sbitRateScanParallelLocal(&la, outDataDacValPerOH, outDataTrigRatePerVFAT, outDataTrigRatePerOH, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg);
+        sbitRateScanParallelLocal(&la, outDataDacValPerOH, outDataTrigRatePerVFAT, outDataTrigRatePerOH, ch, dacMin, dacMax, dacStep, scanReg, ohMask);
 
         response->set_word_array("outDataVFATRate", outDataTrigRatePerVFAT, 12*24*(dacMax-dacMin+1)/dacStep);
         response->set_word_array("outDataDacValue", outDataDacValPerOH, 12*(dacMax-dacMin+1)/dacStep);
