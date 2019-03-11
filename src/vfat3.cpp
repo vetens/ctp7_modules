@@ -572,15 +572,16 @@ void getVFAT3ChipIDsLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask, bool 
   std::string regName;
 
   for(int vfatN = 0; vfatN < 24; vfatN++) {
-    // Check if vfat is masked
-    if(!((notmask >> vfatN) & 0x1)){
-        continue;
-    } //End check if VFAT is masked
-
     char regBase [100];
     sprintf(regBase, "GEM_AMC.OH.OH%i.GEB.VFAT%i.HW_CHIP_ID",ohN, vfatN);
 
     regName = std::string(regBase);
+    // Check if vfat is masked
+    if(!((notmask >> vfatN) & 0x1)){
+        la->response->set_word(regName,0xdeaddead);
+        continue;
+    } //End check if VFAT is masked
+
     uint32_t id = readReg(la,regName);
     uint16_t decChipID = 0x0;
     try {
@@ -635,11 +636,11 @@ extern "C" {
         modmgr->register_method("vfat3", "configureVFAT3DacMonitor", configureVFAT3DacMonitor);
         modmgr->register_method("vfat3", "configureVFAT3DacMonitorMultiLink", configureVFAT3DacMonitorMultiLink);
         modmgr->register_method("vfat3", "getChannelRegistersVFAT3", getChannelRegistersVFAT3);
+        modmgr->register_method("vfat3", "getVFAT3ChipIDs", getVFAT3ChipIDs);
         modmgr->register_method("vfat3", "readVFAT3ADC", readVFAT3ADC);
         modmgr->register_method("vfat3", "readVFAT3ADCMultiLink", readVFAT3ADCMultiLink);
         modmgr->register_method("vfat3", "setChannelRegistersVFAT3", setChannelRegistersVFAT3);
         modmgr->register_method("vfat3", "statusVFAT3s", statusVFAT3s);
         modmgr->register_method("vfat3", "vfatSyncCheck", vfatSyncCheck);
-        modmgr->register_method("vfat3", "getVFAT3ChipIDs", getVFAT3ChipIDs);
     }
 }
