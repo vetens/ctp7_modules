@@ -667,7 +667,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
                         ohTrigRateAddr[ohN][vfat] = getAddress(la, regBuf);
                     } //End loop over all VFATs
                 }
-            } //End loop over optohybrids     
+            } //End loop over optohybrids
 
             //Take the VFATs out of slow control only mode
             writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
@@ -748,33 +748,21 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
     auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
     uint32_t ohMask = request->get_word("ohMask");
-    bool invertVFATPos = request->get_word("invertVFATPos");
     uint32_t ch = request->get_word("ch");
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
     std::string scanReg = request->get_string("scanReg");
-    uint32_t waitTime = request->get_word("waitTime");
-    bool isParallel = request->get_word("isParallel");
 
     struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-    uint32_t outDataDacVal[(dacMax-dacMin+1)/dacStep];
-    uint32_t outDataTrigRate[(dacMax-dacMin+1)/dacStep];
-    if(isParallel){
-        uint32_t outDataTrigRatePerVFAT[12*24*(dacMax-dacMin+1)/dacStep];
-        uint32_t outDataDacValPerOH[12*(dacMax-dacMin+1)/dacStep];
-        uint32_t outDataTrigRatePerOH[12*(dacMax-dacMin+1)/dacStep];
-        sbitRateScanParallelLocal(&la, outDataDacValPerOH, outDataTrigRatePerVFAT, outDataTrigRatePerOH, ch, dacMin, dacMax, dacStep, scanReg, ohMask);
+    uint32_t outDataTrigRatePerVFAT[12*24*(dacMax-dacMin+1)/dacStep];
+    uint32_t outDataDacValPerOH[12*(dacMax-dacMin+1)/dacStep];
+    uint32_t outDataTrigRatePerOH[12*(dacMax-dacMin+1)/dacStep];
+    sbitRateScanParallelLocal(&la, outDataDacValPerOH, outDataTrigRatePerVFAT, outDataTrigRatePerOH, ch, dacMin, dacMax, dacStep, scanReg, ohMask);
 
-        response->set_word_array("outDataVFATRate", outDataTrigRatePerVFAT, 12*24*(dacMax-dacMin+1)/dacStep);
-        response->set_word_array("outDataDacValue", outDataDacValPerOH, 12*(dacMax-dacMin+1)/dacStep);
-        response->set_word_array("outDataCTP7Rate", outDataTrigRatePerOH, 12*(dacMax-dacMin+1)/dacStep);
-    }
-    else{
-        sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, invertVFATPos, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
-        response->set_word_array("outDataDacValue", outDataDacVal, (dacMax-dacMin+1)/dacStep);
-        response->set_word_array("outDataCTP7Rate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
-    }
+    response->set_word_array("outDataVFATRate", outDataTrigRatePerVFAT, 12*24*(dacMax-dacMin+1)/dacStep);
+    response->set_word_array("outDataDacValue", outDataDacValPerOH, 12*(dacMax-dacMin+1)/dacStep);
+    response->set_word_array("outDataCTP7Rate", outDataTrigRatePerOH, 12*(dacMax-dacMin+1)/dacStep);
 
     return;
 } //End sbitRateScan(...)
