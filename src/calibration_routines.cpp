@@ -634,7 +634,6 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
          return;
     }
     uint32_t vfatmask[12] = {0};
-    //std::vector<std::unordered_map<uint32_t, uint32_t>*> origVFATmasks(12);
     std::unordered_map<uint32_t, uint32_t> origVFATmasks[12][24];
     switch (fw_version_check("SBIT Rate Scan", la)){
         case 3:
@@ -646,12 +645,10 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
                         vfatmask[ohN] = getOHVFATMaskLocal(la, ohN);
                         //If ch!=128 store the original channel mask settings
                         //Then mask all other channels except for channel ch
-                        //std::unordered_map<uint32_t, uint32_t> map_chanOrigMask[24]; //key -> reg addr; val -> reg value
                         uint32_t notmask = ~vfatmask[ohN];
                             for(int vfat = 0; vfat < 24; ++vfat){
                                 //Skip this vfat if it's masked
                                 if ( !( (notmask >> vfat) & 0x1)) continue;
-                                //map_chanOrigMask[vfat] = setSingleChanMask(ohN,vfat,ch,la);
                                 origVFATmasks[ohN][vfat] = setSingleChanMask(ohN,vfat,ch,la);
                             } //End loop over all vfats
                         //origVFATmasks[ohN] = map_chanOrigMask;
@@ -720,11 +717,8 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
                 for (int ohN = 0; ohN < 12; ++ohN) {
                     if ((ohMask >> ohN) & 0x1) {
                         uint32_t notmask = ~vfatmask[ohN];
-                        //std::unordered_map<uint32_t, uint32_t> map_chanOrigMask[24]; //key -> reg addr; val -> reg value
-                        //map_chanOrigMask = origVFATmasks[ohN];
                         for(int vfat=0; vfat<24; ++vfat){
                             if ( !( (notmask >> vfat) & 0x1)) continue;
-                            //applyChanMask(map_chanOrigMask[vfat], la);
                             applyChanMask(origVFATmasks[ohN][vfat], la);
                         }
                     }
