@@ -202,7 +202,7 @@ void writeReg(LocalArgs * la, const std::string & regName, uint32_t value);
  *  \param values Values to write to the block
  *  \param offset Start writing at an offset from the base address returned by regName
  */
-void writeBlock(localArgs* la, const std::string& regName, const uint32_t& size, const uint32_t* values, const uint32_t& offset=0);
+void writeBlock(localArgs* la, const std::string& regName, const uint32_t* values, const uint32_t& size, const uint32_t& offset=0);
 
 /*!
  *  \brief Writes a block of values to a contiguous address space.

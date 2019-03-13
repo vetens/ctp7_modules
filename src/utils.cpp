@@ -417,7 +417,7 @@ void writeReg(localArgs * la, const std::string & regName, uint32_t value)
   }
 }
 
-void writeBlock(localArgs* la, const std::string& regName, const uint32_t& size, const uint32_t* values, const uint32_t& offset)
+void writeBlock(localArgs* la, const std::string& regName, const uint32_t* values, const uint32_t& size, const uint32_t& offset)
 {
   lmdb::val key, db_res;
   key.assign(regName.c_str());
