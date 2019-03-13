@@ -277,18 +277,18 @@ void configureScanModuleLocal(localArgs * la, uint32_t ohN, uint32_t vfatN, uint
     writeRawReg(la, scanBase + ".RESET", 0x1);
 
     // write scan parameters
-    writeReg(la, scanBase + ".MODE", scanmode);
+    writeReg(la, scanBase + ".CONF.MODE", scanmode);
     if (useUltra){
-        writeReg(la, scanBase + ".MASK", mask);
+        writeReg(la, scanBase + ".CONF.MASK", mask);
     }
     else{
-        writeReg(la, scanBase + ".CHIP", vfatN);
+        writeReg(la, scanBase + ".CONF.CHIP", vfatN);
     }
-    writeReg(la, scanBase + ".CHAN", ch);
-    writeReg(la, scanBase + ".NTRIGS", nevts);
-    writeReg(la, scanBase + ".MIN", dacMin);
-    writeReg(la, scanBase + ".MAX", dacMax);
-    writeReg(la, scanBase + ".STEP", dacStep);
+    writeReg(la, scanBase + ".CONF.CHAN", ch);
+    writeReg(la, scanBase + ".CONF.NTRIGS", nevts);
+    writeReg(la, scanBase + ".CONF.MIN", dacMin);
+    writeReg(la, scanBase + ".CONF.MAX", dacMax);
+    writeReg(la, scanBase + ".CONF.STEP", dacStep);
 
     return;
 } //End configureScanModuleLocal(...)
@@ -356,19 +356,19 @@ void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
     std::map<std::string, uint32_t> map_regValues;
 
     //Set reg names
-    map_regValues[scanBase + ".MODE"] = 0;
-    map_regValues[scanBase + ".MIN"] = 0;
-    map_regValues[scanBase + ".MAX"] = 0;
-    map_regValues[scanBase + ".STEP"] = 0;
-    map_regValues[scanBase + ".CHAN"] = 0;
-    map_regValues[scanBase + ".NTRIGS"] = 0;
+    map_regValues[scanBase + ".CONF.MODE"] = 0;
+    map_regValues[scanBase + ".CONF.MIN"] = 0;
+    map_regValues[scanBase + ".CONF.MAX"] = 0;
+    map_regValues[scanBase + ".CONF.STEP"] = 0;
+    map_regValues[scanBase + ".CONF.CHAN"] = 0;
+    map_regValues[scanBase + ".CONF.NTRIGS"] = 0;
     map_regValues[scanBase + ".MONITOR.STATUS"] = 0;
 
     if (useUltra){
-        map_regValues[scanBase + ".MASK"] = 0;
+        map_regValues[scanBase + ".CONF.MASK"] = 0;
     }
     else{
-        map_regValues[scanBase + ".CHIP"] = 0;
+        map_regValues[scanBase + ".CONF.CHIP"] = 0;
     }
 
     stdsprintf(scanBase.c_str());
@@ -472,11 +472,11 @@ void getUltraScanResultsLocal(localArgs * la, uint32_t *outData, uint32_t ohN, u
     //Get L1A Count & num events
     uint32_t ohnL1A_0 =  readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
     uint32_t ohnL1A   =  readReg(la, "GEM_AMC.OH.OH" + strOhN + ".COUNTERS.T1.SENT.L1A");
-    uint32_t numtrigs = readReg(la, scanBase + ".NTRIGS");
+    uint32_t numtrigs = readReg(la, scanBase + ".CONF.NTRIGS");
 
     //Print latency counts
     bool bIsLatency = false;
-    if( readReg(la, scanBase + ".MODE") == 2){
+    if( readReg(la, scanBase + ".CONF.MODE") == 2){
         bIsLatency = true;
 
         stdsprintf(
@@ -549,28 +549,27 @@ void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
     //Get FW release
     uint32_t fw_maj = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
 
-    if (fw_maj == 1){
+    if (fw_maj == 1) {
         uint32_t trimVal=0;
-        for(int vfatN=0; vfatN<24; ++vfatN){
+        for (int vfatN=0; vfatN<24; ++vfatN) {
             if ((mask >> vfatN) & 0x1) continue; //skip masked VFATs
-            for(uint32_t chan=ch_min; chan<=ch_max; ++chan){
-                trimVal = (0x3f & readReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan)));
-                writeReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan),trimVal);
-                if(chan>127){
-                    LOGGER->log_message(LogManager::ERROR, stdsprintf("OH %d: Chan %d greater than possible chan_max %d",ohN,chan,ch_max));
+            for (uint32_t chan=ch_min; chan<=ch_max; ++chan) {
+                if (chan>127) {
+                    LOGGER->log_message(LogManager::ERROR, stdsprintf("OH %d: Chan %d greater than possible chan_max %d",ohN,chan,127));
+                } else {
+                    trimVal = (0x3f & readReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan)));
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFATS.VFAT%d.VFATChannels.ChanReg%d",ohN,vfatN,chan),trimVal);
                 }
             }
         }
-    }
-    else if (fw_maj == 3){
-        for(int vfatN = 0; vfatN < 24; vfatN++){
+    } else if (fw_maj == 3) {
+        for (int vfatN = 0; vfatN < 24; vfatN++) {
             if ((mask >> vfatN) & 0x1) continue; //skip masked VFATs
-            for(uint32_t chan=ch_min; chan<=ch_max; ++chan){
+            for (uint32_t chan=ch_min; chan<=ch_max; ++chan) {
                 writeReg(la, stdsprintf("GEM_AMC.OH.OH%d.GEB.VFAT%d.VFAT_CHANNELS.CHANNEL%d.CALPULSE_ENABLE", ohN, vfatN, chan), 0x0);
             }
         }
-    }
-    else {
+    } else {
         LOGGER->log_message(LogManager::ERROR, stdsprintf("Unexpected value for system release major: %i",fw_maj));
     }
 

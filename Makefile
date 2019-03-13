@@ -115,7 +115,7 @@ utils: memhub
 	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
 	$(MAKE) $(PackageLibraryDir)/utils.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
-extras: utils
+extras: memhub utils
 	$(eval export EXTRA_LINKS=$(^:%=-l:%.so))
 	$(MAKE) $(PackageLibraryDir)/extras.so EXTRA_LINKS="$(EXTRA_LINKS)"
 
