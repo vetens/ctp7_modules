@@ -75,9 +75,9 @@ std::string serialize(xhal::utils::Node n);
  *  \param message The `std::string` error message.
  *  \param error_code Value which is passed to the `return` statement.
  */
-#define EMIT_RPC_ERROR(response, message, error_code){ \
-    LOGGER->log_message(LogManager::ERROR, message); \
-    response->set_string("error", message); \
+#define EMIT_RPC_ERROR(response, message, error_code) { \
+    LOGGER->log_message(LogManager::ERROR, message);    \
+    response->set_string("error", message);             \
     return error_code; }
 
 /*! \fn uint32_t getNumNonzeroBits(uint32_t value)
