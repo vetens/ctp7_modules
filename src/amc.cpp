@@ -259,5 +259,9 @@ extern "C" {
 
         // SCA module methods (from amc/sca)
         // modmgr->register_method("amc", "scaHardResetEnable", scaHardResetEnable);
+
+        // BLASTER RAM module methods (from amc/blaster_ram)
+        modmgr->register_method("amc", "writeConfRAM", writeConfRAM);
+        modmgr->register_method("amc", "readConfRAM",  readConfRAM);
     }
 }
