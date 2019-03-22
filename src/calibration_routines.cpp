@@ -13,9 +13,9 @@ std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, uns
     char regBuf[200];
     std::unordered_map<uint32_t, uint32_t> map_chanOrigMask; //key -> reg addr; val -> reg value
     uint32_t chanMaskAddr;
-    for(unsigned int chan=0; chan<128; ++chan){ //Loop Over All Channels
+    for (unsigned int chan=0; chan<128; ++chan) { //Loop Over All Channels
         uint32_t chMask = 1;
-        if ( ch == chan){ //Do not mask the channel of interest
+        if ( ch == chan) { //Do not mask the channel of interest
             chMask = 0;
         }
         //store the original channel mask
@@ -31,24 +31,25 @@ std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, uns
 
 void applyChanMask(std::unordered_map<uint32_t, uint32_t> map_chanOrigMask, localArgs *la)
 {
-    for(auto chanPtr = map_chanOrigMask.begin(); chanPtr != map_chanOrigMask.end(); ++chanPtr){
+    for (auto chanPtr = map_chanOrigMask.begin(); chanPtr != map_chanOrigMask.end(); ++chanPtr) {
         writeRawAddress( (*chanPtr).first, (*chanPtr).second, la->response);
     }
 }
 
-bool confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, bool toggleOn, bool currentPulse, uint32_t calScaleFactor){
+bool confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, bool toggleOn, bool currentPulse, uint32_t calScaleFactor)
+{
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
     char regBuf[200];
-    if(ch >= 128 && toggleOn == true){ //Case: Bad Config, asked for OR of all channels
+    if (ch >= 128 && toggleOn == true) { //Case: Bad Config, asked for OR of all channels
         la->response->set_string("error","confCalPulseLocal(): I was told to calpulse all channels which doesn't make sense");
         return false;
     } //End Case: Bad Config, asked for OR of all channels
-    else if(ch == 128 && toggleOn == false){ //Case: Turn cal pusle off for all channels
-        for(int vfatN = 0; vfatN < 24; vfatN++){ //Loop over all VFATs
-            if((notmask >> vfatN) & 0x1){ //End VFAT is not masked
-                for(int chan=0; chan < 128; ++chan){ //Loop Over all Channels
+    else if (ch == 128 && toggleOn == false) { //Case: Turn cal pusle off for all channels
+        for (int vfatN = 0; vfatN < 24; vfatN++) { //Loop over all VFATs
+            if ((notmask >> vfatN) & 0x1) { //End VFAT is not masked
+                for (int chan=0; chan < 128; ++chan) { //Loop Over all Channels
                     sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, chan);
                     writeReg(la, regBuf, 0x0);
                 } //End Loop Over all Channels
@@ -57,12 +58,12 @@ bool confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, 
         } //End Loop over all VFATs
     } //End Case: Turn cal pulse off for all channels
     else{ //Case: Pulse a specific channel
-        for(int vfatN = 0; vfatN < 24; vfatN++){ //Loop over all VFATs
-            if((notmask >> vfatN) & 0x1){ //End VFAT is not masked
+        for (int vfatN = 0; vfatN < 24; vfatN++) { //Loop over all VFATs
+            if ((notmask >> vfatN) & 0x1) { //End VFAT is not masked
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.CALPULSE_ENABLE", ohN, vfatN, ch);
-                if(toggleOn == true){ //Case: turn calpulse on
+                if (toggleOn == true) { //Case: turn calpulse on
                     writeReg(la, regBuf, 0x1);
-                    if(currentPulse){ //Case: cal mode current injection
+                    if (currentPulse) { //Case: cal mode current injection
                         writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_CAL_MODE", ohN, vfatN), 0x2);
 
                         //Set cal current pulse scale factor. Q = CAL DUR[s] * CAL DAC * 10nA * CAL FS[%] (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
@@ -88,13 +89,13 @@ void dacMonConfLocal(localArgs * la, uint32_t ohN, uint32_t ch)
 {
     //Check the firmware version
     char regBuf[200];
-    switch (fw_version_check("dacMonConf", la)){
+    switch (fw_version_check("dacMonConf", la)) {
         case 3:
         {
             writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x0);
             writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.RESET", 0x1);
             writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.OH_SELECT", ohN);
-            if(ch>127)
+            if (ch>127)
             {
                 writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.VFAT_CHANNEL_GLOBAL_OR", 0x1);
             }
@@ -122,7 +123,7 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
     switch(fw_version_check("ttcGenToggle", la)) {
         case 3: //v3 electronics behavior
         {
-            if (enable){
+            if (enable) {
                 writeReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE", 0x1); //Internal TTC generator enabled, TTC cmds from backplane are ignored
             }
             else{
@@ -137,13 +138,13 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
             sstream<<ohN;
             std::string contBase = "GEM_AMC.OH.OH" + sstream.str() + ".T1Controller";
 
-            if (enable){ //Start
-                if ( !(readReg(la, contBase + ".MONITOR"))){
+            if (enable) { //Start
+                if ( !(readReg(la, contBase + ".MONITOR"))) {
                     writeReg(la, contBase + ".TOGGLE", 0x1);   //Enable
                 }
             }
             else { //Stop
-                if( readReg(la, contBase + ".MONITOR")){
+                if ( readReg(la, contBase + ".MONITOR")) {
                     writeReg(la, contBase + ".TOGGLE", 0x0);   //Disable
                 }
             }
@@ -160,21 +161,13 @@ void ttcGenToggleLocal(localArgs * la, uint32_t ohN, bool enable)
 
 void ttcGenToggle(const RPCMsg *request, RPCMsg *response)
 {
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     bool enable = request->get_word("enable");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     ttcGenToggleLocal(&la, ohN, enable);
-
-    return;
+    rtxn.abort();
 } //End ttcGenToggle(...)
 
 void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type, uint32_t pulseDelay, uint32_t L1Ainterval, uint32_t nPulses, bool enable)
@@ -208,7 +201,7 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
                         )
                     );
 
-            if (mode == 0){
+            if (mode == 0) {
                 writeReg(la, contBase + ".TYPE", type);
                 LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for type 0x%x (0x%x)",
                             ohN,type,
@@ -216,7 +209,7 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
                             )
                         );
             }
-            if (mode == 1){
+            if (mode == 1) {
                 writeReg(la, contBase + ".DELAY", pulseDelay);
                 LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for delay %i (%i)",
                             ohN,pulseDelay,
@@ -224,7 +217,7 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
                             )
                         );
             }
-            if (mode != 2){
+            if (mode != 2) {
                 writeReg(la, contBase + ".INTERVAL", L1Ainterval);
                 LOGGER->log_message(LogManager::DEBUG, stdsprintf("OH%i : Configuring T1 Controller for interval %i (%i)",
                             ohN,L1Ainterval,
@@ -256,13 +249,7 @@ void ttcGenConfLocal(localArgs * la, uint32_t ohN, uint32_t mode, uint32_t type,
 void ttcGenConf(const RPCMsg *request, RPCMsg *response)
 {
     LOGGER->log_message(LogManager::INFO, "Entering ttcGenConf");
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t mode = request->get_word("mode");
@@ -272,11 +259,10 @@ void ttcGenConf(const RPCMsg *request, RPCMsg *response)
     uint32_t nPulses = request->get_word("nPulses");
     bool enable = request->get_word("enable");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     LOGGER->log_message(LogManager::INFO, stdsprintf("Calling ttcGenConfLocal with ohN : %i, mode : %i, type : %i, pulse delay : %i, L1A interval : %i, number of pulses : %i", ohN,mode,type,pulseDelay,L1Ainterval,nPulses));
     ttcGenConfLocal(&la, ohN, mode, type, pulseDelay, L1Ainterval, nPulses, enable);
 
-    return;
+    rtxn.abort();
 }
 
 void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask, uint32_t ch, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, bool useUltra, bool useExtTrig)
@@ -290,22 +276,22 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
         {
             uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
             char regBuf[200];
-            if( (notmask & goodVFATs) != notmask)
+            if ( (notmask & goodVFATs) != notmask)
             {
                 sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
                 la->response->set_string("error",regBuf);
                 return;
             }
 
-            if (currentPulse && calScaleFactor > 3){
+            if (currentPulse && calScaleFactor > 3) {
                 sprintf(regBuf,"Bad value for CFG_CAL_FS: %x, Possible values are {0b00, 0b01, 0b10, 0b11}. Exiting.",calScaleFactor);
                 la->response->set_string("error",regBuf);
                 return;
             }
 
             //Do we turn on the calpulse for the channel = ch?
-            if(useCalPulse){
-                if (confCalPulseLocal(la, ohN, mask, ch, true, currentPulse, calScaleFactor) == false){
+            if (useCalPulse) {
+                if (confCalPulseLocal(la, ohN, mask, ch, true, currentPulse, calScaleFactor) == false) {
                     la->response->set_string("error",stdsprintf("Unable to configure calpulse ON for ohN %i mask %x chan %i", ohN, mask, ch));
                     return; //Calibration pulse is not configured correctly
                 }
@@ -314,14 +300,14 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             //Get addresses
             uint32_t daqMonAddr[24];
             uint32_t l1CntAddr = getAddress(la, "GEM_AMC.TTC.CMD_COUNTERS.L1A");
-            for(int vfatN = 0; vfatN < 24; vfatN++)
+            for (int vfatN = 0; vfatN < 24; vfatN++)
             {
                 sprintf(regBuf,"GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.VFAT%i.GOOD_EVENTS_COUNT",vfatN);
                 daqMonAddr[vfatN] = getAddress(la, regBuf);
             }
 
             //TTC Config
-            if(useExtTrig){
+            if (useExtTrig) {
                 writeReg(la, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0);
                 writeReg(la, "GEM_AMC.TTC.CTRL.CNT_RESET", 0x1);
             }
@@ -334,10 +320,10 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             dacMonConfLocal(la, ohN, ch);
 
             //Scan over DAC values
-            for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep)
+            for (uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep)
             {
                 //Write the scan reg value
-                for(int vfatN = 0; vfatN < 24; vfatN++) if((notmask >> vfatN) & 0x1)
+                for (int vfatN = 0; vfatN < 24; vfatN++) if ((notmask >> vfatN) & 0x1)
                 {
                     writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str()), dacVal);
                 }
@@ -347,14 +333,14 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                 writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x1);
 
                 //Start the triggers
-                if(useExtTrig){
+                if (useExtTrig) {
                     writeReg(la, "GEM_AMC.TTC.CTRL.CNT_RESET", 0x1);
                     writeReg(la, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x1);
 
                     uint32_t l1aCnt = 0;
-                    while(l1aCnt < nevts){
+                    while(l1aCnt < nevts) {
                         l1aCnt = readRawAddress(l1CntAddr, la->response);
-                        std::this_thread::sleep_for(std::chrono::microseconds(200));
+                        std::this_thread::sleep_for (std::chrono::microseconds(200));
                     }
 
                     writeReg(la, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0);
@@ -362,9 +348,9 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                 }
                 else{
                     writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1);
-                    if(readReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE")){ //TTC Commands from TTC.GENERATOR
-                        while(readReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING")){
-                            std::this_thread::sleep_for(std::chrono::microseconds(50));
+                    if (readReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE")) { //TTC Commands from TTC.GENERATOR
+                        while(readReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING")) {
+                            std::this_thread::sleep_for (std::chrono::microseconds(50));
                         }
                     } //End TTC Commands from TTC.GENERATOR
                 }
@@ -373,7 +359,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                 writeReg(la, "GEM_AMC.GEM_TESTS.VFAT_DAQ_MONITOR.CTRL.ENABLE", 0x0);
 
                 //Read the DAQ Monitor counters
-                for(int vfatN = 0; vfatN < 24; vfatN++){
+                for (int vfatN = 0; vfatN < 24; vfatN++) {
                     if ( !( (notmask >> vfatN) & 0x1)) continue;
 
                     int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
@@ -392,8 +378,8 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             } //End Loop from dacMin to dacMax
 
             //If the calpulse for channel ch was turned on, turn it off
-            if(useCalPulse){
-                if (confCalPulseLocal(la, ohN, mask, ch, false, currentPulse, calScaleFactor) == false){
+            if (useCalPulse) {
+                if (confCalPulseLocal(la, ohN, mask, ch, false, currentPulse, calScaleFactor) == false) {
                     la->response->set_string("error",stdsprintf("Unable to configure calpulse OFF for ohN %i mask %x chan %i", ohN, mask, ch));
                     return; //Calibration pulse is not configured correctly
                 }
@@ -413,18 +399,18 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
             uint32_t scanmode = 1000;
 
-            for (auto knownRegIter = map_strKnownRegs.begin(); knownRegIter != map_strKnownRegs.end(); ++knownRegIter){
+            for (auto knownRegIter = map_strKnownRegs.begin(); knownRegIter != map_strKnownRegs.end(); ++knownRegIter) {
                 //Comparison code goes here
-                if ( (*knownRegIter).second.compare(scanReg) == 0){
+                if ( (*knownRegIter).second.compare(scanReg) == 0) {
                     scanmode = (*knownRegIter).first;
                     break;
                 }
             }
 
             //scanmode not understood
-            if (scanmode == 1000){
+            if (scanmode == 1000) {
                 std::string strError = "scanReg: " + scanReg + " not understood.  Supported values are:\n";
-                for (auto knownRegIter = map_strKnownRegs.begin(); knownRegIter != map_strKnownRegs.end(); ++knownRegIter){
+                for (auto knownRegIter = map_strKnownRegs.begin(); knownRegIter != map_strKnownRegs.end(); ++knownRegIter) {
                     scanReg += ((*knownRegIter).second + "\n");
                 }
                 la->response->set_string("error",strError);
@@ -432,10 +418,10 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
             //Configure scan module
             uint32_t vfatN = 0;
-            if (!useUltra){
+            if (!useUltra) {
                 //If we are not performing an ultraScan, take the first non-masked VFAT
-                for(int vfat=0; vfat<24; ++vfat){
-                    if((notmask >> vfat) & 0x1){
+                for (int vfat=0; vfat<24; ++vfat) {
+                    if ((notmask >> vfat) & 0x1) {
                         vfatN=vfat;
                         break;
                     }
@@ -449,14 +435,14 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
             //Do we turn on the calpulse for the channel = ch?
             uint32_t trimVal=0;
-            if(useCalPulse){
-                if(ch >= 128){
+            if (useCalPulse) {
+                if (ch >= 128) {
                     la->response->set_string("error","It doesn't make sense to calpulse all channels");
                     return;
                 }
                 else{
-                    for(int vfat=0; vfat<24; ++vfat){
-                        if ( (notmask >> vfat) & 0x1){
+                    for (int vfat=0; vfat<24; ++vfat) {
+                        if ( (notmask >> vfat) & 0x1) {
                             trimVal = (0x3f & readReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
                             writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal+64);
                         }
@@ -468,9 +454,9 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
             startScanModuleLocal(la, ohN, useUltra);
 
             //If the calpulse for channel ch was turned on, turn it off
-            if(useCalPulse){
-                for(int vfat=0; vfat<24; ++vfat){
-                    if ( (notmask >> vfat) & 0x1){
+            if (useCalPulse) {
+                for (int vfat=0; vfat<24; ++vfat) {
+                    if ( (notmask >> vfat) & 0x1) {
                         trimVal = (0x3f & readReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch)));
                         writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFATS.VFAT%i.VFATChannels.ChanReg%i",ohN,vfat,ch),trimVal);
                     }
@@ -492,13 +478,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
 
 void genScan(const RPCMsg *request, RPCMsg *response)
 {
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t nevts = request->get_word("nevts");
     uint32_t ohN = request->get_word("ohN");
@@ -513,23 +493,22 @@ void genScan(const RPCMsg *request, RPCMsg *response)
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
-    if (request->get_key_exists("useUltra")){
+    if (request->get_key_exists("useUltra")) {
         useUltra = true;
     }
     bool useExtTrig = request->get_word("useExtTrig");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[24*(dacMax-dacMin+1)/dacStep];
     genScanLocal(&la, outData, ohN, mask, ch, useCalPulse, currentPulse, calScaleFactor, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
     response->set_word_array("data",outData,24*(dacMax-dacMin+1)/dacStep);
 
-    return;
+    rtxn.abort();
 }
 
 void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRate, uint32_t ohN, uint32_t maskOh, bool invertVFATPos, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t waitTime)
 {
     char regBuf[200];
-    switch (fw_version_check("SBIT Rate Scan", la)){
+    switch (fw_version_check("SBIT Rate Scan", la)) {
         case 3:
         {
             //Hard code possible maskOh values and how they map to vfatN
@@ -561,7 +540,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 
             //Determine vfatN based on input maskOh
             auto vfatNptr = map_maskOh2vfatN.find(maskOh);
-            if( vfatNptr == map_maskOh2vfatN.end() ){
+            if ( vfatNptr == map_maskOh2vfatN.end() ) {
                 sprintf(regBuf,"Input maskOh: %x not recgonized. Please make sure all but one VFAT is unmasked and then try again", maskOh);
                 la->response->set_string("error",regBuf);
                 return;
@@ -569,7 +548,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
             uint32_t vfatN = (invertVFATPos) ? 23 - (*vfatNptr).second : (*vfatNptr).second;
 
             uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-            if( !( (goodVFATs >> vfatN ) & 0x1 ) ){
+            if ( !( (goodVFATs >> vfatN ) & 0x1 ) ) {
                 sprintf(regBuf,"The requested VFAT is not synced; goodVFATs: %x\t requested VFAT: %i; maskOh: %x", goodVFATs, vfatN, maskOh);
                 la->response->set_string("error",regBuf);
                 return;
@@ -578,7 +557,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
             //If ch!=128 store the original channel mask settings
             //Then mask all other channels except for channel ch
             std::unordered_map<uint32_t, uint32_t> map_chanOrigMask; //key -> reg addr; val -> reg value
-            if( ch != 128) map_chanOrigMask = setSingleChanMask(ohN,vfatN,ch,la);
+            if ( ch != 128) map_chanOrigMask = setSingleChanMask(ohN,vfatN,ch,la);
 
             //Get the OH Rate Monitor Address
             sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
@@ -594,10 +573,10 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
             writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
 
             //Loop from dacMin to dacMax in steps of dacStep
-            for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
+            for (uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep) {
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
                 writeReg(la, regBuf, dacVal);
-                std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+                std::this_thread::sleep_for (std::chrono::milliseconds(waitTime));
 
                 int idx = (dacVal-dacMin)/dacStep;
                 outDataDacVal[idx] = dacVal;
@@ -605,7 +584,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
             } //End Loop from dacMin to dacMax
 
             //Restore the original channel masks if specific channel was requested
-            if( ch != 128) applyChanMask(map_chanOrigMask, la);
+            if ( ch != 128) applyChanMask(map_chanOrigMask, la);
 
             //Restore the original maskOh
             writeRawAddress(ohVFATMaskAddr, maskOhOrig, la->response);
@@ -626,13 +605,13 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
 void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ohN, uint32_t vfatmask, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg)
 {
     char regBuf[200];
-    switch (fw_version_check("SBIT Rate Scan", la)){
+    switch (fw_version_check("SBIT Rate Scan", la)) {
         case 3:
         {
             //Check if vfats are sync'd
             uint32_t notmask = ~vfatmask & 0xFFFFFF;
             uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-            if( (notmask & goodVFATs) != notmask){
+            if ( (notmask & goodVFATs) != notmask) {
                 sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
                 la->response->set_string("error",regBuf);
                 return;
@@ -641,8 +620,8 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             //If ch!=128 store the original channel mask settings
             //Then mask all other channels except for channel ch
             std::unordered_map<uint32_t, uint32_t> map_chanOrigMask[24]; //key -> reg addr; val -> reg value
-            if( ch != 128){
-                for(int vfat=0; vfat<24; ++vfat){
+            if ( ch != 128) {
+                for (int vfat=0; vfat<24; ++vfat) {
                     //Skip this vfat if it's masked
                     if ( !( (notmask >> vfat) & 0x1)) continue;
                     map_chanOrigMask[vfat] = setSingleChanMask(ohN,vfat,ch,la);
@@ -653,7 +632,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             uint32_t ohTrigRateAddr[25]; //idx 0->23 VFAT counters; idx 24 overall rate
             sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
             ohTrigRateAddr[24] = getAddress(la, regBuf);
-            for(int vfat=0; vfat<24; ++vfat){
+            for (int vfat=0; vfat<24; ++vfat) {
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.VFAT%i_SBITS",ohN,vfat);
                 ohTrigRateAddr[vfat] = getAddress(la, regBuf);
             } //End Loop over all VFATs
@@ -666,9 +645,9 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98); //count for 1 second
 
             //Loop from dacMin to dacMax in steps of dacStep
-            for(uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep){
+            for (uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep) {
                 //Set the scan register value
-                for(int vfat=0; vfat<24; ++vfat){
+                for (int vfat=0; vfat<24; ++vfat) {
                     if ( !( (notmask >> vfat) & 0x1)) continue;
                     sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfat,scanReg.c_str());
                     writeReg(la, regBuf, dacVal);
@@ -678,13 +657,13 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
                 writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.RESET",ohN), 0x1);
 
                 //Wait just over 1 second
-                std::this_thread::sleep_for(std::chrono::milliseconds(1005));
+                std::this_thread::sleep_for (std::chrono::milliseconds(1005));
 
                 //Read the counters
                 int idx = (dacVal-dacMin)/dacStep;
                 outDataDacVal[idx] = dacVal;
                 outDataTrigRateOverall[idx] = readRawAddress(ohTrigRateAddr[24], la->response);
-                for(int vfat=0; vfat<24; ++vfat){
+                for (int vfat=0; vfat<24; ++vfat) {
                     if ( !( (notmask >> vfat) & 0x1)) continue;
 
                     idx = vfat*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
@@ -693,8 +672,8 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             } //End Loop from dacMin to dacMax
 
             //Restore the original channel masks if specific channel was requested
-            if( ch != 128) {
-                for(int vfat=0; vfat<24; ++vfat){
+            if ( ch != 128) {
+                for (int vfat=0; vfat<24; ++vfat) {
                     if ( !( (notmask >> vfat) & 0x1)) continue;
                     applyChanMask(map_chanOrigMask[vfat], la);
                 }
@@ -714,13 +693,7 @@ return;
 
 void sbitRateScan(const RPCMsg *request, RPCMsg *response)
 {
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t maskOh = request->get_word("maskOh");
@@ -733,31 +706,30 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
     uint32_t waitTime = request->get_word("waitTime");
     bool isParallel = request->get_word("isParallel");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outDataDacVal[(dacMax-dacMin+1)/dacStep];
     uint32_t outDataTrigRate[(dacMax-dacMin+1)/dacStep];
-    if(isParallel){
+    if (isParallel) {
         uint32_t outDataTrigRatePerVFAT[24*(dacMax-dacMin+1)/dacStep];
         sbitRateScanParallelLocal(&la, outDataDacVal, outDataTrigRatePerVFAT, outDataTrigRate, ohN, maskOh, ch, dacMin, dacMax, dacStep, scanReg);
 
         response->set_word_array("outDataVFATRate", outDataTrigRatePerVFAT, 24*(dacMax-dacMin+1)/dacStep);
-    }
-    else{
+    } else{
         sbitRateScanLocal(&la, outDataDacVal, outDataTrigRate, ohN, maskOh, invertVFATPos, ch, dacMin, dacMax, dacStep, scanReg, waitTime);
     }
 
     response->set_word_array("outDataDacValue", outDataDacVal, (dacMax-dacMin+1)/dacStep);
     response->set_word_array("outDataCTP7Rate", outDataTrigRate, (dacMax-dacMin+1)/dacStep);
 
-    return;
+    rtxn.abort();
 } //End sbitRateScan(...)
 
-void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t vfatN, uint32_t mask, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t nevts, uint32_t L1Ainterval, uint32_t pulseDelay){
+void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t vfatN, uint32_t mask, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t nevts, uint32_t L1Ainterval, uint32_t pulseDelay)
+{
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
     char regBuf[200];
-    if( fw_version_check("checkSbitMappingWithCalPulse", la) < 3){
+    if ( fw_version_check("checkSbitMappingWithCalPulse", la) < 3) {
         LOGGER->log_message(LogManager::ERROR, "checkSbitMappingWithCalPulse is only supported in V3 electronics");
         sprintf(regBuf,"checkSbitMappingWithCalPulse is only supported in V3 electronics");
         la->response->set_string("error",regBuf);
@@ -765,13 +737,13 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     }
 
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-    if( (notmask & goodVFATs) != notmask){
+    if ( (notmask & goodVFATs) != notmask) {
         sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
         la->response->set_string("error",regBuf);
         return;
     }
 
-    if (currentPulse && calScaleFactor > 3){
+    if (currentPulse && calScaleFactor > 3) {
         sprintf(regBuf,"Bad value for CFG_CAL_FS: %x, Possible values are {0b00, 0b01, 0b10, 0b11}. Exiting.",calScaleFactor);
         la->response->set_string("error",regBuf);
         return;
@@ -781,7 +753,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     uint32_t chanRegData_orig[3072]; //original channel register data
     uint32_t chanRegData_tmp[3072]; //temporary channel register data
     getChannelRegistersVFAT3Local(la, ohN, mask, chanRegData_orig);
-    for(int idx=0; idx < 3072; ++idx){
+    for (int idx=0; idx < 3072; ++idx) {
         chanRegData_tmp[idx]=chanRegData_orig[idx]+(0x1 << 14); //set channel mask to true
         chanRegData_tmp[idx]=chanRegData_tmp[idx]-(0x1 << 15); //disable calpulse
     }
@@ -804,12 +776,12 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     writeReg(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.OH_SELECT", ohN);
     uint32_t addrSbitMonReset=getAddress(la, "GEM_AMC.TRIGGER.SBIT_MONITOR.RESET");
     uint32_t addrSbitCluster[nclusters];
-    for(int iCluster=0; iCluster < nclusters; ++iCluster){
+    for (int iCluster=0; iCluster < nclusters; ++iCluster) {
         sprintf(regBuf, "GEM_AMC.TRIGGER.SBIT_MONITOR.CLUSTER%i",iCluster);
         addrSbitCluster[iCluster] = getAddress(la, regBuf);
     }
 
-    if(!((notmask >> vfatN) & 0x1)){
+    if (!((notmask >> vfatN) & 0x1)) {
         la->response->set_string("error",stdsprintf("The vfat of interest %i should not be part of the vfats to be masked: %x",vfatN, mask));
         return;
     }
@@ -820,31 +792,31 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     //Place this vfat into run mode
     writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN, vfatN), 0x1);
 
-    for(int chan=0; chan < 128; ++chan){ //Loop over all channels
+    for (int chan=0; chan < 128; ++chan) { //Loop over all channels
         //unmask this channel
         writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan), 0x0);
 
         //Turn on the calpulse for this channel
-        if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, useCalPulse, currentPulse, calScaleFactor) == false){
+        if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, useCalPulse, currentPulse, calScaleFactor) == false) {
             la->response->set_string("error",stdsprintf("Unable to configure calpulse %b for ohN %i mask %x chan %i", useCalPulse, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan));
             return; //Calibration pulse is not configured correctly
         }
 
         //Start Pulsing
-        for(unsigned int iPulse=0; iPulse < nevts; ++iPulse){ //Pulse this channel
+        for (unsigned int iPulse=0; iPulse < nevts; ++iPulse) { //Pulse this channel
             //Reset monitors
             writeRawAddress(addrSbitMonReset, 0x1, la->response);
 
             //Start the TTC Generator
-            if(useCalPulse){
+            if (useCalPulse) {
                 writeRawAddress(addrTtcStart, 0x1, la->response);
             }
 
             //Sleep for 200 us + pulseDelay * 25 ns * (0.001 us / ns)
-            std::this_thread::sleep_for(std::chrono::microseconds(200+int(ceil(pulseDelay*25*0.001))));
+            std::this_thread::sleep_for (std::chrono::microseconds(200+int(ceil(pulseDelay*25*0.001))));
 
             //Check clusers
-            for(int cluster=0; cluster<nclusters; ++cluster){
+            for (int cluster=0; cluster<nclusters; ++cluster) {
                 //int idx = vfatN * posPerVFAT + chan * posPerChan + iPulse * posPerEvt + cluster; //Array index
                 int idx = chan * (nevts*nclusters) + (iPulse*nclusters+cluster);
 
@@ -860,7 +832,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
 
                 outData[idx] = ((clusterSize & 0x7 ) << 27) + ((isValid & 0x1) << 26) + ((vfatObserved & 0x1f) << 21) + ((vfatN & 0x1f) << 16) + ((sbitObserved & 0xff) << 8) + (chan & 0xff);
 
-                if(isValid){
+                if (isValid) {
                     LOGGER->log_message(
                             LogManager::INFO,
                             stdsprintf(
@@ -871,7 +843,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
         } //End Pulses for this channel
 
         //Turn off the calpulse for this channel
-        if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, false, currentPulse, calScaleFactor) == false){
+        if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, false, currentPulse, calScaleFactor) == false) {
             la->response->set_string("error",stdsprintf("Unable to configure calpulse OFF for ohN %i mask %x chan %i", ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan));
             return; //Calibration pulse is not configured correctly
         }
@@ -896,14 +868,9 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     return;
 } //End checkSbitMappingWithCalPulseLocal(...)
 
-void checkSbitMappingWithCalPulse(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+void checkSbitMappingWithCalPulse(const RPCMsg *request, RPCMsg *response)
+{
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t vfatN = request->get_word("vfatN");
@@ -915,21 +882,21 @@ void checkSbitMappingWithCalPulse(const RPCMsg *request, RPCMsg *response){
     uint32_t L1Ainterval = request->get_word("L1Ainterval");
     uint32_t pulseDelay = request->get_word("pulseDelay");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[128*8*nevts];
     checkSbitMappingWithCalPulseLocal(&la, outData, ohN, vfatN, mask, useCalPulse, currentPulse, calScaleFactor, nevts, L1Ainterval, pulseDelay);
 
     response->set_word_array("data",outData,128*8*nevts);
 
-    return;
+    rtxn.abort();
 } //End checkSbitMappingWithCalPulse()
 
-void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, uint32_t *outDataFPGAClusterCntRate, uint32_t *outDataVFATSBits, uint32_t ohN, uint32_t vfatN, uint32_t mask, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t waitTime, uint32_t pulseRate, uint32_t pulseDelay){
+void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, uint32_t *outDataFPGAClusterCntRate, uint32_t *outDataVFATSBits, uint32_t ohN, uint32_t vfatN, uint32_t mask, bool useCalPulse, bool currentPulse, uint32_t calScaleFactor, uint32_t waitTime, uint32_t pulseRate, uint32_t pulseDelay)
+{
     //Determine the inverse of the vfatmask
     uint32_t notmask = ~mask & 0xFFFFFF;
 
     char regBuf[200];
-    if( fw_version_check("checkSbitRateWithCalPulse", la) < 3){
+    if ( fw_version_check("checkSbitRateWithCalPulse", la) < 3) {
         LOGGER->log_message(LogManager::ERROR, "checkSbitRateWithCalPulse is only supported in V3 electronics");
         sprintf(regBuf,"checkSbitRateWithCalPulse is only supported in V3 electronics");
         la->response->set_string("error",regBuf);
@@ -937,13 +904,13 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
     }
 
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-    if( (notmask & goodVFATs) != notmask){
+    if ( (notmask & goodVFATs) != notmask) {
         sprintf(regBuf,"One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask);
         la->response->set_string("error",regBuf);
         return;
     }
 
-    if (currentPulse && calScaleFactor > 3){
+    if (currentPulse && calScaleFactor > 3) {
         sprintf(regBuf,"Bad value for CFG_CAL_FS: %x, Possible values are {0b00, 0b01, 0b10, 0b11}. Exiting.",calScaleFactor);
         la->response->set_string("error",regBuf);
         return;
@@ -955,7 +922,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
     uint32_t chanRegData_tmp[3072]; //temporary channel register data
     LOGGER->log_message(LogManager::INFO, stdsprintf("Masking all channels and disabling calpulse for vfats on ohN %i", ohN));
     getChannelRegistersVFAT3Local(la, ohN, mask, chanRegData_orig);
-    for(int idx=0; idx < 3072; ++idx){
+    for (int idx=0; idx < 3072; ++idx) {
         chanRegData_tmp[idx]=chanRegData_orig[idx]+(0x1 << 14); //set channel mask to true
         chanRegData_tmp[idx]=chanRegData_tmp[idx]-(0x1 << 15); //disable calpulse
     }
@@ -963,7 +930,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
 
     //Setup TTC Generator
     uint32_t L1Ainterval;
-    if(pulseRate > 0){
+    if (pulseRate > 0) {
         L1Ainterval = int(40079000 / pulseRate);
     }
     else{
@@ -974,7 +941,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
 
     //Get Trigger addresses
     uint32_t ohTrigRateAddr[26]; //idx 0->23 VFAT counters; idx 24 rate measured by OH FPGA; idx 25 rate measured by CTP7
-    for(int vfat=0; vfat<24; ++vfat){
+    for (int vfat=0; vfat<24; ++vfat) {
         ohTrigRateAddr[vfat] = getAddress(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.VFAT%i_SBITS",ohN,vfat));
     } //End Loop over all VFATs
     ohTrigRateAddr[24] = getAddress(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.CLUSTER_COUNT",ohN));
@@ -995,7 +962,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
     writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
     writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), uint32_t(0x02638e98*waitTime/1000.) ); //count for a number of BX's specified by waitTime
 
-    if(!((notmask >> vfatN) & 0x1)){
+    if (!((notmask >> vfatN) & 0x1)) {
         la->response->set_string("error",stdsprintf("The vfat of interest %i should not be part of the vfats to be masked: %x",vfatN, mask));
         return;
     }
@@ -1009,14 +976,14 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
     writeReg(la,stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_RUN",ohN, vfatN), 0x1);
 
     LOGGER->log_message(LogManager::INFO, stdsprintf("Looping over all channels of vfatN %i on ohN %i", vfatN, ohN));
-    for(int chan=0; chan < 128; ++chan){ //Loop over all channels
+    for (int chan=0; chan < 128; ++chan) { //Loop over all channels
         //unmask this channel
         LOGGER->log_message(LogManager::INFO, stdsprintf("Unmasking channel %i on vfat %i of OH %i", chan, vfatN, ohN));
         writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.VFAT_CHANNELS.CHANNEL%i.MASK",ohN,vfatN,chan), 0x0);
 
         //Turn on the calpulse for this channel
         LOGGER->log_message(LogManager::INFO, stdsprintf("Enabling calpulse for channel %i on vfat %i of OH %i", chan, vfatN, ohN));
-        if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, useCalPulse, currentPulse, calScaleFactor) == false){
+        if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, useCalPulse, currentPulse, calScaleFactor) == false) {
             la->response->set_string("error",stdsprintf("Unable to configure calpulse %b for ohN %i mask %x chan %i", useCalPulse, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan));
             return; //Calibration pulse is not configured correctly
         }
@@ -1036,7 +1003,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
         writeRawAddress(addrTtcStart, 0x1, la->response);
 
         //Sleep for waitTime of milliseconds
-        std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+        std::this_thread::sleep_for (std::chrono::milliseconds(waitTime));
 
         //Read All Trigger Registers
         LOGGER->log_message(LogManager::INFO, "Reading trigger counters");
@@ -1050,7 +1017,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
 
         //Turn off the calpulse for this channel
         LOGGER->log_message(LogManager::INFO, stdsprintf("Disabling calpulse for channel %i on vfat %i of OH %i", chan, vfatN, ohN));
-        if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, false, currentPulse, calScaleFactor) == false){
+        if (confCalPulseLocal(la, ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan, false, currentPulse, calScaleFactor) == false) {
             la->response->set_string("error",stdsprintf("Unable to configure calpulse OFF for ohN %i mask %x chan %i", ohN, ~((0x1)<<vfatN) & 0xFFFFFF, chan));
             return; //Calibration pulse is not configured correctly
         }
@@ -1079,14 +1046,9 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
     return;
 } //End checkSbitRateWithCalPulseLocal()
 
-void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response)
+{
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t vfatN = request->get_word("vfatN");
@@ -1098,7 +1060,6 @@ void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response){
     uint32_t pulseRate = request->get_word("pulseRate");
     uint32_t pulseDelay = request->get_word("pulseDelay");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outDataCTP7Rate[128];
     uint32_t outDataFPGAClusterCntRate[128];
     uint32_t outDataVFATSBits[128];
@@ -1108,12 +1069,13 @@ void checkSbitRateWithCalPulse(const RPCMsg *request, RPCMsg *response){
     response->set_word_array("outDataFPGAClusterCntRate",outDataFPGAClusterCntRate,128);
     response->set_word_array("outDataVFATSBits",outDataVFATSBits,128);
 
-    return;
+    rtxn.abort();
 } //End checkSbitRateWithCalPulse()
 
-std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep, uint32_t mask, bool useExtRefADC){
+std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSelect, uint32_t dacStep, uint32_t mask, bool useExtRefADC)
+{
     //Ensure VFAT3 Hardware
-    if(fw_version_check("dacScanLocal", la) < 3){
+    if (fw_version_check("dacScanLocal", la) < 3) {
         LOGGER->log_message(LogManager::ERROR, "dacScanLocal is only supported in V3 electronics");
         la->response->set_string("error","dacScanLocal is only supported in V3 electronics");
         std::vector<uint32_t> emptyVec;
@@ -1124,10 +1086,10 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     auto map_dacSelect = dacInfo.map_dacInfo;
 
     // Check if dacSelect is valid
-    if(map_dacSelect.count(dacSelect) == 0){ //Case: dacSelect not found, exit
+    if (map_dacSelect.count(dacSelect) == 0) { //Case: dacSelect not found, exit
         std::string errMsg = "Monitoring Select value " + std::to_string(dacSelect) + " not found, possible values are:\n";
 
-        for(auto iterDacSel = map_dacSelect.begin(); iterDacSel != map_dacSelect.end(); ++iterDacSel){
+        for (auto iterDacSel = map_dacSelect.begin(); iterDacSel != map_dacSelect.end(); ++iterDacSel) {
             errMsg+="\t" + std::to_string((*iterDacSel).first) + "\t" + std::get<0>((*iterDacSel).second) + "\n";
         }
         la->response->set_string("error",errMsg);
@@ -1138,7 +1100,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     //Check which VFATs are sync'd
     uint32_t notmask = ~mask & 0xFFFFFF; //Inverse of the vfatmask
     uint32_t goodVFATs = vfatSyncCheckLocal(la, ohN);
-    if( (notmask & goodVFATs) != notmask){
+    if ( (notmask & goodVFATs) != notmask) {
         la->response->set_string("error",stdsprintf("One of the unmasked VFATs is not Synced. goodVFATs: %x\tnotmask: %x",goodVFATs,notmask));
         std::vector<uint32_t> emptyVec;
         return emptyVec;
@@ -1150,7 +1112,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     uint32_t adcAddr[24];
     uint32_t adcCacheUpdateAddr[24];
     bool foundAdcCached = false;
-    for(int vfatN=0; vfatN<24; ++vfatN){
+    for (int vfatN=0; vfatN<24; ++vfatN) {
         //Skip Masked VFATs
         if ( !( (notmask >> vfatN) & 0x1)) continue;
 
@@ -1158,9 +1120,9 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
         std::string strRegBase = stdsprintf("GEM_AMC.OH.OH%i.GEB.VFAT%i.",ohN,vfatN);
 
         //Get ADC address
-        if(useExtRefADC){ //Case: Use ADC with external reference
+        if (useExtRefADC) { //Case: Use ADC with external reference
             //for backward compatibility, use ADC1 instead of ADC1_CACHED if it exists
-            if((foundAdcCached = la->dbi.get(la->rtxn, strRegBase + "ADC1_CACHED"))){
+            if ((foundAdcCached = la->dbi.get(la->rtxn, strRegBase + "ADC1_CACHED"))) {
                 adcAddr[vfatN] = getAddress(la, strRegBase + "ADC1_CACHED");
                 adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC1_UPDATE");
             }
@@ -1169,7 +1131,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
         } //End Case: Use ADC with external reference
         else{ //Case: Use ADC with internal reference
             //for backward compatibility, use ADC0 instead of ADC0_CACHED if it exists
-            if((foundAdcCached = la->dbi.get(la->rtxn, strRegBase + "ADC0_CACHED"))){
+            if ((foundAdcCached = la->dbi.get(la->rtxn, strRegBase + "ADC0_CACHED"))) {
                 adcAddr[vfatN] = getAddress(la, strRegBase + "ADC0_CACHED");
                 adcCacheUpdateAddr[vfatN] = getAddress(la, strRegBase + "ADC0_UPDATE");
             }
@@ -1193,15 +1155,15 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     //Set the VFATs into Run Mode
     broadcastWriteLocal(la, ohN, "CFG_RUN", 0x1, mask);
     LOGGER->log_message(LogManager::INFO, stdsprintf("VFATs not in 0x%x were set to run mode", mask));
-    std::this_thread::sleep_for(std::chrono::seconds(1)); //I noticed that DAC values behave weirdly immediately after VFAT is placed in run mode (probably voltage/current takes a moment to stabalize)
+    std::this_thread::sleep_for (std::chrono::seconds(1)); //I noticed that DAC values behave weirdly immediately after VFAT is placed in run mode (probably voltage/current takes a moment to stabalize)
 
     //Scan the DAC
 
     uint32_t nReads=100;
-    for(uint32_t dacVal=dacMin; dacVal<=dacMax; dacVal += dacStep){ //Loop over DAC values
-        for(int vfatN=0; vfatN<24; ++vfatN){ //Loop over VFATs
+    for (uint32_t dacVal=dacMin; dacVal<=dacMax; dacVal += dacStep) { //Loop over DAC values
+        for (int vfatN=0; vfatN<24; ++vfatN) { //Loop over VFATs
             //Skip masked VFATs
-            if ( !( (notmask >> vfatN) & 0x1)){ //Case: VFAT is masked, skip
+            if ( !( (notmask >> vfatN) & 0x1)) { //Case: VFAT is masked, skip
                 //Store word, but with adcVal = 0
                 int idx = vfatN*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
                 vec_dacScanData[idx] = ((ohN & 0xf) << 23) + ((vfatN & 0x1f) << 18) + (dacVal & 0xff);
@@ -1215,13 +1177,13 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
                 writeReg(la, strDacReg, dacVal);
                 //Read nReads times and take avg value
                 uint32_t adcVal=0;
-                for(uint32_t i=0; i<nReads; ++i){
+                for (uint32_t i=0; i<nReads; ++i) {
                     //Read the ADC
-                    if (foundAdcCached){
+                    if (foundAdcCached) {
                         //either reading or writing this register will trigger a cache update
                         readRawAddress(adcCacheUpdateAddr[vfatN], la->response);
                         //updating the cache takes 20 us, including a 50% safety factor
-                        std::this_thread::sleep_for(std::chrono::microseconds(20));
+                        std::this_thread::sleep_for (std::chrono::microseconds(20));
                     }
                     adcVal += readRawAddress(adcAddr[vfatN], la->response);
                 }
@@ -1240,14 +1202,9 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     return vec_dacScanData;
 } //End dacScanLocal(...)
 
-void dacScan(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+void dacScan(const RPCMsg *request, RPCMsg *response)
+{
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t dacSelect = request->get_word("dacSelect");
@@ -1255,31 +1212,23 @@ void dacScan(const RPCMsg *request, RPCMsg *response){
     uint32_t mask = request->get_word("mask");
     bool useExtRefADC = request->get_word("useExtRefADC");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     std::vector<uint32_t> dacScanResults = dacScanLocal(&la, ohN, dacSelect, dacStep, mask, useExtRefADC);
     response->set_word_array("dacScanResults",dacScanResults);
 
-    return;
+    rtxn.abort();
 } //End dacScan(...)
 
-void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+void dacScanMultiLink(const RPCMsg *request, RPCMsg *response)
+{
+    GETLOCALARGS(response);
 
     uint32_t ohMask = request->get_word("ohMask");
     uint32_t dacSelect = request->get_word("dacSelect");
     uint32_t dacStep = request->get_word("dacStep");
     bool useExtRefADC = request->get_word("useExtRefADC");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-
     unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
-    if (request->get_key_exists("NOH")){
+    if (request->get_key_exists("NOH")) {
         unsigned int NOH_requested = request->get_word("NOH");
         if (NOH_requested <= NOH)
             NOH = NOH_requested;
@@ -1289,11 +1238,11 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
 
     vfat3DACAndSize dacInfo;
     std::vector<uint32_t> dacScanResultsAll;
-    for(unsigned int ohN=0; ohN<NOH; ++ohN){
+    for (unsigned int ohN=0; ohN<NOH; ++ohN) {
         std::vector<uint32_t> dacScanResults;
 
         // If this Optohybrid is masked skip it
-        if(!((ohMask >> ohN) & 0x1)){
+        if (!((ohMask >> ohN) & 0x1)) {
             int dacMax = std::get<2>(dacInfo.map_dacInfo[dacSelect]);
             dacScanResults.assign( (dacMax+1)*24/dacStep, 0xdeaddead );
             std::copy(dacScanResults.begin(), dacScanResults.end(), std::back_inserter(dacScanResultsAll));
@@ -1318,18 +1267,12 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response){
     response->set_word_array("dacScanResultsAll",dacScanResultsAll);
     LOGGER->log_message(LogManager::INFO, stdsprintf("Finished DAC scans for OH Mask 0x%x", ohMask));
 
-    return;
+    rtxn.abort();
 } //End dacScanMultiLink(...)
 
 void genChannelScan(const RPCMsg *request, RPCMsg *response)
 {
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t nevts = request->get_word("nevts");
     uint32_t ohN = request->get_word("ohN");
@@ -1344,19 +1287,17 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     std::string scanReg = request->get_string("scanReg");
 
     bool useUltra = false;
-    if (request->get_key_exists("useUltra")){
+    if (request->get_key_exists("useUltra")) {
         useUltra = true;
     }
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[128*24*(dacMax-dacMin+1)/dacStep];
-    for(uint32_t ch = 0; ch < 128; ch++)
-    {
+    for (uint32_t ch = 0; ch < 128; ch++) {
         genScanLocal(&la, &(outData[ch*24*(dacMax-dacMin+1)/dacStep]), ohN, mask, ch, useCalPulse, currentPulse, calScaleFactor, nevts, dacMin, dacMax, dacStep, scanReg, useUltra, useExtTrig);
     }
     response->set_word_array("data",outData,24*128*(dacMax-dacMin+1)/dacStep);
 
-    return;
+    rtxn.abort();
 }
 
 extern "C" {

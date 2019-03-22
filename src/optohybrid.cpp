@@ -41,18 +41,13 @@ void broadcastWriteLocal(localArgs * la, uint32_t ohN, std::string regName, uint
 }
 
 void broadcastWrite(const RPCMsg *request, RPCMsg *response) {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  GETLOCALARGS(response);
+
   std::string regName = request->get_string("reg_name");
   uint32_t value = request->get_word("value");
   uint32_t mask = request->get_key_exists("mask")?request->get_word("mask"):0xFF000000;
   uint32_t ohN = request->get_word("ohN");
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
   broadcastWriteLocal(&la, ohN, regName, value, mask);
   rtxn.abort();
 }
@@ -81,20 +76,16 @@ void broadcastReadLocal(localArgs * la, uint32_t * outData, uint32_t ohN, std::s
 }
 
 void broadcastRead(const RPCMsg *request, RPCMsg *response) {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  GETLOCALARGS(response);
+
   std::string regName = request->get_string("reg_name");
   uint32_t mask = request->get_key_exists("mask")?request->get_word("mask"):0xFF000000;
   uint32_t ohN = request->get_word("ohN");
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
   uint32_t outData[24];
   broadcastReadLocal(&la, outData, ohN, regName, mask);
   response->set_word_array("data", outData, 24);
+
   rtxn.abort();
 }
 
@@ -172,18 +163,14 @@ void loadVT1Local(localArgs * la, uint32_t ohN, std::string config_file, uint32_
 }
 
 void loadVT1(const RPCMsg *request, RPCMsg *response) {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  GETLOCALARGS(response);
+
   uint32_t ohN = request->get_word("ohN");
   std::string config_file = request->get_key_exists("thresh_config_filename")?request->get_string("thresh_config_filename"):"";
   uint32_t vt1 = request->get_key_exists("vt1")?request->get_word("vt1"):0x64;
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
   loadVT1Local(&la, ohN, config_file, vt1);
+
   rtxn.abort();
 }
 
@@ -209,33 +196,23 @@ void loadTRIMDACLocal(localArgs * la, uint32_t ohN, std::string config_file) {
 }
 
 void loadTRIMDAC(const RPCMsg *request, RPCMsg *response) {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  GETLOCALARGS(response);
+
   uint32_t ohN = request->get_word("ohN");
   std::string config_file = request->get_string("trim_config_filename");//"/mnt/persistent/texas/test/chConfig_GEMINIm01L1.txt";
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
   loadTRIMDACLocal(&la, ohN, config_file);
   rtxn.abort();
 }
 
 void configureVFATs(const RPCMsg *request, RPCMsg *response) {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  GETLOCALARGS(response);
+
   uint32_t ohN = request->get_word("ohN");
   std::string trim_config_file = request->get_string("trim_config_filename");//"/mnt/persistent/texas/test/chConfig_GEMINIm01L1.txt";
   std::string thresh_config_file = request->get_key_exists("thresh_config_filename")?request->get_string("thresh_config_filename"):"";
   uint32_t vt1 = request->get_key_exists("vt1")?request->get_word("vt1"):0x64;
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
   LOGGER->log_message(LogManager::INFO, "BIAS VFATS");
   biasAllVFATsLocal(&la, ohN);
   LOGGER->log_message(LogManager::INFO, "LOAD VT1 VFATS");
@@ -243,6 +220,7 @@ void configureVFATs(const RPCMsg *request, RPCMsg *response) {
   LOGGER->log_message(LogManager::INFO, "LOAD TRIM VFATS");
   loadTRIMDACLocal(&la, ohN, trim_config_file);
   if (request->get_key_exists("set_run")) setAllVFATsToRunModeLocal(&la, ohN);
+
   rtxn.abort();
 }
 
@@ -305,13 +283,7 @@ void configureScanModule(const RPCMsg *request, RPCMsg *response){
      *            for ULTRA scan, specify the VFAT mask
      */
 
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     //Get OH and scanmode
     uint32_t ohN = request->get_word("ohN");
@@ -335,10 +307,10 @@ void configureScanModule(const RPCMsg *request, RPCMsg *response){
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
     configureScanModuleLocal(&la, ohN, vfatN, scanmode, useUltra, mask, ch, nevts, dacMin, dacMax, dacStep);
 
-    return;
+    rtxn.abort();
 } //End configureScanModule(...)
 
 void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
@@ -382,14 +354,8 @@ void printScanConfigurationLocal(localArgs * la, uint32_t ohN, bool useUltra){
 } //End printScanConfigurationLocal(...)
 
 void printScanConfiguration(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
-
+    GETLOCALARGS(response);
+    
     uint32_t ohN = request->get_word("ohN");
 
     bool useUltra = false;
@@ -397,10 +363,9 @@ void printScanConfiguration(const RPCMsg *request, RPCMsg *response){
         useUltra = true;
     }
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     printScanConfigurationLocal(&la, ohN, useUltra);
 
-    return;
+    rtxn.abort();
 } //End printScanConfiguration(...)
 
 void startScanModuleLocal(localArgs * la, uint32_t ohN, bool useUltra){
@@ -440,14 +405,8 @@ void startScanModuleLocal(localArgs * la, uint32_t ohN, bool useUltra){
 } //End startScanModuleLocal(...)
 
 void startScanModule(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
-
+    GETLOCALARGS(response);
+    
     uint32_t ohN = request->get_word("ohN");
 
     bool useUltra = false;
@@ -455,10 +414,9 @@ void startScanModule(const RPCMsg *request, RPCMsg *response){
         useUltra = true;
     }
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     startScanModuleLocal(&la, ohN, useUltra);
 
-    return;
+    rtxn.abort();
 } //End startScanModule(...)
 
 void getUltraScanResultsLocal(localArgs * la, uint32_t *outData, uint32_t ohN, uint32_t nevts, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep){
@@ -523,26 +481,19 @@ void getUltraScanResultsLocal(localArgs * la, uint32_t *outData, uint32_t ohN, u
 } //End getUltraScanResultsLocal(...)
 
 void getUltraScanResults(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
-
+    GETLOCALARGS(response);
+    
     uint32_t ohN = request->get_word("ohN");
     uint32_t nevts = request->get_word("nevts");
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outData[24*(dacMax-dacMin+1)/dacStep];
     getUltraScanResultsLocal(&la, outData, ohN, nevts, dacMin, dacMax, dacStep);
     response->set_word_array("data",outData,24*(dacMax-dacMin+1)/dacStep);
 
-    return;
+    rtxn.abort();
 } //End getUltraScanResults(...)
 
 void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch_min, uint32_t ch_max){
@@ -577,23 +528,16 @@ void stopCalPulse2AllChannelsLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
 }
 
 void stopCalPulse2AllChannels(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
-
+    GETLOCALARGS(response);
+    
     uint32_t ohN = request->get_word("ohN");
     uint32_t mask = request->get_word("mask");
     uint32_t ch_min = request->get_word("ch_min");
     uint32_t ch_max = request->get_word("ch_max");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     stopCalPulse2AllChannelsLocal(&la, ohN, mask, ch_min, ch_max);
 
-    return;
+    rtxn.abort();
 }
 
 void statusOHLocal(localArgs * la, uint32_t ohEnMask){
@@ -637,17 +581,11 @@ void statusOHLocal(localArgs * la, uint32_t ohEnMask){
 
 void statusOH(const RPCMsg *request, RPCMsg *response)
 {
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
+
     uint32_t ohEnMask = request->get_word("ohEnMask");
     LOGGER->log_message(LogManager::INFO, "Reeading OH status");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     statusOHLocal(&la, ohEnMask);
     rtxn.abort();
 }

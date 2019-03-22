@@ -22,14 +22,7 @@ void getmonTTCmainLocal(localArgs * la)
 
 void getmonTTCmain(const RPCMsg *request, RPCMsg *response)
 {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  GETLOCALARGS(response);
   getmonTTCmainLocal(&la);
   rtxn.abort();
 }
@@ -38,9 +31,9 @@ void getmonTRIGGERmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
   la->response->set_word("OR_TRIGGER_RATE",readReg(la,"GEM_AMC.TRIGGER.STATUS.OR_TRIGGER_RATE"));
-  for (int ohN = 0; ohN < NOH; ohN++){
+  for (int ohN = 0; ohN < NOH; ohN++) {
     // If this Optohybrid is masked fill with 0xdeaddead
-    if(!((ohMask >> ohN) & 0x1)){
+    if (!((ohMask >> ohN) & 0x1)) {
       t1 = stdsprintf("OH%s.TRIGGER_RATE",std::to_string(ohN).c_str());
       la->response->set_word(t1,0xdeaddead);
       continue;
@@ -53,22 +46,15 @@ void getmonTRIGGERmainLocal(localArgs * la, int NOH, int ohMask)
 
 void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  GETLOCALARGS(response);
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
-  if(request->get_key_exists("ohMask")){
+  if (request->get_key_exists("ohMask")) {
     ohMask = request->get_word("ohMask");
   }
 
-  if (request->get_key_exists("NOH")){
+  if (request->get_key_exists("NOH")) {
     unsigned int NOH_requested = request->get_word("NOH");
     if (NOH_requested > NOH) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
@@ -84,9 +70,9 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 void getmonTRIGGEROHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
-  for (int ohN = 0; ohN < NOH; ohN++){
+  for (int ohN = 0; ohN < NOH; ohN++) {
     // If this Optohybrid is masked skip it
-    if(!((ohMask >> ohN) & 0x1)){
+    if (!((ohMask >> ohN) & 0x1)) {
       t1 = stdsprintf("OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
       la->response->set_word(t1,0xdeaddead);
       t1 = stdsprintf("OH%s.LINK1_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
@@ -134,22 +120,15 @@ void getmonTRIGGEROHmainLocal(localArgs * la, int NOH, int ohMask)
 
 void getmonTRIGGEROHmain(const RPCMsg *request, RPCMsg *response)
 {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  GETLOCALARGS(response);
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
-  if(request->get_key_exists("ohMask")){
+  if (request->get_key_exists("ohMask")) {
     ohMask = request->get_word("ohMask");
   }
 
-  if (request->get_key_exists("NOH")){
+  if (request->get_key_exists("NOH")) {
     unsigned int NOH_requested = request->get_word("NOH");
     if (NOH_requested > NOH) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
@@ -179,14 +158,7 @@ void getmonDAQmainLocal(localArgs * la)
 
 void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
 {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  GETLOCALARGS(response);
   getmonDAQmainLocal(&la);
   rtxn.abort();
 }
@@ -194,9 +166,9 @@ void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
 void getmonDAQOHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
-  for (int ohN = 0; ohN < NOH; ohN++){
+  for (int ohN = 0; ohN < NOH; ohN++) {
     // If this Optohybrid is masked skip it
-    if(!((ohMask >> ohN) & 0x1)){
+    if (!((ohMask >> ohN) & 0x1)) {
       t1 = stdsprintf("OH%s.STATUS.EVT_SIZE_ERR",std::to_string(ohN).c_str());
       la->response->set_word(t1,0xdeaddead);
       t1 = stdsprintf("OH%s.STATUS.EVENT_FIFO_HAD_OFLOW",std::to_string(ohN).c_str());
@@ -234,22 +206,15 @@ void getmonDAQOHmainLocal(localArgs * la, int NOH, int ohMask)
 
 void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
 {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+  GETLOCALARGS(response);
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
-  if(request->get_key_exists("ohMask")){
+  if (request->get_key_exists("ohMask")) {
     ohMask = request->get_word("ohMask");
   }
 
-  if (request->get_key_exists("NOH")){
+  if (request->get_key_exists("NOH")) {
     unsigned int NOH_requested = request->get_word("NOH");
     if (NOH_requested > NOH) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
@@ -265,14 +230,13 @@ void getmonDAQOHmain(const RPCMsg *request, RPCMsg *response)
 void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
 {
     //Reset Requested?
-    if (doReset)
-    {
+    if (doReset) {
          writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
     }
 
     std::string regName, respName; //regName used for read/write, respName sets word in RPC response
-    for (int ohN=0; ohN < NOH; ++ohN){
-        for(unsigned int gbtN=0; gbtN < gbt::GBTS_PER_OH; ++gbtN){
+    for (int ohN=0; ohN < NOH; ++ohN) {
+        for (unsigned int gbtN=0; gbtN < gbt::GBTS_PER_OH; ++gbtN) {
             //Ready
             respName = stdsprintf("OH%i.GBT%i.READY",ohN,gbtN);
             regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.GBT%i_READY",ohN,gbtN);
@@ -301,9 +265,10 @@ void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
 void getmonGBTLink(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
+  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
-  if (request->get_key_exists("NOH")){
+  if (request->get_key_exists("NOH")) {
     unsigned int NOH_requested = request->get_word("NOH");
     if (NOH_requested > NOH) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
@@ -312,22 +277,21 @@ void getmonGBTLink(const RPCMsg *request, RPCMsg *response)
   }
 
   bool doReset = false;
-  if(request->get_key_exists("doReset") ) {
+  if (request->get_key_exists("doReset") ) {
     doReset = request->get_word("doReset");
   }
 
   getmonGBTLinkLocal(&la, NOH, doReset);
   rtxn.abort();
-
-  return;
 } //End getmonGBTLink()
 
 void getmonOHLink(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
+  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
-  if (request->get_key_exists("NOH")){
+  if (request->get_key_exists("NOH")) {
     unsigned int NOH_requested = request->get_word("NOH");
     if (NOH_requested > NOH) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
@@ -336,23 +300,22 @@ void getmonOHLink(const RPCMsg *request, RPCMsg *response)
   }
 
   bool doReset = false;
-  if(request->get_key_exists("doReset") ) {
+  if (request->get_key_exists("doReset") ) {
     doReset = request->get_word("doReset");
   }
 
   getmonGBTLinkLocal(&la, NOH, doReset);
   getmonVFATLinkLocal(&la, NOH, doReset);
-  rtxn.abort();
 
-  return;
+  rtxn.abort();
 } //End getmonOHLink()
 
 void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
-  for (int ohN = 0; ohN < NOH; ohN++){
+  for (int ohN = 0; ohN < NOH; ohN++) {
     // If this Optohybrid is masked skip it
-    if(!((ohMask >> ohN) & 0x1)){
+    if (!((ohMask >> ohN) & 0x1)) {
       t1 = stdsprintf("OH%s.FW_VERSION",std::to_string(ohN).c_str());
       la->response->set_word(t1,0xdeaddead);
       t1 = stdsprintf("OH%s.EVENT_COUNTER",std::to_string(ohN).c_str());
@@ -374,8 +337,7 @@ void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
       continue;
     }
     t1 = stdsprintf("OH%s.FW_VERSION",std::to_string(ohN).c_str());
-    if (fw_version_check("getmonOHmain",la) == 3)
-    {
+    if (fw_version_check("getmonOHmain",la) == 3) {
       uint32_t t_fwver=0xffffffff;
       t2 = stdsprintf("GEM_AMC.OH.OH%s.FPGA.CONTROL.RELEASE.VERSION.MAJOR",std::to_string(ohN).c_str());
       t_fwver = t_fwver & (0x00ffffff|(readReg(la,t2) << 24));
@@ -423,22 +385,15 @@ void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
 
 void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
-
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  GETLOCALARGS(response);
+  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
-  if(request->get_key_exists("ohMask")){
+  if (request->get_key_exists("ohMask")) {
     ohMask = request->get_word("ohMask");
   }
 
-  if (request->get_key_exists("NOH")){
+  if (request->get_key_exists("NOH")) {
     unsigned int NOH_requested = request->get_word("NOH");
     if (NOH_requested > NOH) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
@@ -451,7 +406,8 @@ void getmonOHmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
+void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask)
+{
     std::string strRegName, strKeyName;
 
     //Get original monitoring mask
@@ -460,14 +416,14 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
     //Turn on monitoring for requested links
     writeReg(la, "GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF", (~ohMask) & 0x3fc);
 
-    for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+    for (int ohN = 0; ohN < NOH; ++ohN) { //Loop over all optohybrids
         // If this Optohybrid is masked skip it
-        if(!((ohMask >> ohN) & 0x1)){
+        if (!((ohMask >> ohN) & 0x1)) {
           //SCA Temperature
           strKeyName = stdsprintf("OH%i.SCA_TEMP",ohN);
           la->response->set_word(strKeyName,0xdeaddead);
           //OH Temperature Sensors
-          for(int tempVal=1; tempVal <= 9; ++tempVal){ //Loop over optohybrid temperatures sensosrs
+          for (int tempVal=1; tempVal <= 9; ++tempVal) { //Loop over optohybrid temperatures sensosrs
               strKeyName = stdsprintf("OH%i.BOARD_TEMP%i",ohN,tempVal);
               la->response->set_word(strKeyName, 0xdeaddead);
           } //End Loop over optohybrid temeprature sensors
@@ -513,7 +469,7 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
         la->response->set_word(strKeyName,readReg(la, strRegName));
 
         //OH Temperature Sensors
-        for(int tempVal=1; tempVal <= 9; ++tempVal){ //Loop over optohybrid temperatures sensosrs
+        for (int tempVal=1; tempVal <= 9; ++tempVal) { //Loop over optohybrid temperatures sensosrs
             strRegName = stdsprintf("GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.OH%i.BOARD_TEMP%i",ohN,tempVal);
             strKeyName = stdsprintf("OH%i.BOARD_TEMP%i",ohN,tempVal);
             la->response->set_word(strKeyName, readReg(la, strRegName));
@@ -578,22 +534,15 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask){
 
 void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
 {
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
-
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+  GETLOCALARGS(response);
+  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
-  if(request->get_key_exists("ohMask")){
+  if (request->get_key_exists("ohMask")) {
     ohMask = request->get_word("ohMask");
   }
 
-  if (request->get_key_exists("NOH")){
+  if (request->get_key_exists("NOH")) {
     unsigned int NOH_requested = request->get_word("NOH");
     if (NOH_requested > NOH) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
@@ -606,14 +555,15 @@ void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
+void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset)
+{
     std::string strKeyName;
     std::string strRegBase;
 
-    if (fw_version_check("getmonOHSysmon", la) == 3){
-        for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+    if (fw_version_check("getmonOHSysmon", la) == 3) {
+        for (int ohN = 0; ohN < NOH; ++ohN) { //Loop over all optohybrids
             // If this Optohybrid is masked skip it
-            if(!((ohMask >> ohN) & 0x1)){
+            if (!((ohMask >> ohN) & 0x1)) {
               //Read Alarm conditions & counters - OVERTEMP
               strKeyName = stdsprintf("OH%i.OVERTEMP",ohN);
               la->response->set_word(strKeyName,0xdeaddead);
@@ -648,7 +598,7 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
             LOGGER->log_message(LogManager::INFO, stdsprintf("Reading Sysmon Values for OH%i",ohN));
 
             //Issue reset??
-            if(doReset){
+            if (doReset) {
                 LOGGER->log_message(LogManager::INFO, stdsprintf("Reseting CNT_OVERTEMP, CNT_VCCAUX_ALARM and CNT_VCCINT_ALARM for OH%i",ohN));
                 writeReg(la, strRegBase+"RESET", 0x1);
             }
@@ -697,9 +647,9 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
         } //End Loop over all optohybrids
     } //End Case: v3 Electronics
     else{ //Case: v2b Electronics
-        for (int ohN = 0; ohN < NOH; ++ohN){ //Loop over all optohybrids
+        for (int ohN = 0; ohN < NOH; ++ohN) { //Loop over all optohybrids
             // If this Optohybrid is masked skip it
-            if(!((ohMask >> ohN) & 0x1)){
+            if (!((ohMask >> ohN) & 0x1)) {
               //Read Sysmon Values - Core Temperature
               strKeyName = stdsprintf("OH%i.FPGA_CORE_TEMP",ohN);
               la->response->set_word(strKeyName, 0xdeaddead);
@@ -735,23 +685,17 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset){
     return;
 } //End getmonOHSysmonLocal()
 
-void getmonOHSysmon(const RPCMsg *request, RPCMsg *response){
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+void getmonOHSysmon(const RPCMsg *request, RPCMsg *response)
+{
+  GETLOCALARGS(response);
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
-  if(request->get_key_exists("ohMask")){
+  if (request->get_key_exists("ohMask")) {
     ohMask = request->get_word("ohMask");
   }
 
-  if (request->get_key_exists("NOH")){
+  if (request->get_key_exists("NOH")) {
     unsigned int NOH_requested = request->get_word("NOH");
     if (NOH_requested > NOH) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
@@ -778,17 +722,12 @@ void getmonSCALocal(localArgs * la, int NOH)
   }
 }
 
-void getmonSCA(const RPCMsg *request, RPCMsg *response){
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+void getmonSCA(const RPCMsg *request, RPCMsg *response)
+{
+  GETLOCALARGS(response);
+
   int NOH = request->get_word("NOH");
 
-  struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
   getmonSCALocal(&la, NOH);
   rtxn.abort();
 } //End getmonSCA()
@@ -796,21 +735,20 @@ void getmonSCA(const RPCMsg *request, RPCMsg *response){
 void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
 {
     //Reset Requested?
-    if (doReset)
-    {
+    if (doReset) {
          writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
     }
 
     std::string regName, respName; //regName used for read/write, respName sets word in RPC response
     bool vfatOutOfSync = false;
-    for (int ohN=0; ohN < NOH; ++ohN){
-        for(unsigned int vfatN=0; vfatN < oh::VFATS_PER_OH; ++vfatN){
+    for (int ohN=0; ohN < NOH; ++ohN) {
+        for (unsigned int vfatN=0; vfatN < oh::VFATS_PER_OH; ++vfatN) {
             //Sync Error Counters
             respName = stdsprintf("OH%i.VFAT%i.SYNC_ERR_CNT",ohN,vfatN);
             regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.SYNC_ERR_CNT",ohN,vfatN);
             int nSyncErrs = readReg(la,regName);
             la->response->set_word(respName,nSyncErrs);
-            if( nSyncErrs > 0 ){
+            if ( nSyncErrs > 0 ) {
                 vfatOutOfSync = true;
             }
 
@@ -827,8 +765,7 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
     } //End Loop Over All OH's
 
     //Set OOS flag (out of sync)
-    if(vfatOutOfSync)
-    {
+    if (vfatOutOfSync) {
         la->response->set_string("warning","One or more VFATs found to be out of sync\n");
     }
 
@@ -838,9 +775,10 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
 void getmonVFATLink(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
+  
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
-  if (request->get_key_exists("NOH")){
+  if (request->get_key_exists("NOH")) {
     unsigned int NOH_requested = request->get_word("NOH");
     if (NOH_requested > NOH) {
       LOGGER->log_message(LogManager::WARNING, stdsprintf("NOH requested (%i) > NUM_OF_OH AMC register (%i)",NOH_requested,NOH));
@@ -849,14 +787,12 @@ void getmonVFATLink(const RPCMsg *request, RPCMsg *response)
   }
 
   bool doReset = false;
-  if(request->get_key_exists("doReset") ) {
+  if (request->get_key_exists("doReset") ) {
     doReset = request->get_word("doReset");
   }
 
   getmonVFATLinkLocal(&la, NOH, doReset);
   rtxn.abort();
-
-  return;
 } //End getmonVFATLink()
 
 extern "C" {
