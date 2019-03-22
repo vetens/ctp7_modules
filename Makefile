@@ -58,12 +58,15 @@ preprpm: default
 	@echo "Running preprpm target"
 	@cp -rf lib $(PackageDir)
 
-PackageSourceDir =$(ProjectBase)/src
+PackageSourceDir=$(ProjectBase)/src
+PackageTestSourceDir=$(ProjectBase)/test
 PackageIncludeDir=$(ProjectBase)/include
 PackageLibraryDir=$(ProjectBase)/lib
-PackageObjectDir =$(PackageSourceDir)/linux/$(Arch)
+PackageExecDir=$(ProjectBase)/bin
+PackageObjectDir=$(PackageSourceDir)/linux/$(Arch)
 # PackageObjectDir=$(PackageSourceDir)/linux
 Sources      := $(wildcard $(PackageSourceDir)/*.cpp) $(wildcard $(PackageSourceDir)/*/*.cpp)
+TestSources  := $(wildcard $(PackageTestSourceDir)/*.cxx) $(wildcard $(PackageTestSourceDir)/*.cpp)
 Dependencies := $(patsubst $(PackageSourceDir)/%.cpp, $(PackageObjectDir)/%.d, $(Sources))
 TargetObjects:= $(patsubst %.d,%.o,$(Dependencies))
 
@@ -151,8 +154,18 @@ _all: build
 
 ### local (PC) test functions, need standard gcc toolchain, dirs, and flags
 .PHONY: test
-test: test/tester.cpp
-	g++ -O0 -g3 -fno-inline -o test/$@ $< $(INC) $(LDFLAGS) -L/opt/wiscrpcsvc/lib -lwiscrpcsvc
+# test: test/tester.cpp
+TestExecs := $(patsubst $(PackageTestSourceDir)/%.cxx, $(PackageExecDir)/%, $(TestSources))
+$(TestExecs):
+
+$(PackageExecDir)/%: $(PackageTestSourceDir)/%.cxx
+	$(MakeDir) $(@D)
+	g++ -O0 -g3 -fno-inline -std=c++11 -c $(INC) -MT $@ -MMD -MP -MF $(@D)/$(*F).Td -o $@ $<
+	mv $(@D)/$(*F).Td $(@D)/$(*F).d
+	touch $@
+	g++ -O0 -g3 -fno-inline -std=c++11 -o $@ $< $(INC) $(LDFLAGS) -L/opt/wiscrpcsvc/lib -lwiscrpcsvc
+
+test: $(TestExecs)
 
 clean: cleanrpm
 	@echo Cleaning up all generated files
