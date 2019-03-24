@@ -340,7 +340,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                     uint32_t l1aCnt = 0;
                     while(l1aCnt < nevts) {
                         l1aCnt = readRawAddress(l1CntAddr, la->response);
-                        std::this_thread::sleep_for (std::chrono::microseconds(200));
+                        std::this_thread::sleep_for(std::chrono::microseconds(200));
                     }
 
                     writeReg(la, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0);
@@ -350,7 +350,7 @@ void genScanLocal(localArgs *la, uint32_t *outData, uint32_t ohN, uint32_t mask,
                     writeReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_START", 0x1);
                     if (readReg(la, "GEM_AMC.TTC.GENERATOR.ENABLE")) { //TTC Commands from TTC.GENERATOR
                         while(readReg(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_RUNNING")) {
-                            std::this_thread::sleep_for (std::chrono::microseconds(50));
+                            std::this_thread::sleep_for(std::chrono::microseconds(50));
                         }
                     } //End TTC Commands from TTC.GENERATOR
                 }
@@ -576,7 +576,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
             for (uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep) {
                 sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfatN,scanReg.c_str());
                 writeReg(la, regBuf, dacVal);
-                std::this_thread::sleep_for (std::chrono::milliseconds(waitTime));
+                std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
 
                 int idx = (dacVal-dacMin)/dacStep;
                 outDataDacVal[idx] = dacVal;
@@ -657,7 +657,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
                 writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.RESET",ohN), 0x1);
 
                 //Wait just over 1 second
-                std::this_thread::sleep_for (std::chrono::milliseconds(1005));
+                std::this_thread::sleep_for(std::chrono::milliseconds(1005));
 
                 //Read the counters
                 int idx = (dacVal-dacMin)/dacStep;
@@ -813,7 +813,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
             }
 
             //Sleep for 200 us + pulseDelay * 25 ns * (0.001 us / ns)
-            std::this_thread::sleep_for (std::chrono::microseconds(200+int(ceil(pulseDelay*25*0.001))));
+            std::this_thread::sleep_for(std::chrono::microseconds(200+int(ceil(pulseDelay*25*0.001))));
 
             //Check clusers
             for (int cluster=0; cluster<nclusters; ++cluster) {
@@ -1003,7 +1003,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
         writeRawAddress(addrTtcStart, 0x1, la->response);
 
         //Sleep for waitTime of milliseconds
-        std::this_thread::sleep_for (std::chrono::milliseconds(waitTime));
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
 
         //Read All Trigger Registers
         LOGGER->log_message(LogManager::INFO, "Reading trigger counters");
@@ -1155,7 +1155,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     //Set the VFATs into Run Mode
     broadcastWriteLocal(la, ohN, "CFG_RUN", 0x1, mask);
     LOGGER->log_message(LogManager::INFO, stdsprintf("VFATs not in 0x%x were set to run mode", mask));
-    std::this_thread::sleep_for (std::chrono::seconds(1)); //I noticed that DAC values behave weirdly immediately after VFAT is placed in run mode (probably voltage/current takes a moment to stabalize)
+    std::this_thread::sleep_for(std::chrono::seconds(1)); //I noticed that DAC values behave weirdly immediately after VFAT is placed in run mode (probably voltage/current takes a moment to stabalize)
 
     //Scan the DAC
 
@@ -1183,7 +1183,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
                         //either reading or writing this register will trigger a cache update
                         readRawAddress(adcCacheUpdateAddr[vfatN], la->response);
                         //updating the cache takes 20 us, including a 50% safety factor
-                        std::this_thread::sleep_for (std::chrono::microseconds(20));
+                        std::this_thread::sleep_for(std::chrono::microseconds(20));
                     }
                     adcVal += readRawAddress(adcAddr[vfatN], la->response);
                 }

@@ -65,12 +65,12 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
         }
 
         // Wait for the phases to be set
-        std::this_thread::sleep_for (std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         for (uint32_t repN = 0; repN < N; repN++) {
             // Try to synchronize the VFAT's
             writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 1);
-            std::this_thread::sleep_for (std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
             // Check the VFAT status
             for (uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++) {
