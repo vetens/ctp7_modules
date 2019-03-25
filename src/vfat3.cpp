@@ -32,22 +32,15 @@ uint32_t vfatSyncCheckLocal(localArgs * la, uint32_t ohN)
 
 void vfatSyncCheck(const RPCMsg *request, RPCMsg *response)
 {
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t goodVFATs = vfatSyncCheckLocal(&la, ohN);
 
     response->set_word("goodVFATs", goodVFATs);
 
-    return;
+    rtxn.abort();
 }
 
 void configureVFAT3DacMonitorLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t dacSelect){
@@ -83,39 +76,24 @@ void configureVFAT3DacMonitorLocal(localArgs *la, uint32_t ohN, uint32_t mask, u
 } //End configureVFAT3DacMonitorLocal(...)
 
 void configureVFAT3DacMonitor(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t vfatMask = request->get_word("vfatMask");
     uint32_t dacSelect = request->get_word("dacSelect");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
-
     LOGGER->log_message(LogManager::INFO, stdsprintf("Programming VFAT3 ADC Monitoring for Selection %i",dacSelect));
     configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
 
-    return;
+    rtxn.abort();
 } //End configureVFAT3DacMonitor()
 
 void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t ohMask = request->get_word("ohMask");
     uint32_t dacSelect = request->get_word("dacSelect");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     if (request->get_key_exists("NOH")){
         unsigned int NOH_requested = request->get_word("NOH");
@@ -137,7 +115,7 @@ void configureVFAT3DacMonitorMultiLink(const RPCMsg *request, RPCMsg *response){
         configureVFAT3DacMonitorLocal(&la, ohN, vfatMask, dacSelect);
     } //End Loop over all Optohybrids
 
-    return;
+    rtxn.abort();
 } //End configureVFAT3DacMonitorMultiLink()
 
 void configureVFAT3sLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask) {
@@ -185,41 +163,30 @@ void configureVFAT3sLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask) {
 }
 
 void configureVFAT3s(const RPCMsg *request, RPCMsg *response) {
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
+
     uint32_t ohN = request->get_word("ohN");
     uint32_t vfatMask = request->get_word("vfatMask");
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+
     configureVFAT3sLocal(&la, ohN, vfatMask);
     rtxn.abort();
 }
 
 void getChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
     LOGGER->log_message(LogManager::INFO, "Getting VFAT3 Channel Registers");
+
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t vfatMask = request->get_word("vfatMask");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t chanRegData[24*128];
 
     getChannelRegistersVFAT3Local(&la, ohN, vfatMask, chanRegData);
 
     response->set_word_array("chanRegData",chanRegData,24*128);
 
-    return;
+    rtxn.abort();
 } //End getChannelRegistersVFAT3()
 
 void getChannelRegistersVFAT3Local(localArgs *la, uint32_t ohN, uint32_t vfatMask, uint32_t *chanRegData){
@@ -278,19 +245,12 @@ void readVFAT3ADCLocal(localArgs * la, uint32_t * outData, uint32_t ohN, bool us
 } //End readVFAT3ADCLocal
 
 void readVFAT3ADC(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     bool useExtRefADC = request->get_word("useExtRefADC");
     uint32_t vfatMask = request->get_word("vfatMask");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t adcData[24];
 
     LOGGER->log_message(LogManager::INFO, stdsprintf("Reading VFAT3 ADC's for OH%i with mask %x",ohN, vfatMask));
@@ -298,22 +258,15 @@ void readVFAT3ADC(const RPCMsg *request, RPCMsg *response){
 
     response->set_word_array("adcData",adcData,24);
 
-    return;
+    rtxn.abort();
 } //End getChannelRegistersVFAT3()
 
 void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+    GETLOCALARGS(response);
 
     uint32_t ohMask = request->get_word("ohMask");
     bool useExtRefADC = request->get_word("useExtRefADC");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     if (request->get_key_exists("NOH")){
         unsigned int NOH_requested = request->get_word("NOH");
@@ -344,7 +297,7 @@ void readVFAT3ADCMultiLink(const RPCMsg *request, RPCMsg *response){
 
     response->set_word_array("adcDataAll",adcDataAll,12*24);
 
-    return;
+    rtxn.abort();
 } //End readVFAT3ADCMultiLink()
 
 void setChannelRegistersVFAT3SimpleLocal(localArgs * la, uint32_t ohN, uint32_t vfatMask, uint32_t *chanRegData){
@@ -441,19 +394,13 @@ void setChannelRegistersVFAT3Local(localArgs * la, uint32_t ohN, uint32_t vfatMa
 } //end setChannelRegistersVFAT3Local()
 
 void setChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
     LOGGER->log_message(LogManager::INFO, "Setting VFAT3 Channel Registers");
+
+    GETLOCALARGS(response);
 
     uint32_t ohN = request->get_word("ohN");
     uint32_t vfatMask = request->get_word("vfatMask");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     if (request->get_key_exists("simple")){
         uint32_t chanRegData[3072];
 
@@ -479,7 +426,7 @@ void setChannelRegistersVFAT3(const RPCMsg *request, RPCMsg *response){
         setChannelRegistersVFAT3Local(&la, ohN, vfatMask, calEnable, masks, trimARM, trimARMPol, trimZCC, trimZCCPol);
     } //End Case: user provided multiple arrays
 
-    return;
+    rtxn.abort();
 } //End setChannelRegistersVFAT3()
 
 void statusVFAT3sLocal(localArgs * la, uint32_t ohN)
@@ -526,18 +473,13 @@ void statusVFAT3sLocal(localArgs * la, uint32_t ohN)
     }
 }
 
-void statusVFAT3s(const RPCMsg *request, RPCMsg *response) {
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
+void statusVFAT3s(const RPCMsg *request, RPCMsg *response)
+{
+    GETLOCALARGS(response);
+
     uint32_t ohN = request->get_word("ohN");
     LOGGER->log_message(LogManager::INFO, "Reading VFAT3 status");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     statusVFAT3sLocal(&la, ohN);
     rtxn.abort();
 }
@@ -659,7 +601,6 @@ void getVFAT3ChipIDs(const RPCMsg *request, RPCMsg *response)
   getVFAT3ChipIDsLocal(&la, ohN, rawID);
 
   rtxn.abort();
-  return;
 }
 
 extern "C" {

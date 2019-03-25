@@ -5,7 +5,7 @@ memsvc_handle_t memsvc;
 struct localArgs getLocalArgs(RPCMsg *response)
 {
     auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+    env.set_mapsize(LMDB_SIZE);
     std::string gem_path       = std::getenv("GEM_PATH");
     std::string lmdb_data_file = gem_path+"/address_table.mdb";
     env.open(lmdb_data_file.c_str(), 0, 0664);
@@ -29,7 +29,8 @@ std::string serialize(xhal::utils::Node n)
   return std::to_string((uint32_t)n.real_address)+"|"+n.permission+"|"+std::to_string((uint32_t)n.mask);
 }
 
-void update_address_table(const RPCMsg *request, RPCMsg *response) {
+void update_address_table(const RPCMsg *request, RPCMsg *response)
+{
   LOGGER->log_message(LogManager::INFO, "START UPDATE ADDRESS TABLE");
   std::string at_xml = request->get_string("at_xml");
   std::string gem_path = std::getenv("GEM_PATH");
@@ -57,7 +58,7 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
   std::remove(lmdb_lock_file.c_str());
 
   auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
+  env.set_mapsize(LMDB_SIZE);
   env.open(lmdb_area_file.c_str(), 0, 0664);
 
   LOGGER->log_message(LogManager::INFO, "LMDB ENV OPEN");
@@ -65,14 +66,13 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
   lmdb::val key;
   lmdb::val value;
   auto wtxn = lmdb::txn::begin(env);
-  auto dbi = lmdb::dbi::open(wtxn, nullptr);
+  auto dbi  = lmdb::dbi::open(wtxn, nullptr);
 
   LOGGER->log_message(LogManager::INFO, "START ITERATING OVER MAP");
 
   std::string t_key;
   std::string t_value;
-  for (auto it:m_parsed_at)
-  {
+  for (auto it:m_parsed_at) {
     t_key = it.first;
     t_node = it.second;
     t_value = serialize(t_node);
@@ -85,35 +85,29 @@ void update_address_table(const RPCMsg *request, RPCMsg *response) {
   wtxn.abort();
 }
 
-void readRegFromDB(const RPCMsg *request, RPCMsg *response) {
+void readRegFromDB(const RPCMsg *request, RPCMsg *response)
+{
   std::string regName = request->get_string("reg_name");
-  auto env = lmdb::env::create();
-  env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-  std::string gem_path = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
+
+  GETLOCALARGS(response);
+  
   LOGGER->log_message(LogManager::INFO, "LMDB ENV OPEN");
   lmdb::val key;
   lmdb::val value;
-  auto rtxn = lmdb::txn::begin(env);
-  auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
   key.assign(regName.c_str());
   bool found = dbi.get(rtxn,key,value);
-  uint32_t reg_address, reg_mask;
-  std::string permissions;
-  std::vector<std::string> temp;
-  std::string t_value;
   if (found) {
     LOGGER->log_message(LogManager::INFO, stdsprintf("Key: %s is found", regName.c_str()));
-    t_value = std::string(value.data());
+    std::string t_value = std::string(value.data());
     t_value = t_value.substr(0,value.size());
-    temp = split(t_value,'|');
-    reg_address = stoll(temp[0]);
-    permissions = temp[1];
-    reg_mask = stoll(temp[2]);
-    response->set_string("permissions", permissions);
-    response->set_word("address", reg_address);
-    response->set_word("mask", reg_mask);
+    std::vector<std::string> tmp = split(t_value,'|');
+    uint32_t raddr = stoll(tmp[0]);
+    uint32_t rmask = stoll(tmp[2]);
+    std::string perms = tmp[1];
+    response->set_string("permissions", perms);
+    response->set_word("address",       raddr);
+    response->set_word("mask",          rmask);
   } else {
     LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
     response->set_string("error", "Register not found");
@@ -121,11 +115,12 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response) {
   rtxn.abort();
 }
 
-uint32_t getNumNonzeroBits(uint32_t value){
+uint32_t getNumNonzeroBits(uint32_t value)
+{
     //See: https://stackoverflow.com/questions/4244274/how-do-i-count-the-number-of-zero-bits-in-an-integer
     uint32_t numNonzeroBits=0;
-    for(size_t i=0; i < CHAR_BIT * sizeof value; ++i){
-        if ((value & (1 << i)) == 1){
+    for (size_t i=0; i < CHAR_BIT * sizeof value; ++i) {
+        if ((value & (1 << i)) == 1) {
             numNonzeroBits++;
         }
     }
@@ -133,13 +128,14 @@ uint32_t getNumNonzeroBits(uint32_t value){
     return numNonzeroBits;
 } //End numNonzeroBits()
 
-uint32_t getMask(localArgs * la, const std::string & regName){
+uint32_t getMask(localArgs * la, const std::string & regName)
+{
     lmdb::val key, db_res;
     bool found=false;
     key.assign(regName.c_str());
     found = la->dbi.get(la->rtxn,key,db_res);
     uint32_t mask = 0x0;
-    if (found){
+    if (found) {
         std::vector<std::string> tmp;
         std::string t_db_res = std::string(db_res.data());
         t_db_res = t_db_res.substr(0,db_res.size());
@@ -152,7 +148,8 @@ uint32_t getMask(localArgs * la, const std::string & regName){
     return mask;
 } //End getMask(...)
 
-void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response){
+void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response)
+{
   uint32_t data[1];
   data[0] = value;
   if (memhub_write(memsvc, address, 1, data) != 0) {
@@ -161,7 +158,8 @@ void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response){
   }
 }
 
-uint32_t readRawAddress(uint32_t address, RPCMsg* response){
+uint32_t readRawAddress(uint32_t address, RPCMsg* response)
+{
   uint32_t data[1];
   if (memhub_read(memsvc, address, 1, data) != 0) {
   	response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
@@ -171,7 +169,8 @@ uint32_t readRawAddress(uint32_t address, RPCMsg* response){
   return data[0];
 }
 
-uint32_t getAddress(localArgs * la, const std::string & regName){
+uint32_t getAddress(localArgs * la, const std::string & regName)
+{
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
@@ -191,7 +190,8 @@ uint32_t getAddress(localArgs * la, const std::string & regName){
   return address;
 }
 
-void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response) {
+void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response)
+{
   std::vector<std::string> tmp;
   std::string t_db_res = std::string(db_res.data());
   t_db_res = t_db_res.substr(0,db_res.size());
@@ -205,7 +205,8 @@ void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response) {
   }
 }
 
-uint32_t readAddress(lmdb::val & db_res, RPCMsg *response) {
+uint32_t readAddress(lmdb::val & db_res, RPCMsg *response)
+{
   std::vector<std::string> tmp;
   std::string t_db_res = std::string(db_res.data());
   t_db_res = t_db_res.substr(0,db_res.size());
@@ -213,62 +214,59 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response) {
   uint32_t data[1];
   uint32_t address = stoi(tmp[0]);
   int n_current_tries = 0;
-  while (true)
-  {
-      if (memhub_read(memsvc, address, 1, data) != 0)
-      {
-          if (n_current_tries < 9)
-          {
-              n_current_tries++;
-              LOGGER->log_message(LogManager::ERROR, stdsprintf("Reading reg %08X failed %i times.", address, n_current_tries));
-          }
-          else
-          {
-               response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
-               LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s failed 10 times", memsvc_get_last_error(memsvc)));
-               return 0xdeaddead;
-          }
+  while (true) {
+    if (memhub_read(memsvc, address, 1, data) != 0) {
+      if (n_current_tries < 9) {
+        n_current_tries++;
+        LOGGER->log_message(LogManager::ERROR, stdsprintf("Reading reg %08X failed %i times.", address, n_current_tries));
+      } else {
+        response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
+        LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s failed 10 times", memsvc_get_last_error(memsvc)));
+        return 0xdeaddead;
       }
-      else break;
+    } else {
+      break;
+    }
   }
   return data[0];
 }
 
-void writeRawReg(localArgs * la, const std::string & regName, uint32_t value) {
+void writeRawReg(localArgs * la, const std::string & regName, uint32_t value)
+{
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
   found = la->dbi.get(la->rtxn,key,db_res);
-  if (found){
+  if (found) {
     writeAddress(db_res, value, la->response);
   } else {
-  	LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
+    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
     la->response->set_string("error", "Register not found");
   }
 }
 
-uint32_t readRawReg(localArgs * la, const std::string & regName) {
+uint32_t readRawReg(localArgs * la, const std::string & regName)
+{
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
   found = la->dbi.get(la->rtxn,key,db_res);
-  if (found){
+  if (found) {
     return readAddress(db_res, la->response);
   } else {
-  	LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
+    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
     la->response->set_string("error", "Register not found");
     return 0xdeaddead;
   }
 }
 
-uint32_t applyMask(uint32_t data, uint32_t mask) {
+uint32_t applyMask(uint32_t data, uint32_t mask)
+{
   uint32_t result = data & mask;
-  for (int i = 0; i < 32; i++)
-  {
-    if (mask & 1)
-    {
+  for (int i = 0; i < 32; i++) {
+    if (mask & 1) {
       break;
-    }else {
+    } else {
       mask = mask >> 1;
       result = result >> 1;
     }
@@ -276,20 +274,21 @@ uint32_t applyMask(uint32_t data, uint32_t mask) {
   return result;
 }
 
-uint32_t readReg(localArgs * la, const std::string & regName) {
+uint32_t readReg(localArgs * la, const std::string & regName)
+{
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
   found = la->dbi.get(la->rtxn,key,db_res);
-  if (found){
+  if (found) {
     std::vector<std::string> tmp;
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     tmp = split(t_db_res,'|');
     std::size_t found = tmp[1].find_first_of("r");
     if (found==std::string::npos) {
-    	// response->set_string("error", std::string("No read permissions"));
-    	LOGGER->log_message(LogManager::ERROR, stdsprintf("No read permissions for %s", regName.c_str()));
+      // response->set_string("error", std::string("No read permissions"));
+      LOGGER->log_message(LogManager::ERROR, stdsprintf("No read permissions for %s", regName.c_str()));
       return 0xdeaddead;
     }
     uint32_t data[1];
@@ -297,8 +296,8 @@ uint32_t readReg(localArgs * la, const std::string & regName) {
     address = stoll(tmp[0]);
     mask = stoll(tmp[2]);
     if (memhub_read(memsvc, address, 1, data) != 0) {
-    	// response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
-    	LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
+      // response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
+      LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
       return 0xdeaddead;
     }
     if (mask!=0xFFFFFFFF) {
@@ -313,12 +312,13 @@ uint32_t readReg(localArgs * la, const std::string & regName) {
   }
 }
 
-void writeReg(localArgs * la, const std::string & regName, uint32_t value) {
+void writeReg(localArgs * la, const std::string & regName, uint32_t value)
+{
   lmdb::val key, db_res;
   bool found;
   key.assign(regName.c_str());
   found = la->dbi.get(la->rtxn,key,db_res);
-  if (found){
+  if (found) {
     std::vector<std::string> tmp;
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
@@ -335,10 +335,8 @@ void writeReg(localArgs * la, const std::string & regName, uint32_t value) {
       }
       int shift_amount = 0;
       uint32_t mask_copy = mask;
-      for (int i = 0; i < 32; i++)
-      {
-        if (mask & 1)
-        {
+      for (int i = 0; i < 32; i++) {
+        if (mask & 1) {
           break;
         } else {
           shift_amount +=1;

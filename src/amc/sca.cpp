@@ -55,7 +55,7 @@ std::vector<uint32_t> scaCTRLCommand(localArgs* la, SCACTRLCommandT const& cmd, 
 {
   uint32_t monMask = readReg(la,"GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF");
   writeReg(la,"GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF",       0xffffffff);
-  
+
   std::vector<uint32_t> result;
   switch (cmd) {
   case SCACTRLCommand::CTRL_R_ID_V2:
@@ -199,7 +199,6 @@ void scaModuleReset(const RPCMsg *request, RPCMsg *response)
   scaModuleResetLocal(&la, ohMask);
 
   rtxn.abort();
-  return;
 }
 
 void readSCAChipID(const RPCMsg *request, RPCMsg *response)
@@ -212,7 +211,6 @@ void readSCAChipID(const RPCMsg *request, RPCMsg *response)
   std::vector<uint32_t> scaChipIDs = readSCAChipIDLocal(&la, ohMask, scaV1);
 
   rtxn.abort();
-  return;
 }
 
 void readSCASEUCounter(const RPCMsg *request, RPCMsg *response)
@@ -225,7 +223,6 @@ void readSCASEUCounter(const RPCMsg *request, RPCMsg *response)
   std::vector<uint32_t> seuCounts = readSCASEUCounterLocal(&la, ohMask, reset);
 
   rtxn.abort();
-  return;
 }
 
 void resetSCASEUCounter(const RPCMsg *request, RPCMsg *response)
@@ -237,5 +234,4 @@ void resetSCASEUCounter(const RPCMsg *request, RPCMsg *response)
   resetSCASEUCounterLocal(&la, ohMask);
 
   rtxn.abort();
-  return;
 }

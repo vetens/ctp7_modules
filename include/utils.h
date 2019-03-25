@@ -39,10 +39,12 @@ typedef struct localArgs {
  */
 LocalArgs getLocalArgs(RPCMsg *response);
 
+static constexpr uint32_t LMDB_SIZE = 1UL * 1024UL * 1024UL * 40UL; ///< Maximum size of the LMDB object, currently 40 MiB
+
 // FIXME: to be replaced with the above function when the struct is properly implemented
 #define GETLOCALARGS(response)                                  \
     auto env = lmdb::env::create();                             \
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */ \
+    env.set_mapsize(LMDB_SIZE);                                 \
     std::string gem_path       = std::getenv("GEM_PATH");       \
     std::string lmdb_data_file = gem_path+"/address_table.mdb"; \
     env.open(lmdb_data_file.c_str(), 0, 0664);                  \

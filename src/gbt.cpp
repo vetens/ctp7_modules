@@ -15,16 +15,9 @@
 #include <thread>
 #include <chrono>
 
-void scanGBTPhases(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
-
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+void scanGBTPhases(const RPCMsg *request, RPCMsg *response)
+{
+    GETLOCALARGS(response);
 
     // Get the keys
     const uint32_t ohN = request->get_word("ohN");
@@ -35,16 +28,16 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response){
 
     // Perform the scan
     LOGGER->log_message(LogManager::INFO, stdsprintf("Calling Local Method for OH #%u.", ohN));
-    if (scanGBTPhasesLocal(&la, ohN, nScans, phaseMin, phaseMax, phaseStep))
-    {
+    if (scanGBTPhasesLocal(&la, ohN, nScans, phaseMin, phaseMax, phaseStep)) {
         LOGGER->log_message(LogManager::INFO, stdsprintf("GBT Scan for OH #%u Failed.", ohN));
-        return;
+        rtxn.abort();
     }
 
-    return;
+    rtxn.abort();
 } //Enc scanGBTPhase
 
-bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, const uint8_t phaseMin, const uint8_t phaseMax, const uint8_t phaseStep){
+bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, const uint8_t phaseMin, const uint8_t phaseMax, const uint8_t phaseStep)
+{
     LOGGER->log_message(LogManager::INFO, stdsprintf("Scanning the phases for OH #%u.", ohN));
 
     // ohN check
@@ -64,9 +57,9 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
     std::vector<std::vector<uint32_t>> results(oh::VFATS_PER_OH, std::vector<uint32_t>(16));
 
     // Perform the scan
-    for(uint8_t phase = phaseMin; phase <= phaseMax; phase += phaseStep){
+    for (uint8_t phase = phaseMin; phase <= phaseMax; phase += phaseStep) {
         // Set the new phases
-        for(uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++){
+        for (uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++) {
             if (writeGBTPhaseLocal(la, ohN, vfatN, phase))
                 return true;
         }
@@ -74,13 +67,13 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
         // Wait for the phases to be set
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-        for (uint32_t repN = 0; repN < N; repN++){
+        for (uint32_t repN = 0; repN < N; repN++) {
             // Try to synchronize the VFAT's
             writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 1);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
             // Check the VFAT status
-            for(uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++){
+            for (uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++) {
                 const bool linkGood = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.LINK_GOOD", ohN, vfatN)) == 1);
                 const bool syncErrCnt = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.SYNC_ERR_CNT", ohN, vfatN)) == 0);
                 const bool cfgRun = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN)) != 0xdeaddead);
@@ -93,23 +86,16 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
     }
 
     // Write the results to RPC keys
-    for(uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++){
+    for (uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++) {
         la->response->set_word_array(stdsprintf("OH%u.VFAT%u", ohN, vfatN), results[vfatN]);
     }
 
     return false;
 } //End scanGBTPhaseLocal
 
-void writeGBTConfig(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
-
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+void writeGBTConfig(const RPCMsg *request, RPCMsg *response)
+{
+    GETLOCALARGS(response);
 
     // Get the keys
     const uint32_t ohN = request->get_word("ohN");
@@ -126,10 +112,11 @@ void writeGBTConfig(const RPCMsg *request, RPCMsg *response){
     // Write the configuration
     writeGBTConfigLocal(&la, ohN, gbtN, config);
 
-    return;
+    rtxn.abort();
 } //End writeGBTConfig(...)
 
-bool writeGBTConfigLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const gbt::config_t &config){
+bool writeGBTConfigLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const gbt::config_t &config)
+{
     LOGGER->log_message(LogManager::INFO, stdsprintf("Writing the configuration of OH #%u - GBTX #%u.", ohN, gbtN));
 
     // ohN check
@@ -142,7 +129,7 @@ bool writeGBTConfigLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN,
         EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) exceeds the number of GBT's per OH (%u).", gbtN, gbt::GBTS_PER_OH), true);
 
     // Write all the registers
-    for (size_t address = 0; address < gbt::CONFIG_SIZE; address++){
+    for (size_t address = 0; address < gbt::CONFIG_SIZE; address++) {
         if (writeGBTRegLocal(la, ohN, gbtN, static_cast<uint16_t>(address), config[address]))
             return true;
     }
@@ -150,16 +137,9 @@ bool writeGBTConfigLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN,
     return false;
 } //End writeGBTConfigLocal(...)
 
-void writeGBTPhase(const RPCMsg *request, RPCMsg *response){
-    auto env = lmdb::env::create();
-    env.set_mapsize(1UL * 1024UL * 1024UL * 40UL); /* 40 MiB */
-    std::string gem_path = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto dbi = lmdb::dbi::open(rtxn, nullptr);
-
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
+void writeGBTPhase(const RPCMsg *request, RPCMsg *response)
+{
+    GETLOCALARGS(response);
 
     // Get the keys
     const uint32_t ohN = request->get_word("ohN");
@@ -169,10 +149,11 @@ void writeGBTPhase(const RPCMsg *request, RPCMsg *response){
     // Write the phase
     writeGBTPhaseLocal(&la, ohN, vfatN, phase);
 
-    return;
+    rtxn.abort();
 } //End writeGBTPhase
 
-bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN, const uint8_t phase){
+bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN, const uint8_t phase)
+{
     LOGGER->log_message(LogManager::INFO, stdsprintf("Writing the VFAT #%u phase of OH #%u.", vfatN, ohN));
 
     // ohN check
@@ -191,7 +172,7 @@ bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN,
     // Write the triplicated phase registers
     const uint32_t gbtN = gbt::elinkMappings::VFAT_TO_GBT[vfatN];
 
-    for(unsigned char regN = 0; regN < 3; regN++){
+    for (unsigned char regN = 0; regN < 3; regN++) {
         const uint16_t regAddress = gbt::elinkMappings::ELINK_TO_REGISTERS[gbt::elinkMappings::VFAT_TO_ELINK[vfatN]][regN];
 
         if (writeGBTRegLocal(la, ohN, gbtN, regAddress, phase))
@@ -201,7 +182,8 @@ bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN,
     return false;
 } //End writeGBTPhaseLocal
 
-bool writeGBTRegLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const uint16_t address, const uint8_t value){
+bool writeGBTRegLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const uint16_t address, const uint8_t value)
+{
     // Check that the GBT exists
     if (gbtN >= gbt::GBTS_PER_OH)
         EMIT_RPC_ERROR(la->response, stdsprintf("The gbtN parameter supplied (%u) is larger than the number of GBT's per OH (%u).", gbtN, gbt::GBTS_PER_OH), true);
@@ -239,4 +221,3 @@ extern "C" {
         modmgr->register_method("gbt", "scanGBTPhases", scanGBTPhases);
     }
 }
-

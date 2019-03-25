@@ -738,16 +738,16 @@ void ttcModuleReset(const RPCMsg *request, RPCMsg *response)
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
   ttcModuleResetLocal(&la);
+  rtxn.abort();
 }
-
 void ttcMMCMReset(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
   // LocalArgs la = getLocalArgs(response);
   ttcMMCMResetLocal(&la);
+  rtxn.abort();
 }
-
 void ttcMMCMPhaseShift(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -759,9 +759,8 @@ void ttcMMCMPhaseShift(const RPCMsg *request, RPCMsg *response)
 
   ttcMMCMPhaseShiftLocal(&la, relock, modeBC0, scan);
 
-  return;
+  rtxn.abort();
 }
-
 void checkPLLLock(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -776,9 +775,8 @@ void checkPLLLock(const RPCMsg *request, RPCMsg *response)
 
   response->set_word("lockCnt",lockCnt);
 
-  return;
+  rtxn.abort();
 }
-
 void getMMCMPhaseMean(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -786,8 +784,8 @@ void getMMCMPhaseMean(const RPCMsg *request, RPCMsg *response)
   uint32_t reads = request->get_word("reads");
   double res = getMMCMPhaseMeanLocal(&la, reads);
   response->set_word("phase", res);
+  rtxn.abort();
 }
-
 void getMMCMPhaseMedian(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -795,8 +793,8 @@ void getMMCMPhaseMedian(const RPCMsg *request, RPCMsg *response)
   uint32_t reads = request->get_word("reads");
   double res = getMMCMPhaseMedianLocal(&la, reads);
   response->set_word("phase", res);
+  rtxn.abort();
 }
-
 void getGTHPhaseMean(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -804,8 +802,8 @@ void getGTHPhaseMean(const RPCMsg *request, RPCMsg *response)
   uint32_t reads = request->get_word("reads");
   double res = getGTHPhaseMeanLocal(&la, reads);
   response->set_word("phase", res);
+  rtxn.abort();
 }
-
 void getGTHPhaseMedian(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -813,30 +811,30 @@ void getGTHPhaseMedian(const RPCMsg *request, RPCMsg *response)
   uint32_t reads = request->get_word("reads");
   double res = getGTHPhaseMedianLocal(&la, reads);
   response->set_word("phase", res);
+  rtxn.abort();
 }
-
 void ttcCounterReset(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
   ttcCounterResetLocal(&la);
-}
-void getL1AEnable(const RPCMsg *request, RPCMsg *response)
+  rtxn.abort();
+}void getL1AEnable(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
   uint32_t res = getL1AEnableLocal(&la);
   response->set_word("result", res);
+  rtxn.abort();
 }
-
 void setL1AEnable(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
   bool en = request->get_word("enable");
   setL1AEnableLocal(&la, en);
+  rtxn.abort();
 }
-
 void getTTCConfig(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -844,8 +842,8 @@ void getTTCConfig(const RPCMsg *request, RPCMsg *response)
   uint8_t cmd = request->get_word("cmd");
   uint32_t res = getTTCConfigLocal(&la, cmd);
   response->set_word("result", res);
+  rtxn.abort();
 }
-
 void setTTCConfig(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -853,8 +851,8 @@ void setTTCConfig(const RPCMsg *request, RPCMsg *response)
   uint8_t cmd = request->get_word("cmd");
   uint8_t val = request->get_word("value");
   setTTCConfigLocal(&la, cmd, val);
+  rtxn.abort();
 }
-
 void getTTCStatus(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -862,8 +860,8 @@ void getTTCStatus(const RPCMsg *request, RPCMsg *response)
   uint32_t status = getTTCStatusLocal(&la);
   // uint32_t status = 0xdeadbeef;
   response->set_word("result", status);
+  rtxn.abort();
 }
-
 void getTTCErrorCount(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -871,8 +869,8 @@ void getTTCErrorCount(const RPCMsg *request, RPCMsg *response)
   bool single = request->get_word("single");
   uint32_t res = getTTCErrorCountLocal(&la, single);
   response->set_word("result", res);
+  rtxn.abort();
 }
-
 void getTTCCounter(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
@@ -880,28 +878,29 @@ void getTTCCounter(const RPCMsg *request, RPCMsg *response)
   uint8_t cmd = request->get_word("cmd");
   uint32_t res = getTTCCounterLocal(&la, cmd);
   response->set_word("result", res);
+  rtxn.abort();
 }
-
 void getL1AID(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
   uint32_t res = getL1AIDLocal(&la);
   response->set_word("result", res);
+  rtxn.abort();
 }
-
 void getL1ARate(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
   uint32_t res = getL1ARateLocal(&la);
   response->set_word("result", res);
+  rtxn.abort();
 }
-
 void getTTCSpyBuffer(const RPCMsg *request, RPCMsg *response)
 {
   // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
   uint32_t res = getTTCSpyBufferLocal(&la);
   response->set_word("result", res);
+  rtxn.abort();
 }
