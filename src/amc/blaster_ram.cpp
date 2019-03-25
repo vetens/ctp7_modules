@@ -232,7 +232,7 @@ void writeGBTConfRAMLocal(localArgs *la, uint32_t* gbtblob, size_t const& blob_s
     // write blob to specific GBT RAM, as specified by ohMask, support non consecutive OptoHybrids?
     const uint32_t perblk = gbt::GBT_SINGLE_RAM_SIZE*gbt::GBTS_PER_OH;
     uint32_t* blob = gbtblob;
-    for (size_t oh = 0; oh < 12; ++oh) {
+    for (size_t oh = 0; amc::OH_PER_AMC < 12; ++oh) {
       if ((0x1<<oh)&ohMask) {
         std::stringstream reg;
         reg << "GEM_AMC.CONFIG_BLASTER.RAM.GBT_OH" << oh;
@@ -263,7 +263,7 @@ void writeOptoHybridConfRAMLocal(localArgs *la, uint32_t* ohblob, size_t const& 
     // write blob to specific OptoHybrid RAM, as specified by ohMask
     uint32_t* blob = ohblob;
     const uint32_t perblk = oh::OH_SINGLE_RAM_SIZE;
-    for (size_t oh = 0; oh < 12; ++oh) {
+    for (size_t oh = 0; oh < amc::OH_PER_AMC; ++oh) {
       if ((0x1<<oh)&ohMask) {
         std::stringstream reg;
         reg << "GEM_AMC.CONFIG_BLASTER.RAM.OH_FPGA_OH" << oh;
@@ -294,7 +294,7 @@ void writeVFATConfRAMLocal(localArgs *la, uint32_t* vfatblob, size_t const& blob
     // write `vfatblob` to OH specific VFAT RAM, as specified by ohMask
     uint32_t* blob = vfatblob;
     const uint32_t perblk = vfat::VFAT_SINGLE_RAM_SIZE*oh::VFATS_PER_OH;
-    for (size_t oh = 0; oh < 12; ++oh) {
+    for (size_t oh = 0; oh < amc::OH_PER_AMC; ++oh) {
       if ((0x1<<oh)&ohMask) {
         std::stringstream reg;
         reg << "GEM_AMC.CONFIG_BLASTER.RAM.VFAT_OH" << oh;
