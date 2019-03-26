@@ -69,6 +69,77 @@ uint32_t getRAMBaseAddr(localArgs *la, BLASTERTypeT const& type, uint8_t const& 
  */
 uint32_t readConfRAMLocal(localArgs *la, BLASTERTypeT const& type, uint32_t* blob, size_t const& blob_sz);
 
+/*!
+ *  \brief Reads GBT configuration `BLOB` from BLASTER GBT_RAM for specified OptoHybrid (3 GBT BLOBs)
+ *
+ *  \detail The CTP7 has a RAM that stores configuration information for all GBTxs connected to the card.
+ *          The `BLOB` is a sequence of 8-bit register values for each GBT register (366 total).
+ *          The 8 bit configuration for GBT register 0 should be written to the lowest byte.
+ *          Each subsequent register fills the next byte.
+ *          GBT0 for OH0 is first, followed by GBT1, and then GBT2.
+ *          This is repeated for OH1...OHN, or as specified in the `ohMask`
+ *
+ *  \param la Local arguments structure
+ *  \param gbtblob GBT configuration `BLOB` corresponding to all GBTs on all listed links
+ *  \param blob_sz number of 32-bit words in GBT configuration `BLOB`
+ *         Should be equal to GBT_RAM_SIZE*N_GBTX*N_OH
+ *         Should not exceed GEM_AMC.CONFIG_BLASTER.STATUS.GBT_RAM_SIZE
+ *  \param ohMask links for which to fill the configuration.
+ *         If a link is not specified, that portion of the RAM will be skipped
+ *         WARNING: `ohMask` assumes that the BLOB structure skips the masked links
+ *         Default value is 0xfff, for all GE1/1 OptoHybrids, a value of 0x0 will be treated the same
+ *         Other values in the range (0x0,0xfff) will be treated as described
+ *  \returns Number of GBT BLOB words read in 32-bit words
+ */
+uint32_t readGBTConfRAMLocal(localArgs *la, void* gbtblob, size_t const& blob_sz, uint16_t const& ohMask=0xfff);
+
+/*!
+ *  \brief Reads OptoHybrid configuration `BLOB` from BLASTER OH_RAM
+ *
+ *  \detail The CTP7 has a RAM that stores all configuration information for all OptoHybrids connected to the card.
+ *          The `BLOB` is a sequence of pairs of 32-bit register addresses followed by 32-bit register values for each OH register.
+ *          The local OH address for the first register in OH0 is written to the lowest 32 bits, followed by the value to be written to that register.
+ *          Subsequent bits are allocated for the subsequent address/value pairs, and then repeated by the same for OH1...OHN, or as specified in the `ohMask`
+ *
+ *  \param la Local arguments structure
+ *  \param ohblob OptoHybrid configuration `BLOB` corresponding to all OptoHybrids on all listed links
+ *  \param blob_sz number of 32-bit words in OptoHybrid configuration `BLOB`
+ *         Should be equal to OH_RAM_SIZE*N_OH
+ *         Should not exceed GEM_AMC.CONFIG_BLASTER.STATUS.OH_RAM_SIZE
+ *  \param ohMask links for which to fill the configuration.
+ *         If a link is not specified, that portion of the RAM will be skipped
+ *         WARNING: `ohMask` assumes that the BLOB structure skips the masked links
+ *         Default value is 0xfff, for all GE1/1 OptoHybrids, a value of 0x0 will be treated the same
+ *         Other values in the range (0x0,0xfff) will be treated as described
+ *  \returns Number of OptoHybrid BLOB words read in 32-bit words
+ */
+uint32_t readOptoHybridConfRAMLocal(localArgs *la, uint32_t* ohblob, size_t const& blob_sz, uint16_t const& ohMask=0xfff);
+
+
+/*!
+ *  \brief Reads VFAT configuration `BLOB` from BLASTER VFAT_RAM for specified OptoHybrid (24 VFAT BLOBs)
+ *
+ *  \detail The CTP7 has a RAM that stores configuration information for all VFATs connected to the card.
+ *          The `BLOB` is a sequence of 16-bit register values for each VFAT register (147 total, the MS16-bits are ignored, but must be sent).
+ *          The 16 bit configuration for VFAT0 register 0 should be written to the 16 lowest bits.
+ *          Each subsequent register fills the next 16 bits, until register 147, which should then be followed by 16 0's
+ *          This is then repeated for OH1...OHN, or as specified in the `ohMask`
+ *
+ *  \param la Local arguments structure
+ *  \param vfatblob VFAT configuration `BLOB` corresponding to all VFATs on all listed links
+ *  \param blob_sz number of 32-bit words in VFAT configuration `BLOB`
+ *         Should be equal to VFAT_RAM_SIZE*N_VFAT*N_OH
+ *         Should not exceed GEM_AMC.CONFIG_BLASTER.STATUS.VFAT_RAM_SIZE
+ *  \param ohMask links for which to fill the configuration.
+ *         If a link is not specified, that portion of the RAM will be skipped/skipped?
+ *         WARNING: `ohMask` assumes that the BLOB structure skips the masked links
+ *         Default value is 0xfff, for all GE1/1 OptoHybrids, a value of 0x0 will be treated the same
+ *         Other values in the range (0x0,0xfff) will be treated as described
+ *  \returns Number of VFAT BLOB words read in 32-bit words
+ */
+uint32_t readVFATConfRAMLocal(localArgs *la, uint32_t* vfatblob, size_t const& blob_sz, uint16_t const& ohMask=0xfff);
+
+
 /**
    write functions
 **/
@@ -184,13 +255,13 @@ void writeConfRAM(const RPCMsg *request, RPCMsg *response);
 /*!
    \param[in] "gbtblob" binary data blob containing the GBT configuration to be written
  */
-
 void writeGBTConfRAM(const RPCMsg *request, RPCMsg *response);
+
 /*!
    \param[in] "ohblob" binary data blob containing the OptoHybrid configuration to be written
  */
-
 void writeOptoHybridConfRAM(const RPCMsg *request, RPCMsg *response);
+
 /*!
    \param[in] "vfatblob" binary data blob containing the VFAT configuration to be written
  */

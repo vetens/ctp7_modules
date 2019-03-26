@@ -152,11 +152,105 @@ uint32_t readConfRAMLocal(localArgs *la, BLASTERTypeT const& type, uint32_t* blo
     return nwords;
   }
 
-  nwords = readBlock(la, regName.str(), blob_sz, blob);
+  nwords = readBlock(la, regName.str(), blob, blob_sz);
   LOGGER->log_message(LogManager::DEBUG, stdsprintf("read: %d words from %s", nwords, regName.str().c_str()));
 
   return nwords;
 }
+
+uint32_t readGBTConfRAMLocal(localArgs *la, void* gbtblob, size_t const& blob_sz, uint16_t const& ohMask)
+{
+  LOGGER->log_message(LogManager::DEBUG, "readGBTConfRAMLocal called");
+
+  if (blob_sz > getRAMMaxSize(la, BLASTERType::GBT)) {
+    std::stringstream errmsg;
+    errmsg << "Invalid size " << blob_sz << " for GBT BLASTER RAM BLOB";
+    LOGGER->log_message(LogManager::ERROR, errmsg.str());
+    throw std::range_error(errmsg.str());
+  }
+
+  if (ohMask == 0x0 || ohMask == 0xfff) {
+    // read full blob to VFAT RAM
+    return readBlock(la, "GEM_AMC.CONFIG_BLASTER.RAM.GBT", static_cast<uint32_t*>(gbtblob), blob_sz);
+  } else {
+    // read blob to specific GBT RAM, as specified by ohMask, support non consecutive OptoHybrids?
+    const uint32_t perblk = gbt::GBT_SINGLE_RAM_SIZE*gbt::GBTS_PER_OH;
+    uint32_t nwords = 0x0;
+    uint32_t* blob = static_cast<uint32_t*>(gbtblob);
+    for (size_t oh = 0; oh < amc::OH_PER_AMC; ++oh) {
+      if ((0x1<<oh)&ohMask) {
+        std::stringstream reg;
+        reg << "GEM_AMC.CONFIG_BLASTER.RAM.GBT_OH" << oh;
+        nwords += readBlock(la, reg.str(), blob, perblk);
+        blob += perblk;
+      }
+    }
+    return nwords;
+  }
+}
+
+uint32_t readOptoHybridConfRAMLocal(localArgs *la, uint32_t* ohblob, size_t const& blob_sz, uint16_t const& ohMask)
+{
+  LOGGER->log_message(LogManager::DEBUG, "readOptoHybridConfRAMLocal called");
+
+  if (blob_sz > getRAMMaxSize(la, BLASTERType::OptoHybrid)) {
+    std::stringstream errmsg;
+    errmsg << "Invalid size " << blob_sz << " for OptoHybrid BLASTER RAM BLOB";
+    LOGGER->log_message(LogManager::ERROR, errmsg.str());
+    throw std::range_error(errmsg.str());
+  }
+
+  if (ohMask == 0x0 || ohMask == 0xfff) {
+    // read to all OptoHybrids
+    return readBlock(la, "GEM_AMC.CONFIG_BLASTER.RAM.OH", ohblob, blob_sz);
+  } else {
+    // read blob to specific OptoHybrid RAM, as specified by ohMask
+    uint32_t nwords = 0x0;
+    uint32_t* blob = ohblob;
+    const uint32_t perblk = oh::OH_SINGLE_RAM_SIZE;
+    for (size_t oh = 0; oh < amc::OH_PER_AMC; ++oh) {
+      if ((0x1<<oh)&ohMask) {
+        std::stringstream reg;
+        reg << "GEM_AMC.CONFIG_BLASTER.RAM.OH_FPGA_OH" << oh;
+        nwords += readBlock(la, reg.str(), blob, perblk);
+        blob += perblk;
+      }
+    }
+    return nwords;
+  }
+}
+
+uint32_t readVFATConfRAMLocal(localArgs *la, uint32_t* vfatblob, size_t const& blob_sz, uint16_t const& ohMask)
+{
+  LOGGER->log_message(LogManager::DEBUG, "readVFATConfRAMLocal called");
+
+  if (blob_sz > getRAMMaxSize(la, BLASTERType::VFAT)) {
+    std::stringstream errmsg;
+    errmsg << "Invalid size " << blob_sz << " for VFAT BLASTER RAM BLOB";
+    LOGGER->log_message(LogManager::ERROR, errmsg.str());
+    throw std::range_error(errmsg.str());
+  }
+
+  if (ohMask == 0x0 || ohMask == 0xfff) {
+    // read full blob to VFAT RAM
+    return readBlock(la, "GEM_AMC.CONFIG_BLASTER.RAM.VFAT", vfatblob, blob_sz);
+  } else {
+    // read `vfatblob` to OH specific VFAT RAM, as specified by ohMask
+    uint32_t nwords = 0x0;
+    uint32_t* blob = vfatblob;
+    const uint32_t perblk = vfat::VFAT_SINGLE_RAM_SIZE*oh::VFATS_PER_OH;
+    for (size_t oh = 0; oh < amc::OH_PER_AMC; ++oh) {
+      if ((0x1<<oh)&ohMask) {
+        std::stringstream reg;
+        reg << "GEM_AMC.CONFIG_BLASTER.RAM.VFAT_OH" << oh;
+        nwords += readBlock(la, reg.str(), blob, perblk);
+        blob += perblk;
+      }
+    }
+    return nwords;
+  }
+}
+
 
 void writeConfRAMLocal(localArgs *la, BLASTERTypeT const& type, uint32_t* blob, size_t const& blob_sz)
 {
@@ -232,7 +326,7 @@ void writeGBTConfRAMLocal(localArgs *la, uint32_t* gbtblob, size_t const& blob_s
     // write blob to specific GBT RAM, as specified by ohMask, support non consecutive OptoHybrids?
     const uint32_t perblk = gbt::GBT_SINGLE_RAM_SIZE*gbt::GBTS_PER_OH;
     uint32_t* blob = gbtblob;
-    for (size_t oh = 0; amc::OH_PER_AMC < 12; ++oh) {
+    for (size_t oh = 0; oh < amc::OH_PER_AMC; ++oh) {
       if ((0x1<<oh)&ohMask) {
         std::stringstream reg;
         reg << "GEM_AMC.CONFIG_BLASTER.RAM.GBT_OH" << oh;
