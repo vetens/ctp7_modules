@@ -727,7 +727,6 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacStep = request->get_word("dacStep");
     std::string scanReg = request->get_string("scanReg");
 
-    struct localArgs la = {.rtxn = rtxn, .dbi = dbi, .response = response};
     uint32_t outDataTrigRatePerVFAT[12*24*(dacMax-dacMin+1)/dacStep];
     uint32_t outDataDacValPerOH[12*(dacMax-dacMin+1)/dacStep];
     uint32_t outDataTrigRatePerOH[12*(dacMax-dacMin+1)/dacStep];
