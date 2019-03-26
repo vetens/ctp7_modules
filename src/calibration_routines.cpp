@@ -666,6 +666,8 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
 
             //Loop from dacMin to dacMax in steps of dacStep
             for (uint32_t dacVal = dacMin; dacVal <= dacMax; dacVal += dacStep) {
+                LOGGER->log_message(LogManager::INFO, stdsprintf("Setting %s to %i for all optohybrids in 0x%x",scanReg.c_str(),dacVal,ohMask));
+
                 //Set the scan register value
                 for (int ohN = 0; ohN < 12; ++ohN) {
                     if ((ohMask >> ohN) & 0x1) {
@@ -675,14 +677,23 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
                             sprintf(regBuf,"GEM_AMC.OH.OH%i.GEB.VFAT%i.CFG_%s",ohN,vfat,scanReg.c_str());
                             writeReg(la, regBuf, dacVal);
                         } //End Loop Over all VFATs
+                    } // End checking whether the OH is masked
+                } // End loop over optohybrids
 
-                        //Reset the counters
+                //Reset the counters
+                for (int ohN = 0; ohN < 12; ++ohN) {
+                    if ((ohMask >> ohN) & 0x1) {
                         writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.RESET",ohN), 0x1);
+                    } // End checking whether the OH is masked
+                } // End loop over optohybrids
 
-                        //Wait just over 1 second
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1005));
+                //Wait just over 1 second
+                std::this_thread::sleep_for(std::chrono::milliseconds(1005));
 
-                        //Read the counters
+                //Read the counters
+                for (int ohN = 0; ohN < 12; ++ohN) {
+                    if ((ohMask >> ohN) & 0x1) {
+                        uint32_t notmask = ~vfatmask[ohN] & 0xFFFFFF;
                         int idx = ohN*(dacMax-dacMin+1)/dacStep + (dacVal-dacMin)/dacStep;
                         outDataDacVal[idx] = dacVal;
                         outDataTrigRateOverall[idx] = readRawAddress(ohTrigRateAddr[ohN][24], la->response);
@@ -691,7 +702,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
 
                             idx = ohN*24*(dacMax-dacMin+1)/dacStep + vfat*(dacMax-dacMin+1)/dacStep+(dacVal-dacMin)/dacStep;
                             outDataTrigRatePerVFAT[idx] = readRawAddress(ohTrigRateAddr[ohN][vfat], la->response);
-                        }
+                        } //End Loop Over all VFATs
                     } // End checking whether the OH is masked
                 } // End loop over optohybrids
             } //End Loop from dacMin to dacMax
