@@ -168,7 +168,7 @@ uint32_t readReg(LocalArgs * la, const std::string & regName);
  *  \param offset Start reading from an offset from the base address returned by regName
  *  \returns the number of uint32_t words in the result (or better to return a std::vector?
  */
-uint32_t readBlock(localArgs* la, const std::string& regName, const uint32_t& size, uint32_t* result, const uint32_t& offset=0);
+uint32_t readBlock(localArgs* la, const std::string& regName, uint32_t* result, const uint32_t& size, const uint32_t& offset=0);
 
 /*!
  *  \brief Reads a block of values to a contiguous address space.
@@ -179,7 +179,7 @@ uint32_t readBlock(localArgs* la, const std::string& regName, const uint32_t& si
  *  \param offset Start reading from an offset from the base address regAddr
  *  \returns the number of uint32_t words in the result (or better to return a std::vector?
  */
-uint32_t readBlock(const uint32_t& regAddr, const uint32_t& size,  uint32_t* result, const uint32_t& offset=0);
+uint32_t readBlock(const uint32_t& regAddr,  uint32_t* result, const uint32_t& size, const uint32_t& offset=0);
 
 /*! \fn void writeReg(localArgs * la, const std::string & regName, uint32_t value)
  *  \brief Writes a value to a register. Register mask is applied

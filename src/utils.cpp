@@ -315,7 +315,7 @@ uint32_t readReg(localArgs * la, const std::string & regName)
   }
 }
 
-uint32_t readBlock(localArgs* la, const std::string& regName, const uint32_t& size, uint32_t* result, const uint32_t& offset)
+uint32_t readBlock(localArgs* la, const std::string& regName, uint32_t* result, const uint32_t& size, const uint32_t& offset)
 {
   lmdb::val key, db_res;
   key.assign(regName.c_str());
@@ -376,7 +376,7 @@ uint32_t readBlock(localArgs* la, const std::string& regName, const uint32_t& si
   return 0;
 }
 
-uint32_t readBlock(const uint32_t& regAddr, const uint32_t& size, uint32_t* result, const uint32_t& offset)
+uint32_t readBlock(const uint32_t& regAddr, uint32_t* result, const uint32_t& size, const uint32_t& offset)
 {
   // Might not make sense, as it would be impossible to do any validation at this level
   return 0;
