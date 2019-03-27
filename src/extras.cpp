@@ -148,7 +148,6 @@ void mlistwrite(const RPCMsg *request, RPCMsg *response) {
 }
 
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 extern "C" {
   const char *module_version_key = "extras v1.0.1";
   int module_activity_color = 4;

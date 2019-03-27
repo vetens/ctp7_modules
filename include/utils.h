@@ -160,7 +160,7 @@ uint32_t applyMask(uint32_t data, uint32_t mask);
 uint32_t readReg(LocalArgs * la, const std::string & regName);
 
 /*!
- *  \brief Reads a block of values to a contiguous address space.
+ *  \brief Reads a block of values from a contiguous address space.
  *  \param la Local arguments structure
  *  \param regName Register name of the block to be read
  *  \param size number of words to read (should this just come from the register properties?
@@ -171,8 +171,8 @@ uint32_t readReg(LocalArgs * la, const std::string & regName);
 uint32_t readBlock(localArgs* la, const std::string& regName, uint32_t* result, const uint32_t& size, const uint32_t& offset=0);
 
 /*!
- *  \brief Reads a block of values to a contiguous address space.
- *  \param la Local arguments structure
+ *  \brief Reads a block of values from a contiguous address space.
+ *
  *  \param regAddr Register address of the block to be read
  *  \param size number of words to read
  *  \param result Pointer to an array to hold the result

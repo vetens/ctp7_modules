@@ -251,7 +251,6 @@ uint32_t readVFATConfRAMLocal(localArgs *la, uint32_t* vfatblob, size_t const& b
   }
 }
 
-
 void writeConfRAMLocal(localArgs *la, BLASTERTypeT const& type, uint32_t* blob, size_t const& blob_sz)
 {
   if (!checkBLOBSize(la, type, blob_sz)) {
