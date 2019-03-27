@@ -31,11 +31,11 @@ void getmonTRIGGERmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
   la->response->set_word("OR_TRIGGER_RATE",readReg(la,"GEM_AMC.TRIGGER.STATUS.OR_TRIGGER_RATE"));
-  for (int ohN = 0; ohN < NOH; ohN++) {
-    // If this Optohybrid is masked fill with 0xdeaddead
-    if (!((ohMask >> ohN) & 0x1)) {
-      t1 = stdsprintf("OH%s.TRIGGER_RATE",std::to_string(ohN).c_str());
-      la->response->set_word(t1,0xdeaddead);
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
+  for (int ohN = 0; ohN < NOH; ohN++){
+    // If this Optohybrid is masked skip it
+    if(!((ohMask >> ohN) & 0x1)){
       continue;
     }
     t1 = stdsprintf("OH%s.TRIGGER_RATE",std::to_string(ohN).c_str());
@@ -70,7 +70,9 @@ void getmonTRIGGERmain(const RPCMsg *request, RPCMsg *response)
 void getmonTRIGGEROHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
-  for (int ohN = 0; ohN < NOH; ohN++) {
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
+  for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if (!((ohMask >> ohN) & 0x1)) {
       t1 = stdsprintf("OH%s.LINK0_MISSED_COMMA_CNT",std::to_string(ohN).c_str());
@@ -166,7 +168,9 @@ void getmonDAQmain(const RPCMsg *request, RPCMsg *response)
 void getmonDAQOHmainLocal(localArgs * la, int NOH, int ohMask)
 {
   std::string t1,t2;
-  for (int ohN = 0; ohN < NOH; ohN++) {
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
+  for (int ohN = 0; ohN < NOH; ohN++){
     // If this Optohybrid is masked skip it
     if (!((ohMask >> ohN) & 0x1)) {
       t1 = stdsprintf("OH%s.STATUS.EVT_SIZE_ERR",std::to_string(ohN).c_str());
@@ -312,6 +316,8 @@ void getmonOHLink(const RPCMsg *request, RPCMsg *response)
 
 void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
 {
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
   std::string t1,t2;
   for (int ohN = 0; ohN < NOH; ohN++) {
     // If this Optohybrid is masked skip it
@@ -415,6 +421,8 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask)
 
     //Turn on monitoring for requested links
     writeReg(la, "GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF", (~ohMask) & 0x3fc);
+    int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (NOH_local < NOH) NOH = NOH_local;
 
     for (int ohN = 0; ohN < NOH; ++ohN) { //Loop over all optohybrids
         // If this Optohybrid is masked skip it
@@ -559,6 +567,8 @@ void getmonOHSysmonLocal(localArgs *la, int NOH, int ohMask, bool doReset)
 {
     std::string strKeyName;
     std::string strRegBase;
+    int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    if (NOH_local < NOH) NOH = NOH_local;
 
     if (fw_version_check("getmonOHSysmon", la) == 3) {
         for (int ohN = 0; ohN < NOH; ++ohN) { //Loop over all optohybrids
@@ -712,6 +722,8 @@ void getmonOHSysmon(const RPCMsg *request, RPCMsg *response)
 
 void getmonSCALocal(localArgs * la, int NOH)
 {
+  int NOH_local = readReg(la,"GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+  if (NOH_local < NOH) NOH = NOH_local;
   std::string t1,t2;
   la->response->set_word("SCA.STATUS.READY", readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.STATUS.READY"));
   la->response->set_word("SCA.STATUS.CRITICAL_ERROR", readReg(la, "GEM_AMC.SLOW_CONTROL.SCA.STATUS.CRITICAL_ERROR"));
