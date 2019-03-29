@@ -4,11 +4,15 @@
  *  \author Brian Dorney <brian.l.dorney@cern.ch>
  */
 
-#include "amc.h"
 #include "daq_monitor.h"
-#include "hw_constants.h"
+
+#include <chrono>
+#include <thread>
 #include <string>
+
 #include "utils.h"
+#include "amc.h"
+#include "hw_constants.h"
 
 void getmonTTCmainLocal(localArgs * la)
 {
@@ -236,6 +240,7 @@ void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
     //Reset Requested?
     if (doReset) {
          writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+         std::this_thread::sleep_for(std::chrono::microseconds(92)); // FIXME sleep for N orbits
     }
 
     std::string regName, respName; //regName used for read/write, respName sets word in RPC response
@@ -243,22 +248,22 @@ void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
         for (unsigned int gbtN=0; gbtN < gbt::GBTS_PER_OH; ++gbtN) {
             //Ready
             respName = stdsprintf("OH%i.GBT%i.READY",ohN,gbtN);
-            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.GBT%i_READY",ohN,gbtN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.%s",respName.c_str());
             la->response->set_word(respName,readReg(la, regName));
 
             //Was not ready
             respName = stdsprintf("OH%i.GBT%i.WAS_NOT_READY",ohN,gbtN);
-            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.GBT%i_WAS_NOT_READY",ohN,gbtN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.%s",respName.c_str());
             la->response->set_word(respName,readReg(la, regName));
 
             //Rx had overflow
             respName = stdsprintf("OH%i.GBT%i.RX_HAD_OVERFLOW",ohN,gbtN);
-            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.GBT%i_RX_HAD_OVERFLOW",ohN,gbtN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.%s",respName.c_str());
             la->response->set_word(respName,readReg(la, regName));
 
             //Rx had underflow
             respName = stdsprintf("OH%i.GBT%i.RX_HAD_UNDERFLOW",ohN,gbtN);
-            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.GBT%i_RX_HAD_UNDERFLOW",ohN,gbtN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.%s",respName.c_str());
             la->response->set_word(respName,readReg(la, regName));
         } //End Loop Over GBT's
     } //End Loop Over All OH's
@@ -269,7 +274,7 @@ void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
 void getmonGBTLink(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
   if (request->get_key_exists("NOH")) {
@@ -292,7 +297,7 @@ void getmonGBTLink(const RPCMsg *request, RPCMsg *response)
 void getmonOHLink(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
   if (request->get_key_exists("NOH")) {
@@ -392,7 +397,7 @@ void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
 void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
   if (request->get_key_exists("ohMask")) {
@@ -543,7 +548,7 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask)
 void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
   if (request->get_key_exists("ohMask")) {
@@ -749,6 +754,7 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
     //Reset Requested?
     if (doReset) {
          writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+         std::this_thread::sleep_for(std::chrono::microseconds(92)); // FIXME sleep for N orbits
     }
 
     std::string regName, respName; //regName used for read/write, respName sets word in RPC response
@@ -757,7 +763,7 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
         for (unsigned int vfatN=0; vfatN < oh::VFATS_PER_OH; ++vfatN) {
             //Sync Error Counters
             respName = stdsprintf("OH%i.VFAT%i.SYNC_ERR_CNT",ohN,vfatN);
-            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.SYNC_ERR_CNT",ohN,vfatN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.%s",respName.c_str());
             int nSyncErrs = readReg(la,regName);
             la->response->set_word(respName,nSyncErrs);
             if ( nSyncErrs > 0 ) {
@@ -766,12 +772,12 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
 
             //DAQ Event Counters
             respName = stdsprintf("OH%i.VFAT%i.DAQ_EVENT_CNT",ohN,vfatN);
-            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.DAQ_EVENT_CNT",ohN,vfatN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.%s",respName.c_str());
             la->response->set_word(respName,readReg(la,regName));
 
             //DAQ CRC Error Counters
             respName = stdsprintf("OH%i.VFAT%i.DAQ_CRC_ERROR_CNT",ohN,vfatN);
-            regName = stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.DAQ_CRC_ERROR_CNT",ohN,vfatN);
+            regName = stdsprintf("GEM_AMC.OH_LINKS.%s",respName.c_str());
             la->response->set_word(respName,readReg(la,regName));
         } //End Loop Over VFAT's
     } //End Loop Over All OH's
@@ -787,7 +793,7 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
 void getmonVFATLink(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
   if (request->get_key_exists("NOH")) {
