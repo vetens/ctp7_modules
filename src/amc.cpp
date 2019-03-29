@@ -8,6 +8,7 @@
 #include "amc.h"
 #include "amc/ttc.h"
 #include "amc/daq.h"
+#include "amc/blaster_ram.h"
 
 #include <chrono>
 #include <string>
@@ -208,7 +209,6 @@ void sbitReadOut(const RPCMsg *request, RPCMsg *response)
     rtxn.abort();
 } //End sbitReadOut()
 
-
 extern "C" {
     const char *module_version_key = "amc v1.0.1";
     int module_activity_color = 4;
@@ -259,5 +259,9 @@ extern "C" {
 
         // SCA module methods (from amc/sca)
         // modmgr->register_method("amc", "scaHardResetEnable", scaHardResetEnable);
+
+        // BLASTER RAM module methods (from amc/blaster_ram)
+        modmgr->register_method("amc", "writeConfRAM", writeConfRAM);
+        modmgr->register_method("amc", "readConfRAM",  readConfRAM);
     }
 }
