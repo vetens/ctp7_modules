@@ -147,17 +147,17 @@ uint32_t getMask(localArgs * la, const std::string & regName)
   bool found=false;
   key.assign(regName.c_str());
   found = la->dbi.get(la->rtxn,key,db_res);
-  uint32_t mask = 0x0;
+  uint32_t rmask = 0x0;
   if (found) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
-    mask = stoull(tmp[2], nullptr, 16);
+    rmask = stoull(tmp[2], nullptr, 16);
   } else {
     LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
     la->response->set_string("error", "Register not found");
   }
-  return mask;
+  return rmask;
 }
 
 void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response)
@@ -186,18 +186,18 @@ uint32_t getAddress(localArgs * la, const std::string & regName)
   bool found;
   key.assign(regName.c_str());
   found = la->dbi.get(la->rtxn,key,db_res);
-  uint32_t address;
+  uint32_t raddr;
   if (found){
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
-    address = stoi(tmp[0]);
+    raddr = stoull(tmp[0], nullptr, 16);
   } else {
     LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
     la->response->set_string("error", "Register not found");
     return 0xdeaddead;
   }
-  return address;
+  return raddr;
 }
 
 void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response)
@@ -206,9 +206,9 @@ void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response)
   t_db_res = t_db_res.substr(0,db_res.size());
   std::vector<std::string> tmp = split(t_db_res,'|');
   uint32_t data[1];
-  uint32_t address = stoi(tmp[0]);
+  uint32_t raddr = stoull(tmp[0], nullptr, 16);
   data[0] = value;
-  if (memhub_write(memsvc, address, 1, data) != 0) {
+  if (memhub_write(memsvc, raddr, 1, data) != 0) {
     response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
     LOGGER->log_message(LogManager::INFO, stdsprintf("write memsvc error: %s", memsvc_get_last_error(memsvc)));
   }
@@ -220,13 +220,13 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response)
   t_db_res = t_db_res.substr(0,db_res.size());
   std::vector<std::string> tmp = split(t_db_res,'|');
   uint32_t data[1];
-  uint32_t address = stoi(tmp[0]);
+  uint32_t raddr = stoull(tmp[0], nullptr, 16);
   int n_current_tries = 0;
   while (true) {
-    if (memhub_read(memsvc, address, 1, data) != 0) {
+    if (memhub_read(memsvc, raddr, 1, data) != 0) {
       if (n_current_tries < 9) {
         n_current_tries++;
-        LOGGER->log_message(LogManager::ERROR, stdsprintf("Reading reg %08X failed %i times.", address, n_current_tries));
+        LOGGER->log_message(LogManager::ERROR, stdsprintf("Reading reg %08X failed %i times.", raddr, n_current_tries));
       } else {
         response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
         LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s failed 10 times", memsvc_get_last_error(memsvc)));
@@ -296,15 +296,15 @@ uint32_t readReg(localArgs * la, const std::string & regName)
       return 0xdeaddead;
     }
     uint32_t data[1];
-    uint32_t address = stoull(tmp[0], nullptr, 16);
-    uint32_t mask    = stoull(tmp[2], nullptr, 16);
-    if (memhub_read(memsvc, address, 1, data) != 0) {
+    uint32_t raddr = stoull(tmp[0], nullptr, 16);
+    uint32_t rmask = stoull(tmp[2], nullptr, 16);
+    if (memhub_read(memsvc, raddr, 1, data) != 0) {
       // response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
       LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
       return 0xdeaddead;
     }
-    if (mask!=0xFFFFFFFF) {
-      return applyMask(data[0],mask);
+    if (rmask!=0xFFFFFFFF) {
+      return applyMask(data[0],rmask);
     } else {
       return data[0];
     }
@@ -391,8 +391,8 @@ void writeReg(localArgs * la, const std::string & regName, uint32_t value)
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
-    uint32_t mask = stoull(tmp[2], nullptr, 16);
-    if (mask==0xFFFFFFFF) {
+    uint32_t rmask = stoull(tmp[2], nullptr, 16);
+    if (rmask==0xFFFFFFFF) {
       writeAddress(db_res, value, la->response);
     } else {
       uint32_t current_value = readAddress(db_res, la->response);
@@ -404,13 +404,13 @@ void writeReg(localArgs * la, const std::string & regName, uint32_t value)
         return;
       }
       int shift_amount = 0;
-      uint32_t mask_copy = mask;
+      uint32_t mask_copy = rmask;
       for (int i = 0; i < 32; i++) {
-        if (mask & 1) {
+        if (rmask & 1) {
           break;
         } else {
           shift_amount +=1;
-          mask = mask >> 1;
+          rmask = rmask >> 1;
         }
       }
       uint32_t val_to_write = value << shift_amount;
