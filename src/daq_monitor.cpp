@@ -5,6 +5,8 @@
  */
 
 #include "amc.h"
+#include <chrono>
+#include <thread>
 #include "daq_monitor.h"
 #include "hw_constants.h"
 #include <string>
@@ -269,7 +271,7 @@ void getmonGBTLinkLocal(localArgs * la, int NOH, bool doReset)
 void getmonGBTLink(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
   if (request->get_key_exists("NOH")) {
@@ -292,7 +294,7 @@ void getmonGBTLink(const RPCMsg *request, RPCMsg *response)
 void getmonOHLink(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
   if (request->get_key_exists("NOH")) {
@@ -392,7 +394,7 @@ void getmonOHmainLocal(localArgs * la, int NOH, int ohMask)
 void getmonOHmain(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
   if (request->get_key_exists("ohMask")) {
@@ -543,7 +545,7 @@ void getmonOHSCAmainLocal(localArgs *la, int NOH, int ohMask)
 void getmonOHSCAmain(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
   int ohMask = 0xfff;
   if (request->get_key_exists("ohMask")) {
@@ -749,6 +751,7 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
     //Reset Requested?
     if (doReset) {
          writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+         std::this_thread::sleep_for(std::chrono::microseconds(92)); // FIXME sleep for N orbits
     }
 
     std::string regName, respName; //regName used for read/write, respName sets word in RPC response
@@ -787,7 +790,7 @@ void getmonVFATLinkLocal(localArgs * la, int NOH, bool doReset)
 void getmonVFATLink(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
-  
+
   unsigned int NOH = readReg(&la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
   if (request->get_key_exists("NOH")) {
