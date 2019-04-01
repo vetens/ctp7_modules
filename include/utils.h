@@ -39,7 +39,7 @@ typedef struct localArgs {
  */
 LocalArgs getLocalArgs(RPCMsg *response);
 
-static constexpr uint32_t LMDB_SIZE = 1UL * 1024UL * 1024UL * 40UL; ///< Maximum size of the LMDB object, currently 40 MiB
+static constexpr uint32_t LMDB_SIZE = 1UL * 1024UL * 1024UL * 50UL; ///< Maximum size of the LMDB object, currently 50 MiB
 
 // FIXME: to be replaced with the above function when the struct is properly implemented
 #define GETLOCALARGS(response)                                  \
