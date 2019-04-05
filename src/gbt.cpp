@@ -74,12 +74,27 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
 
             // Check the VFAT status
             for (uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++) {
-                const bool linkGood = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.LINK_GOOD", ohN, vfatN)) == 1);
                 const bool syncErrCnt = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.SYNC_ERR_CNT", ohN, vfatN)) == 0);
-                const bool cfgRun = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN)) != 0xdeaddead);
 
-                // If no errors, the phase is good
-                if (linkGood && syncErrCnt && cfgRun)
+                bool cfgRun=false, hwID=false, hwIDVer=false;
+                for(uint32_t scTrial=0; scTrial < 10; ++scTrial)
+                {
+                    cfgRun = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN)) != 0xdeaddead);
+                    std::this_thread::sleep_for(std::chrono::microseconds(20));
+                    hwID = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID_VER", ohN, vfatN)) != 0xdeaddead);
+                    std::this_thread::sleep_for(std::chrono::microseconds(20));
+                    hwIDVer = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID", ohN, vfatN)) == 0x56464154); //"VFAT" in ASCII
+                    std::this_thread::sleep_for(std::chrono::microseconds(20));
+
+                    // Did any of the above fail?
+                    // If so break and move on
+                    if (!cfgRun || !hwID || !hwIDVer)
+                    {
+                        break;
+                    }
+                }
+
+                if (syncErrCnt && cfgRun && hwID && hwIDVer)
                     results[vfatN][phase]++;
             }
         }

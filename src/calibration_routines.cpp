@@ -1178,6 +1178,10 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     int nDacValues = (dacMax-dacMin+1)/dacStep;
     std::vector<uint32_t> vec_dacScanData(24*nDacValues); //Each element has bits [0:7] as the current dacValue, and bits [8:17] as the ADC read back value
 
+    //Put VFATs into slow control only mode
+    writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x1);
+    broadcastWriteLocal(la, ohN, "CFG_RUN", 0x0, mask);
+
     //Configure the DAC Monitoring on all the VFATs
     configureVFAT3DacMonitorLocal(la, ohN, mask, dacSelect);
 
