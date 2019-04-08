@@ -17,6 +17,8 @@ CTP7_MODULES_VER_MAJOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); pr
 CTP7_MODULES_VER_MINOR:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[2];}' | awk '{split($$0,b,":"); print b[2];}')
 CTP7_MODULES_VER_PATCH:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); print a[3];}' | awk '{split($$0,b,":"); print b[2];}')
 
+INSTALL_PREFIX=/mnt/persistent/ctp7_modules
+
 include $(BUILD_HOME)/$(Package)/config/mfZynq.mk
 include $(BUILD_HOME)/$(Package)/config/mfCommonDefs.mk
 include $(BUILD_HOME)/$(Package)/config/mfRPMRules.mk
