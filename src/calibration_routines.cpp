@@ -1178,7 +1178,7 @@ std::vector<uint32_t> dacScanLocal(localArgs *la, uint32_t ohN, uint32_t dacSele
     int nDacValues = (dacMax-dacMin+1)/dacStep;
     std::vector<uint32_t> vec_dacScanData(24*nDacValues); //Each element has bits [0:7] as the current dacValue, and bits [8:17] as the ADC read back value
 
-    //Put VFATs into slow control only mode
+    //Block L1A's then take VFATs out of run mode
     writeReg(la, "GEM_AMC.TTC.CTRL.L1A_ENABLE", 0x0);
     broadcastWriteLocal(la, ohN, "CFG_RUN", 0x0, mask);
 
