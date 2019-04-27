@@ -73,29 +73,52 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
             // Check the VFAT status
+            slowCtrlErrCntVFAT vfatErrs;
             for (uint32_t vfatN = 0; vfatN < oh::VFATS_PER_OH; vfatN++) {
-                const bool syncErrCnt = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.SYNC_ERR_CNT", ohN, vfatN)) == 0);
+                //const bool syncErrCnt = (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.SYNC_ERR_CNT", ohN, vfatN)) == 0);
 
-                bool cfgRun=false, hwID=false, hwIDVer=false;
-                for(uint32_t scTrial=0; scTrial < 10; ++scTrial)
-                {
-                    cfgRun = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN)) != 0xdeaddead);
-                    std::this_thread::sleep_for(std::chrono::microseconds(20));
-                    hwID = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID_VER", ohN, vfatN)) != 0xdeaddead);
-                    std::this_thread::sleep_for(std::chrono::microseconds(20));
-                    hwIDVer = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID", ohN, vfatN)) == 0x56464154); //"VFAT" in ASCII
-                    std::this_thread::sleep_for(std::chrono::microseconds(20));
+                //bool cfgRun=false, hwID=false, hwIDVer=false;
+                //for(uint32_t scTrial=0; scTrial < 10; ++scTrial)
+                //{
+                //    cfgRun = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN)) != 0xdeaddead);
+                //    std::this_thread::sleep_for(std::chrono::microseconds(20));
+                //    hwID = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID_VER", ohN, vfatN)) != 0xdeaddead);
+                //    std::this_thread::sleep_for(std::chrono::microseconds(20));
+                //    hwIDVer = (readReg(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID", ohN, vfatN)) == 0x56464154); //"VFAT" in ASCII
+                //    std::this_thread::sleep_for(std::chrono::microseconds(20));
 
-                    // Did any of the above fail?
-                    // If so break and move on
-                    if (!cfgRun || !hwID || !hwIDVer)
-                    {
-                        break;
-                    }
+                //    // Did any of the above fail?
+                //    // If so break and move on
+                //    if (!cfgRun || !hwID || !hwIDVer)
+                //    {
+                //        break;
+                //    }
+                //}
+                if (readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%hu.VFAT%hu.SYNC_ERR_CNT", ohN, vfatN)) == 0){
+                    continue;
                 }
 
-                if (syncErrCnt && cfgRun && hwID && hwIDVer)
-                    results[vfatN][phase]++;
+                // check CFG_RUN
+                vfatErrs = repeatedRegReadLocal(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN), true, 10);
+                if (vfatErrs.sum != 0){
+                    continue;
+                }
+
+                // check HW_ID_VER
+                vfatErrs = repeatedRegReadLocal(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID_VER", ohN, vfatN), true, 10);
+                if (vfatErrs.sum != 0){
+                    continue;
+                }
+
+                // check HW_ID
+                vfatErrs = repeatedRegReadLocal(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID", ohN, vfatN), true, 10);
+                if (vfatErrs.sum != 0){
+                    continue;
+                }
+
+                //if (syncErrCnt && cfgRun && hwID && hwIDVer)
+                //    results[vfatN][phase]++;
+                results[vfatN][phase]++;
             }
         }
     }
