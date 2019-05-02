@@ -128,6 +128,15 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+uint32_t bitCheck(uint32_t ohMask, int bit)
+{
+  if ( (ohMask >> bit) & 1 ){
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 uint32_t getNumNonzeroBits(uint32_t value)
 {
   // https://stackoverflow.com/questions/4244274/how-do-i-count-the-number-of-zero-bits-in-an-integer
