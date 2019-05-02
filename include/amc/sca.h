@@ -174,4 +174,60 @@ void readSCAChipID(const RPCMsg *request, RPCMsg *response);
 void readSCASEUCounter(const RPCMsg *request, RPCMsg *response);
 void resetSCASEUCounter(const RPCMsg *request, RPCMsg *response);
 
+/*!
+ *  \fn void readSCAADCSensor(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read the ADC channels
+ *
+ *  - ch : Name of ADC channel to read from SCAADCChannelT
+ *  - ohMask : This specifies which OH's to read from 
+ *
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void readSCAADCSensor(const RPCMsg *request, RPCMsg *response);
+
+/*!
+ *  \fn void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read all of temperature sensor channels. They are 00, 04, 07, 08 and 1F.
+ *
+ *  - ohMask : This specifies which OH's to read from 
+ *
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response);
+
+/*!
+ *  \fn void readSCAADCVoltageSensors(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read all the voltages channels. They are 1B, 1E, 11, 0E, 18 and 0F. 
+ *
+ *  - ohMask : This specifies which OH's to read from 
+ *
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void readSCAADCVoltageSensors(const RPCMsg *request, RPCMsg *response);
+
+/*!
+ *  \fn void readSCAADCSignalStrengthSensors(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read the signal strength channels. They are 15, 13 and 12. 
+ *
+ *  - ohMask : This specifies which OH's to read from 
+ *
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void readSCAADCSignalStrengthSensors(const RPCMsg *request, RPCMsg *response);
+
+/*!
+ *  \fn void readAllSCAADCSensors(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read all connected ADC channels. 
+ *
+ *  - ohMask : This specifies which OH's to read from 
+ *
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void readAllSCAADCSensors(const RPCMsg *request, RPCMsg *response);
+
 #endif

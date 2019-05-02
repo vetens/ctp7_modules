@@ -10,6 +10,7 @@
 #include "amc/daq.h"
 #include "amc/blaster_ram.h"
 #include "hw_constants.h"
+#include "amc/sca.h"
 
 #include <chrono>
 #include <string>
@@ -286,6 +287,11 @@ extern "C" {
 
         // SCA module methods (from amc/sca)
         // modmgr->register_method("amc", "scaHardResetEnable", scaHardResetEnable);
+        modmgr->register_method("amc", "readSCAADCSensor", readSCAADCSensor);
+        modmgr->register_method("amc", "readSCAADCTemperatureSensors", readSCAADCTemperatureSensors);
+        modmgr->register_method("amc", "readSCAADCVoltageSensors", readSCAADCVoltageSensors);
+        modmgr->register_method("amc", "readSCAADCSignalStrengthSensors", readSCAADCSignalStrengthSensors);
+        modmgr->register_method("amc", "readAllSCAADCSensors", readAllSCAADCSensors);
 
         // BLASTER RAM module methods (from amc/blaster_ram)
         modmgr->register_method("amc", "writeConfRAM", writeConfRAM);

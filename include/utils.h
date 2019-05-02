@@ -129,6 +129,14 @@ std::string serialize(xhal::utils::Node n);
     response->set_string("error", message);             \
     return error_code; }
 
+/*! \fn uint32_t bitCheck(uint32_t ohMask, int bit)
+ *  \brief return 1 if the particular bit is 1 else 0
+ *
+ *  \param ohMask: This specifies which OH's to read from 
+ *  \param bit: integer that specifies a particular bit position
+ */
+uint32_t bitCheck(uint32_t ohMask, int bit);
+
 /*! \fn uint32_t getNumNonzeroBits(uint32_t value)
  *  \brief returns the number of nonzero bits in an integer
  *  \param value integer to check the number of nonzero bits
