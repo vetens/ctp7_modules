@@ -128,9 +128,11 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
-uint32_t bitCheck(uint32_t ohMask, int bit)
+uint32_t bitCheck(uint32_t word, int bit)
 {
-  if ( (ohMask >> bit) & 1 ){
+  if (bit > 31)
+    throw std::invalid_argument("Invalid request to shift word by more than 31 bits");
+  if ( (word >> bit) & 1 ) {
     return 1;
   } else {
     return 0;
