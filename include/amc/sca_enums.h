@@ -232,8 +232,8 @@ class SCASettings {
       VTTX_VTRX_V2P5 = 15, ///< 2.5V used by FPGA I/O and VTRXs/VTTXs
 
       // SCA ADC temperature sensors
-      VTTX_CSC 	     = 0x00, ///< Transceiver block next to the CSC VTTX
-      VTTX_GEM       = 0x04, ///< Transceiver block next to the GEM VTTX
+      VTTX_CSC_PT100 = 0x00, ///< Transceiver block next to the CSC VTTX
+      VTTX_GEM_PT100 = 0x04, ///< Transceiver block next to the GEM VTTX
       SCA_PT100      = 0x07, ///< SCA temperature sensor
       V6_FPGA_PT100  = 0x08, ///< Virtex6 temperature sensor
 

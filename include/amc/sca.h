@@ -176,57 +176,57 @@ void resetSCASEUCounter(const RPCMsg *request, RPCMsg *response);
 
 /*!
  *  \fn void readSCAADCSensor(const RPCMsg *request, RPCMsg *response)
- *  \brief Read the ADC channels
+ *  \brief Read individual SCA ADC sensor
+ *  \param[in] request RPC response message
+ *  	- `word ohMask` : This specifies which OH's to read from
+ *  	- `word ch` : Name of SCA ADC sensor to read
  *
- *  - ch : Name of ADC channel to read from SCAADCChannelT
- *  - ohMask : This specifies which OH's to read from 
- *
- *  \param request RPC request message
- *  \param response RPC response message
+ *  \param[out] response RPC response message
+ *  	- `word_array data` : Array of word contaning the information of masked/unmasked OH, link ID, SCA ADC sensor number and the data. This is formatted like: <OH masked 1, otherwise 0 27><link ID 26:24><0s 23:21><ADC ID 20:16><0's 15:12><data 11:0>
  */
 void readSCAADCSensor(const RPCMsg *request, RPCMsg *response);
 
 /*!
  *  \fn void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response)
- *  \brief Read all of temperature sensor channels. They are 00, 04, 07, 08 and 1F.
+ *  \brief Read all SCA ADC temperature sensors. They are 0x00, 0x04, 0x07, and 0x08.
+ *  \param[in] request RPC response message
+ *  	- `word ohMask` : This specifies which OH's to read from
  *
- *  - ohMask : This specifies which OH's to read from 
- *
- *  \param request RPC request message
- *  \param response RPC response message
+ *  \param[out] response RPC response message
+ *  	- `word_array data` : Array of word contaning the information of masked/unmasked OH, link ID, SCA ADC sensor number and the data. This is formatted like: <OH masked 1, otherwise 0 27><link ID 26:24><0s 23:21><ADC ID 20:16><0's 15:12><data 11:0>
  */
 void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response);
 
 /*!
  *  \fn void readSCAADCVoltageSensors(const RPCMsg *request, RPCMsg *response)
- *  \brief Read all the voltages channels. They are 1B, 1E, 11, 0E, 18 and 0F. 
+ *  \brief Read all SCA ADC voltages sensors. They are 1B, 1E, 11, 0E, 18 and 0F. 
+ *  \param[in] request RPC response message
+ *  	- `word ohMask` : This specifies which OH's to read from
  *
- *  - ohMask : This specifies which OH's to read from 
- *
- *  \param request RPC request message
- *  \param response RPC response message
+ *  \param[out] response RPC response message
+ *  	- `word_array data` : Array of word contaning the information of masked/unmasked OH, link ID, SCA ADC sensor number and the data. This is formatted like: <OH masked 1, otherwise 0 27><link ID 26:24><0s 23:21><ADC ID 20:16><0's 15:12><data 11:0>
  */
 void readSCAADCVoltageSensors(const RPCMsg *request, RPCMsg *response);
 
 /*!
  *  \fn void readSCAADCSignalStrengthSensors(const RPCMsg *request, RPCMsg *response)
- *  \brief Read the signal strength channels. They are 15, 13 and 12. 
+ *  \brief Read the SCA ADC signal strength sensors. They are 15, 13 and 12. 
+ *  \param[in] request RPC response message
+ *  	- `word ohMask` : This specifies which OH's to read from
  *
- *  - ohMask : This specifies which OH's to read from 
- *
- *  \param request RPC request message
- *  \param response RPC response message
+ *  \param[out] response RPC response message
+ *  	- `word_array data` : Array of word contaning the information of masked/unmasked OH, link ID, SCA ADC sensor number and the data. This is formatted like: <OH masked 1, otherwise 0 27><link ID 26:24><0s 23:21><ADC ID 20:16><0's 15:12><data 11:0>
  */
 void readSCAADCSignalStrengthSensors(const RPCMsg *request, RPCMsg *response);
 
 /*!
  *  \fn void readAllSCAADCSensors(const RPCMsg *request, RPCMsg *response)
- *  \brief Read all connected ADC channels. 
+ *  \brief Read all connected SCA ADC sensors. 
+ *  \param[in] request RPC response message
+ *  	- `word ohMask` : This specifies which OH's to read from
  *
- *  - ohMask : This specifies which OH's to read from 
- *
- *  \param request RPC request message
- *  \param response RPC response message
+ *  \param[out] response RPC response message
+ *  	- `word_array data` : Array of word contaning the information of masked/unmasked OH, link ID, SCA ADC sensor number and the data. This is formatted like: <OH masked 1, otherwise 0 27><link ID 26:24><0s 23:21><ADC ID 20:16><0's 15:12><data 11:0>
  */
 void readAllSCAADCSensors(const RPCMsg *request, RPCMsg *response);
 
