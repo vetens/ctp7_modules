@@ -602,11 +602,11 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     return;
 } //End sbitRateScanLocal(...)
 
-void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t ohMask=0x3FF)
+void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t ohMask=0xFFF)
 {
     char regBuf[200];
-    // Check that OH mask does not exceeds 0x3FF
-    if (ohMask > 0x3FF) {
+    // Check that OH mask does not exceeds 0xFFF
+    if (ohMask > 0xFFF) {
          LOGGER->log_message(LogManager::ERROR, "sbitRateScan supports only up to 12 optohybrids per CTP7");
          sprintf(regBuf,"sbitRateScan supports only up to 12 optohybrids per CTP7");
          la->response->set_string("error",regBuf);
