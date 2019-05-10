@@ -131,12 +131,8 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response)
 uint32_t bitCheck(uint32_t word, int bit)
 {
   if (bit > 31)
-    throw std::invalid_argument("Invalid request to shift word by more than 31 bits");
-  if ( (word >> bit) & 1 ) {
-    return 1;
-  } else {
-    return 0;
-  }
+    throw std::invalid_argument("Invalid request to shift 32-bit word by more than 31 bits");
+  return (word >> bit) & 0x1;
 }
 
 uint32_t getNumNonzeroBits(uint32_t value)

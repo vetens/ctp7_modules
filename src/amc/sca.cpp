@@ -131,13 +131,13 @@ std::vector<uint32_t> scaADCCommand(localArgs* la, SCAADCChannelT const& ch, uin
 
 
   // enable the current sink if reading the temperature ADCs
-  if (ch == SCAADCChannel::VTTX_CSC_PT100 || ch == SCAADCChannel::VTTX_GEM_PT100 || ch == SCAADCChannel::SCA_PT100 || ch == SCAADCChannel::V6_FPGA_PT100 )	// Hardcoded channel numbers
+  if (SCAADCChannel::useCurrentSource(ch))
     sendSCACommand(la, SCAChannel::ADC, SCAADCCommand::ADC_W_CURR, 0x4, 0x1<<ch, ohMask);
   // start the conversion and get the result
   std::vector<uint32_t> result = sendSCACommandWithReply(la, SCAChannel::ADC, SCAADCCommand::ADC_GO, 0x4, 0x1, ohMask);
 
   // disable the current sink if reading the temperature ADCs
-  if (ch == SCAADCChannel::VTTX_CSC_PT100 || ch == SCAADCChannel::VTTX_GEM_PT100 || ch == SCAADCChannel::SCA_PT100 || ch == SCAADCChannel::V6_FPGA_PT100 )	// Hardcoded channel numbers
+  if (SCAADCChannel::useCurrentSource(ch))
     sendSCACommand(la, SCAChannel::ADC, SCAADCCommand::ADC_W_CURR, 0x4, 0x0<<ch, ohMask);
   // // get the last data
   // std::vector<uint32_t> last = sendSCACommandWithReply(la, SCAChannel::ADC, SCAADCCommand::ADC_R_DATA, 0x1, 0x0, ohMask);
@@ -273,7 +273,7 @@ void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response)
   SCAADCChannelT chArr[5] = {
   			      SCAADCChannel::VTTX_CSC_PT100,
   			      SCAADCChannel::VTTX_GEM_PT100,
-  			      SCAADCChannel::SCA_PT100,
+  			      SCAADCChannel::GBT0_PT100,
   			      SCAADCChannel::V6_FPGA_PT100,
   			      SCAADCChannel::SCA_TEMP
   			    };
