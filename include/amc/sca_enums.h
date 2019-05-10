@@ -234,7 +234,7 @@ class SCASettings {
       // SCA ADC temperature sensors
       VTTX_CSC_PT100 = 0x00, ///< Transceiver block next to the CSC VTTX
       VTTX_GEM_PT100 = 0x04, ///< Transceiver block next to the GEM VTTX
-      SCA_PT100      = 0x07, ///< SCA temperature sensor
+      GBT0_PT100      = 0x07, ///< SCA temperature sensor
       V6_FPGA_PT100  = 0x08, ///< Virtex6 temperature sensor
 
       // SCA ADC signal strength sensors
@@ -261,6 +261,18 @@ class SCASettings {
       //ADC_CH28 = 0x1C, ///< ADC channel 28
       //ADC_CH29 = 0x1D, ///< ADC channel 29
     } ADCChannel;
+
+    //static constexpr bool useCurrentSource(EADCChannel sensor)
+    static bool useCurrentSource(EADCChannel sensor)
+    {
+       switch (sensor) {
+          case (VTTX_CSC_PT100): return true;
+	  case (VTTX_GEM_PT100): return true;
+	  case (GBT0_PT100):	 return true;
+	  case (V6_FPGA_PT100):	 return true;
+	  default:		 return false;
+       }
+    }
   };  // struct ADCChannel
 
 };
