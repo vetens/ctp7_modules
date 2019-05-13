@@ -389,6 +389,7 @@ slowCtrlErrCntVFAT repeatedRegReadLocal(localArgs * la, const std::string & regN
 
     //Issue a link reset to reset counters under GEM_AMC.SLOW_CONTROL.VFAT3
     writeReg(la,"GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 0x1);
+    std::this_thread::sleep_for(std::chrono::microseconds(90));
 
     for (uint32_t i=0; i<nReads; i++){
         //Any time a bus error occurs for VFAT slow control the TIMEOUT_ERROR_CNT will increment
@@ -396,7 +397,6 @@ slowCtrlErrCntVFAT repeatedRegReadLocal(localArgs * la, const std::string & regN
         std::this_thread::sleep_for(std::chrono::microseconds(20));
 
         if(!goodRead && breakOnFailure){
-            LOGGER->log_message(LogManager::INFO,stdsprintf("Bad read was encountered after %i reads of %s",i,regName.c_str()));
             break;
         }
     }

@@ -67,7 +67,10 @@ struct slowCtrlErrCntVFAT{
     uint32_t sum;           //Sum of above counters
     uint32_t nTransactions; //GEM_AMC.SLOW_CONTROL.VFAT3.TRANSACTION_CNT
 
-    slowCtrlErrCntVFAT(){}
+    slowCtrlErrCntVFAT()
+    {
+        crc = packet = bitstuffing = timeout = axi_strobe = sum = nTransactions = 0;
+    }
     slowCtrlErrCntVFAT(uint32_t crc, uint32_t packet, uint32_t bitstuffing, uint32_t timeout, uint32_t axi_strobe, uint32_t sum, unsigned nTransactions) : crc(crc), packet(packet), bitstuffing(bitstuffing), timeout(timeout), axi_strobe(axi_strobe), sum(sum), nTransactions(nTransactions) {}
     slowCtrlErrCntVFAT operator + (const slowCtrlErrCntVFAT &vfatErrs) const
     {
