@@ -657,10 +657,11 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             writeReg(la, "GEM_AMC.GEM_SYSTEM.VFAT3.SC_ONLY_MODE", 0x0);
 
             //Prep the SBIT counters
+            std::unordered_map<uint32_t,uint32_t> map_origSBITPersist;
             for (int ohN = 0; ohN < 12; ++ohN) {
                 if ((ohMask >> ohN) & 0x1) {
-                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
-                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), 0x02638e98); //count for 1 second
+                    map_origSBITPersist[ohN] = readReg(la,  stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN));
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x1); //Only reset counters after a counter reset
                 }
             }
 
@@ -706,6 +707,13 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
                     } // End checking whether the OH is masked
                 } // End loop over optohybrids
             } //End Loop from dacMin to dacMax
+
+            //Restore the original SBIT counter persist setting
+            for (int ohN = 0; ohN < 12; ++ohN) {
+                if ((ohMask >> ohN) & 0x1) {
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), map_origSBITPersist[ohN]);
+                }
+            }
 
             //Restore the original channel masks if specific channel was requested
             if( ch != 128) {
