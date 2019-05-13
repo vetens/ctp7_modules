@@ -709,7 +709,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             } //End Loop from dacMin to dacMax
 
             //Restore the original SBIT counter persist setting
-            for (int ohN = 0; ohN < 12; ++ohN) {
+            for (int ohN = 0; ohN < amc::OH_PER_AMC; ++ohN) {
                 if ((ohMask >> ohN) & 0x1) {
                     writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), map_origSBITPersist[ohN]);
                 }
