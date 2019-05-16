@@ -246,7 +246,7 @@ void readSCAADCSensor(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
 
-  uint32_t ohMask = request->get_word("ohMask");
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
   SCAADCChannelT  ch = static_cast<SCAADCChannelT>(request->get_word("ch"));
   
   std::vector<uint32_t> result;
@@ -258,7 +258,7 @@ void readSCAADCSensor(const RPCMsg *request, RPCMsg *response)
   for(auto const& val : result) {
       LOGGER->log_message(LogManager::DEBUG, stdsprintf("Value for OH%i, SCA-ADC channel 0x%x = %i ",ohIdx, ch, val)); 
       outData.push_back((bitCheck(ohMask, ohIdx) << 27) | (ohIdx<<24) | (ch<<16) | val);
-      response->set_word_array("data",outData.data(), outData.size());
+      response->set_word_array("data",outData);
       ++ohIdx;
   }
 
@@ -269,7 +269,7 @@ void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
 
-  uint32_t ohMask = request->get_word("ohMask");
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
 
   SCAADCChannelT chArr[5] = {
   			      SCAADCChannel::VTTX_CSC_PT100,
@@ -291,17 +291,16 @@ void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response)
     }
   }
   
-  response->set_word_array("data", outData.data(), outData.size());
+  response->set_word_array("data", outData);
 
   rtxn.abort();
 }
 
 void readSCAADCVoltageSensors(const RPCMsg *request, RPCMsg *response)
 {
-  // struct localArgs la = getLocalArgs(response);
   GETLOCALARGS(response);
 
-  uint32_t ohMask = request->get_word("ohMask");
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
 
   SCAADCChannelT chArr[6] = {
   			      SCAADCChannel::PROM_V1P8,
@@ -324,7 +323,7 @@ void readSCAADCVoltageSensors(const RPCMsg *request, RPCMsg *response)
     }
   }
 
-  response->set_word_array("data", outData.data(), outData.size());
+  response->set_word_array("data", outData);
 
   rtxn.abort();
 }
@@ -333,7 +332,7 @@ void readSCAADCSignalStrengthSensors(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
 
-  uint32_t ohMask = request->get_word("ohMask");
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
 
   SCAADCChannelT chArr[3] = {
   			      static_cast<SCAADCChannelT>(SCAADCChannel::VTRX_RSSI1),
@@ -354,7 +353,7 @@ void readSCAADCSignalStrengthSensors(const RPCMsg *request, RPCMsg *response)
     }
   }
 
-  response->set_word_array("data", outData.data(), outData.size());
+  response->set_word_array("data", outData);
 
   rtxn.abort();
 }
@@ -363,7 +362,7 @@ void readAllSCAADCSensors(const RPCMsg *request, RPCMsg *response)
 {
   GETLOCALARGS(response);
 
-  uint32_t ohMask = request->get_word("ohMask");
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
 
   int ohIdx;
   std::vector<uint32_t> result;
@@ -378,7 +377,7 @@ void readAllSCAADCSensors(const RPCMsg *request, RPCMsg *response)
     }
   }
 
-  response->set_word_array("data", outData.data(), outData.size());
+  response->set_word_array("data", outData);
 
   rtxn.abort();
 }
