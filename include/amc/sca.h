@@ -174,4 +174,90 @@ void readSCAChipID(const RPCMsg *request, RPCMsg *response);
 void readSCASEUCounter(const RPCMsg *request, RPCMsg *response);
 void resetSCASEUCounter(const RPCMsg *request, RPCMsg *response);
 
+/*!
+ *  \fn void readSCAADCSensor(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read individual SCA ADC sensor
+ *  \param[in] request RPC response message with the following keys:
+ *  	- `word ohMask` : This specifies which OH's to read from
+ *  	- `word ch` : Name of SCA ADC sensor to read
+ *
+ *  \param[out] response RPC response message with the following keys:
+ *  	- `word_array data` : ADC data is returned as an array of 32-bit words formatted as:
+ *  			      bit [27]: data present
+ *  			      bits [26:24]: link ID
+ *  			      bits [23:21]: constant 0's
+ *  			      bits [20:16]: ADC channel ID
+ *  			      bits [15:12]: constant 0's
+ *  			      bits [11:0]: ADC data
+ */
+void readSCAADCSensor(const RPCMsg *request, RPCMsg *response);
+
+/*!
+ *  \fn void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read all SCA ADC temperature sensors. They are 0x00, 0x04, 0x07, and 0x08.
+ *  \param[in] request RPC response message with the following keys:
+ *  	- `word ohMask` : This specifies which OH's to read from
+ *
+ *  \param[out] response RPC response message with the following keys:
+ *  	- `word_array data` : ADC data is returned as an array of 32-bit words formatted as:
+ *  			      bit [27]: data present
+ *  			      bits [26:24]: link ID
+ *  			      bits [23:21]: constant 0's
+ *  			      bits [20:16]: ADC channel ID
+ *  			      bits [15:12]: constant 0's
+ *  			      bits [11:0]: ADC data
+ */
+void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response);
+
+/*!
+ *  \fn void readSCAADCVoltageSensors(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read all SCA ADC voltages sensors. They are 1B, 1E, 11, 0E, 18 and 0F. 
+ *  \param[in] request RPC response message with the following keys:
+ *  	- `word ohMask` : This specifies which OH's to read from
+ *
+ *  \param[out] response RPC response message with the following keys:
+ *  	- `word_array data` : ADC data is returned as an array of 32-bit words formatted as:
+ *  			      bit [27]: data present
+ *  			      bits [26:24]: link ID
+ *  			      bits [23:21]: constant 0's
+ *  			      bits [20:16]: ADC channel ID
+ *  			      bits [15:12]: constant 0's
+ *  			      bits [11:0]: ADC data
+ */
+void readSCAADCVoltageSensors(const RPCMsg *request, RPCMsg *response);
+
+/*!
+ *  \fn void readSCAADCSignalStrengthSensors(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read the SCA ADC signal strength sensors. They are 15, 13 and 12. 
+ *  \param[in] request RPC response message with the following keys:
+ *  	- `word ohMask` : This specifies which OH's to read from
+ *
+ *  \param[out] response RPC response message with the following keys:
+ *  	- `word_array data` : ADC data is returned as an array of 32-bit words formatted as:
+ *  			      bit [27]: data present
+ *  			      bits [26:24]: link ID
+ *  			      bits [23:21]: constant 0's
+ *  			      bits [20:16]: ADC channel ID
+ *  			      bits [15:12]: constant 0's
+ *  			      bits [11:0]: ADC data
+ */
+void readSCAADCSignalStrengthSensors(const RPCMsg *request, RPCMsg *response);
+
+/*!
+ *  \fn void readAllSCAADCSensors(const RPCMsg *request, RPCMsg *response)
+ *  \brief Read all connected SCA ADC sensors. 
+ *  \param[in] request RPC response message with the following keys:
+ *  	- `word ohMask` : This specifies which OH's to read from
+ *
+ *  \param[out] response RPC response message with the following keys:
+ *  	- `word_array data` : ADC data is returned as an array of 32-bit words formatted as:
+ *  			      bit [27]: data present
+ *  			      bits [26:24]: link ID
+ *  			      bits [23:21]: constant 0's
+ *  			      bits [20:16]: ADC channel ID
+ *  			      bits [15:12]: constant 0's
+ *  			      bits [11:0]: ADC data
+ */
+void readAllSCAADCSensors(const RPCMsg *request, RPCMsg *response);
+
 #endif

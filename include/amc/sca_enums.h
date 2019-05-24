@@ -231,39 +231,48 @@ class SCASettings {
       FPGA_IO_V2P5   = 15, ///< 2.5V used by FPGA I/O and VTRXs/VTTXs
       VTTX_VTRX_V2P5 = 15, ///< 2.5V used by FPGA I/O and VTRXs/VTTXs
 
-      ADC_CH00 = 0x00, ///< ADC channel 00, Temp sensor
-      ADC_CH01 = 0x01, ///< ADC channel 01, NOT CONNECTED
-      ADC_CH02 = 0x02, ///< ADC channel 02, NOT CONNECTED
-      ADC_CH03 = 0x03, ///< ADC channel 03, NOT CONNECTED
-      ADC_CH04 = 0x04, ///< ADC channel 04, Temp sensor
-      ADC_CH05 = 0x05, ///< ADC channel 05, NOT CONNECTED
-      ADC_CH06 = 0x06, ///< ADC channel 06
-      ADC_CH07 = 0x07, ///< ADC channel 07, Temp sensor
-      ADC_CH08 = 0x08, ///< ADC channel 08, Temp sensor
-      ADC_CH09 = 0x09, ///< ADC channel 09
-      ADC_CH10 = 0x0A, ///< ADC channel 10
-      ADC_CH11 = 0x0B, ///< ADC channel 11
-      ADC_CH12 = 0x0C, ///< ADC channel 12, NOT CONNECTED
-      ADC_CH13 = 0x0D, ///< ADC channel 13
-      ADC_CH14 = 0x0E, ///< ADC channel 14, 1.8V
-      ADC_CH15 = 0x0F, ///< ADC channel 15, 2.5V I/O
-      ADC_CH16 = 0x10, ///< ADC channel 16
-      ADC_CH17 = 0x11, ///< ADC channel 17, internal 1.0V
-      ADC_CH18 = 0x12, ///< ADC channel 18, VTRx rssi3
-      ADC_CH19 = 0x13, ///< ADC channel 19, VTRx rssi2
-      ADC_CH20 = 0x14, ///< ADC channel 20
-      ADC_CH21 = 0x15, ///< ADC channel 21, VTRx rssi1
-      ADC_CH22 = 0x16, ///< ADC channel 22
-      ADC_CH23 = 0x17, ///< ADC channel 23
-      ADC_CH24 = 0x18, ///< ADC channel 24, 1.5V
-      ADC_CH25 = 0x19, ///< ADC channel 25
-      ADC_CH26 = 0x1A, ///< ADC channel 26
-      ADC_CH27 = 0x1B, ///< ADC channel 27, AVCCN
-      ADC_CH28 = 0x1C, ///< ADC channel 28
-      ADC_CH29 = 0x1D, ///< ADC channel 29
-      ADC_CH30 = 0x1E, ///< ADC channel 30, AVTTN
-      ADC_CH31 = 0x1F, ///< ADC channel 31
+      // SCA ADC temperature sensors
+      VTTX_CSC_PT100 = 0x00, ///< Transceiver block next to the CSC VTTX
+      VTTX_GEM_PT100 = 0x04, ///< Transceiver block next to the GEM VTTX
+      GBT0_PT100      = 0x07, ///< SCA temperature sensor
+      V6_FPGA_PT100  = 0x08, ///< Virtex6 temperature sensor
+
+      // SCA ADC signal strength sensors
+      VTRX_RSSI3     = 0x12, ///< ADC channel 18, VTRx rssi3
+      VTRX_RSSI2     = 0x13, ///< ADC channel 19, VTRx rssi2
+      VTRX_RSSI1     = 0x15, ///< ADC channel 21, VTRx rssi1
+
+      // Not connected SCA ADC sensors
+      //ADC_CH01 = 0x01, ///< ADC channel 01, NOT CONNECTED
+      //ADC_CH02 = 0x02, ///< ADC channel 02, NOT CONNECTED
+      //ADC_CH03 = 0x03, ///< ADC channel 03, NOT CONNECTED
+      //ADC_CH05 = 0x05, ///< ADC channel 05, NOT CONNECTED
+      //ADC_CH09 = 0x09, ///< ADC channel 09
+      //ADC_CH10 = 0x0A, ///< ADC channel 10
+      //ADC_CH11 = 0x0B, ///< ADC channel 11
+      //ADC_CH12 = 0x0C, ///< ADC channel 12, NOT CONNECTED
+      //ADC_CH13 = 0x0D, ///< ADC channel 13
+      //ADC_CH16 = 0x10, ///< ADC channel 16
+      //ADC_CH20 = 0x14, ///< ADC channel 20
+      //ADC_CH22 = 0x16, ///< ADC channel 22
+      //ADC_CH23 = 0x17, ///< ADC channel 23
+      //ADC_CH25 = 0x19, ///< ADC channel 25
+      //ADC_CH26 = 0x1A, ///< ADC channel 26
+      //ADC_CH28 = 0x1C, ///< ADC channel 28
+      //ADC_CH29 = 0x1D, ///< ADC channel 29
     } ADCChannel;
+
+    //static constexpr bool useCurrentSource(EADCChannel sensor)
+    static bool useCurrentSource(EADCChannel sensor)
+    {
+        switch (sensor) {
+            case (VTTX_CSC_PT100):	return true;
+            case (VTTX_GEM_PT100):	return true;
+            case (GBT0_PT100):		return true;
+            case (V6_FPGA_PT100):	return true;
+            default:			return false;
+        }
+    }
   };  // struct ADCChannel
 
 };

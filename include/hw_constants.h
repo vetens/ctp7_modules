@@ -20,6 +20,7 @@ namespace amc {
      */
     namespace ge11 {
         constexpr uint32_t OH_PER_AMC = 12;    ///< The number of OptoHybrids per AMC.
+        constexpr uint32_t FULL_OH_MASK = 0xfff; ///< Reading of all OptoHybrids are enabled.
     }
 
     using namespace GEM_VARIANT;

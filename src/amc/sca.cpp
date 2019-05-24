@@ -4,6 +4,7 @@
  */
 
 #include "amc/sca.h"
+#include "hw_constants.h"
 
 uint32_t formatSCAData(uint32_t const& data)
 {
@@ -120,7 +121,7 @@ std::vector<uint32_t> scaGPIOCommandLocal(localArgs* la, SCAGPIOCommandT const& 
   return reply;
 }
 
-std::vector<uint32_t> scaADCCommand(localArgs* la, SCAADCChannelT const& ch, SCAADCCommandT const& cmd, uint8_t const& len, uint32_t data, uint16_t const& ohMask)
+std::vector<uint32_t> scaADCCommand(localArgs* la, SCAADCChannelT const& ch, uint16_t const& ohMask)
 {
   uint32_t monMask = readReg(la,"GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF");
   writeReg(la,"GEM_AMC.SLOW_CONTROL.SCA.ADC_MONITORING.MONITORING_OFF",       0xffffffff);
@@ -129,11 +130,16 @@ std::vector<uint32_t> scaADCCommand(localArgs* la, SCAADCChannelT const& ch, SCA
   // select the ADC channel
   sendSCACommand(la, SCAChannel::ADC, SCAADCCommand::ADC_W_MUX, 0x4, ch, ohMask);
 
-  // enable/disable the current sink
-  sendSCACommand(la, SCAChannel::ADC, SCAADCCommand::ADC_W_CURR, 0x4, 0x1<<ch, ohMask);
+
+  // enable the current sink if reading the temperature ADCs
+  if (SCAADCChannel::useCurrentSource(ch))
+    sendSCACommand(la, SCAChannel::ADC, SCAADCCommand::ADC_W_CURR, 0x4, 0x1<<ch, ohMask);
   // start the conversion and get the result
   std::vector<uint32_t> result = sendSCACommandWithReply(la, SCAChannel::ADC, SCAADCCommand::ADC_GO, 0x4, 0x1, ohMask);
 
+  // disable the current sink if reading the temperature ADCs
+  if (SCAADCChannel::useCurrentSource(ch))
+    sendSCACommand(la, SCAChannel::ADC, SCAADCCommand::ADC_W_CURR, 0x4, 0x0<<ch, ohMask);
   // // get the last data
   // std::vector<uint32_t> last = sendSCACommandWithReply(la, SCAChannel::ADC, SCAADCCommand::ADC_R_DATA, 0x1, 0x0, ohMask);
   // // get the raw data
@@ -235,3 +241,144 @@ void resetSCASEUCounter(const RPCMsg *request, RPCMsg *response)
 
   rtxn.abort();
 }
+
+void readSCAADCSensor(const RPCMsg *request, RPCMsg *response)
+{
+  GETLOCALARGS(response);
+
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
+  SCAADCChannelT  ch = static_cast<SCAADCChannelT>(request->get_word("ch"));
+  
+  std::vector<uint32_t> result;
+  std::vector<uint32_t> outData;
+
+  result = scaADCCommand(&la, ch, ohMask);
+
+  int ohIdx = 0;
+  for(auto const& val : result) {
+      LOGGER->log_message(LogManager::DEBUG, stdsprintf("Value for OH%i, SCA-ADC channel 0x%x = %i ",ohIdx, ch, val)); 
+      outData.push_back((bitCheck(ohMask, ohIdx) << 27) | (ohIdx<<24) | (ch<<16) | val);
+      response->set_word_array("data",outData);
+      ++ohIdx;
+  }
+
+  rtxn.abort();
+}
+
+void readSCAADCTemperatureSensors(const RPCMsg *request, RPCMsg *response)
+{
+  GETLOCALARGS(response);
+
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
+
+  SCAADCChannelT chArr[5] = {
+  			      SCAADCChannel::VTTX_CSC_PT100,
+  			      SCAADCChannel::VTTX_GEM_PT100,
+  			      SCAADCChannel::GBT0_PT100,
+  			      SCAADCChannel::V6_FPGA_PT100,
+  			      SCAADCChannel::SCA_TEMP
+  			    };
+  int ohIdx;
+  std::vector<uint32_t> result;
+  std::vector<uint32_t> outData;
+  for(auto const& channelName : chArr) {
+    result = scaADCCommand(&la, channelName, ohMask);
+    ohIdx = 0;
+    for(auto const& val : result) {
+    	LOGGER->log_message(LogManager::DEBUG, stdsprintf("Temperature for OH%i, SCA-ADC channel 0x%x = %i ",ohIdx, channelName, val));
+	outData.push_back((bitCheck(ohMask, ohIdx) << 27) | (ohIdx<<24) | (channelName<<16) | val);
+	++ohIdx;
+    }
+  }
+  
+  response->set_word_array("data", outData);
+
+  rtxn.abort();
+}
+
+void readSCAADCVoltageSensors(const RPCMsg *request, RPCMsg *response)
+{
+  GETLOCALARGS(response);
+
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
+
+  SCAADCChannelT chArr[6] = {
+  			      SCAADCChannel::PROM_V1P8,
+  			      SCAADCChannel::VTTX_VTRX_V2P5,
+  			      SCAADCChannel::FPGA_CORE,
+  			      SCAADCChannel::SCA_V1P5,
+  			      SCAADCChannel::FPGA_MGT_V1P0,
+  			      SCAADCChannel::FPGA_MGT_V1P2
+  			    };
+  int ohIdx;
+  std::vector<uint32_t> result;
+  std::vector<uint32_t> outData;
+  for(auto const& channelName : chArr) {
+    result = scaADCCommand(&la, channelName, ohMask);
+    ohIdx = 0;
+    for(auto const& val : result) {
+        LOGGER->log_message(LogManager::DEBUG, stdsprintf("Voltage for OH%i, SCA-ADC channel 0x%x = %i ",ohIdx, channelName, val));
+	outData.push_back((bitCheck(ohMask, ohIdx) << 27) | (ohIdx<<24) | (channelName<<16) | val);
+	++ohIdx;
+    }
+  }
+
+  response->set_word_array("data", outData);
+
+  rtxn.abort();
+}
+
+void readSCAADCSignalStrengthSensors(const RPCMsg *request, RPCMsg *response)
+{
+  GETLOCALARGS(response);
+
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
+
+  SCAADCChannelT chArr[3] = {
+  			      static_cast<SCAADCChannelT>(SCAADCChannel::VTRX_RSSI1),
+  			      static_cast<SCAADCChannelT>(SCAADCChannel::VTRX_RSSI2),
+  			      static_cast<SCAADCChannelT>(SCAADCChannel::VTRX_RSSI3)
+  			    };
+
+  int ohIdx;
+  std::vector<uint32_t> result;
+  std::vector<uint32_t> outData;
+  for(auto const& channelName : chArr) {
+    result = scaADCCommand(&la, channelName, ohMask);
+    ohIdx = 0;
+    for(auto const& val : result) {
+        LOGGER->log_message(LogManager::DEBUG, stdsprintf("Signal strength for OH%i, SCA-ADC channel 0x%x = %i ",ohIdx, channelName, val));
+	outData.push_back((bitCheck(ohMask, ohIdx) << 27) | (ohIdx<<24) | (channelName<<16) | val);
+	++ohIdx;
+    }
+  }
+
+  response->set_word_array("data", outData);
+
+  rtxn.abort();
+}
+
+void readAllSCAADCSensors(const RPCMsg *request, RPCMsg *response)
+{
+  GETLOCALARGS(response);
+
+  const uint32_t ohMask   = request->get_key_exists("ohMask") ? request->get_word("ohMask") : amc::FULL_OH_MASK;
+
+  int ohIdx;
+  std::vector<uint32_t> result;
+  std::vector<uint32_t> outData;
+  for (SCAADCChannelT channelName = SCAADCChannel::VTTX_CSC_PT100; channelName<=SCAADCChannel::SCA_TEMP; channelName=SCAADCChannelT(channelName+1)) {
+    result = scaADCCommand(&la, channelName, ohMask);
+    ohIdx = 0;
+    for(auto const& val : result) {
+      LOGGER->log_message(LogManager::DEBUG, stdsprintf("Reading of OH%i, SCA-ADC channel 0x%x = %i ",ohIdx, channelName, val));
+      outData.push_back((bitCheck(ohMask, ohIdx) << 27) | (ohIdx<<24) | (channelName<<16) | val);
+      ++ohIdx;
+    }
+  }
+
+  response->set_word_array("data", outData);
+
+  rtxn.abort();
+}
+
