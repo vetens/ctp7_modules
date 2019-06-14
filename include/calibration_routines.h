@@ -347,4 +347,17 @@ void dacScanMultiLink(const RPCMsg *request, RPCMsg *response);
  */
 void genChannelScan(const RPCMsg *request, RPCMsg *response);
 
+/*! \fn void confCalPulse(const RPCMsg *request, RPCMsg *response)
+ *  \brief Generic method for calibration pulse configuration. Local callable version of confCalPulseLocal.
+ *  \param[in] request RPC response message with the following keys:
+ *     - `word ohN` : optical link number
+ *     - `word mask`: VFAT mask
+ *     - `word ch`  : Channel of interest
+ *     - `word toggleOn`: if true (false) turns the calibration pulse on (off) for channel ch
+ *     - `word currentPulse`: Selects whether to use current or volage pulse
+ *     - `word calScaleFactor`: Scale factor for the calibration pulse height (00 = 25%, 01 = 50%, 10 = 75%, 11 = 100%)
+ *  \param response RPC response message
+ */
+void confCalPulse(const RPCMsg *request, RPCMsg *response);
+
 #endif
