@@ -39,13 +39,17 @@ namespace oh {
     namespace ge11 {
         constexpr uint32_t VFATS_PER_OH     = 24;    ///< The number of VFAT's per OptoHybrid.
         constexpr size_t OH_SINGLE_RAM_SIZE = 2*100; ///< Per-OH RAM size: for GE1/1 100 32-bit words of configuration per OH plus the corresponding OH local address
+        constexpr uint32_t CHANNELS_PER_OH  = 3072;  ///< The number of VFAT channels per OptoHybrid
+        constexpr uint32_t SBITS_PER_OH     = 1536;  ///< The number of S-bits per OptoHybrid
     }
 
     /*! \brief GE2/1 specific namespace.
      */
     namespace ge21 {
         constexpr uint32_t VFATS_PER_OH     = 12;    ///< The number of VFAT's per OptoHybrid.
-        constexpr size_t OH_SINGLE_RAM_SIZE = 2*100; ///< Per-OH RAM size: for GE1/1 100 32-bit words of configuration per OH plus the corresponding OH local address
+        constexpr size_t OH_SINGLE_RAM_SIZE = 2*100; ///< Per-OH RAM size: for GE2/1 100 32-bit words of configuration per OH plus the corresponding OH local address
+        constexpr uint32_t CHANNELS_PER_OH  = 1536;  ///< The number of VFAT channels per OptoHybrid
+        constexpr uint32_t SBITS_PER_OH     = 768;   ///< The number of S-bits per OptoHybrid
     }
 
     using namespace GEM_VARIANT;
@@ -63,7 +67,7 @@ namespace vfat {
     /*! \brief GE2/1 specific namespace.
      */
     namespace ge21 {
-        constexpr size_t VFAT_SINGLE_RAM_SIZE = 74; ///< Per-VFAT RAM size: for GE1/1 24 VFATs per OH, 74 32-bit words of configuration per VFAT (147 16-bit VFAT configurations -> 32-bit words + padding)
+        constexpr size_t VFAT_SINGLE_RAM_SIZE = 74; ///< Per-VFAT RAM size: for GE2/1 12 VFATs per OH, 74 32-bit words of configuration per VFAT (147 16-bit VFAT configurations -> 32-bit words + padding)
     }
 
     using namespace GEM_VARIANT;
@@ -91,7 +95,7 @@ namespace gbt {
      */
     namespace ge21{
         constexpr uint32_t GBTS_PER_OH       = 2;  ///< The number of GBT's per OptoHybrid (should be part of the oh namespace, as VFATS_PER_OH)
-        constexpr size_t GBT_SINGLE_RAM_SIZE = 92; ///< Per-GBT RAM size: for GE1/1 3 GBTx per OH, 92 32-bit words of configuration per GBT (366 8-bit GBT configurations -> 32-bit words + padding)
+        constexpr size_t GBT_SINGLE_RAM_SIZE = 92; ///< Per-GBT RAM size: for GE2/1 2 GBTx per OH, 92 32-bit words of configuration per GBT (366 8-bit GBT configurations -> 32-bit words + padding)
     }
 
     using namespace GEM_VARIANT;

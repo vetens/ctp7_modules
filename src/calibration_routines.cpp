@@ -646,7 +646,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             } //End loop over optohybrids
 
             //Get the SBIT Rate Monitor Address
-            uint32_t ohTrigRateAddr[amc::OH_PER_AMC][oh::VFATS_PER_OH + 1]; //idx 0->23 VFAT counters; idx 24 overall rate
+            uint32_t ohTrigRateAddr[amc::OH_PER_AMC][oh::VFATS_PER_OH + 1]; //idx 0->oh::VFATS_PER_OH VFAT counters; last idx - overall rate
             for (unsigned int ohN = 0; ohN < amc::OH_PER_AMC; ++ohN) {
                 if ((ohMask >> ohN) & 0x1) {
                     sprintf(regBuf,"GEM_AMC.TRIGGER.OH%i.TRIGGER_RATE",ohN);
@@ -795,10 +795,10 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
     }
 
     //Get current channel register data, mask all channels and disable calpulse
-    uint32_t chanRegData_orig[3072]; //original channel register data
-    uint32_t chanRegData_tmp[3072]; //temporary channel register data
+    uint32_t chanRegData_orig[oh::CHANNELS_PER_OH]; //original channel register data
+    uint32_t chanRegData_tmp[oh::CHANNELS_PER_OH]; //temporary channel register data
     getChannelRegistersVFAT3Local(la, ohN, mask, chanRegData_orig);
-    for (unsigned int idx=0; idx < 3072; ++idx) {
+    for (unsigned int idx=0; idx < oh::CHANNELS_PER_OH; ++idx) {
         chanRegData_tmp[idx]=chanRegData_orig[idx]+(0x1 << 14); //set channel mask to true
         chanRegData_tmp[idx]=chanRegData_tmp[idx]-(0x1 << 15); //disable calpulse
     }
@@ -871,7 +871,7 @@ void checkSbitMappingWithCalPulseLocal(localArgs *la, uint32_t *outData, uint32_
                 uint32_t thisCluster = readRawAddress(addrSbitCluster[cluster], la->response);
                 unsigned int clusterSize = (thisCluster >> 12) & 0x7;
                 uint32_t sbitAddress = (thisCluster & 0x7ff);
-                bool isValid = (sbitAddress < 1536); //Possible values are [0,(24*64)-1]
+                bool isValid = (sbitAddress < oh::SBITS_PER_OH); //Possible values are [0,(oh::SBITS_PER_OH)-1]
                 int vfatObserved = 7-int(sbitAddress/192)+int((sbitAddress%192)/64)*8;
                 int sbitObserved = sbitAddress % 64;
 
@@ -963,11 +963,11 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
 
     //Get current channel register data, mask all channels and disable calpulse
     LOGGER->log_message(LogManager::INFO, stdsprintf("Storing vfat3 channel registers on ohN %i", ohN));
-    uint32_t chanRegData_orig[3072]; //original channel register data
-    uint32_t chanRegData_tmp[3072]; //temporary channel register data
+    uint32_t chanRegData_orig[oh::CHANNELS_PER_OH]; //original channel register data
+    uint32_t chanRegData_tmp[oh::CHANNELS_PER_OH]; //temporary channel register data
     LOGGER->log_message(LogManager::INFO, stdsprintf("Masking all channels and disabling calpulse for vfats on ohN %i", ohN));
     getChannelRegistersVFAT3Local(la, ohN, mask, chanRegData_orig);
-    for (unsigned int idx=0; idx < 3072; ++idx) {
+    for (unsigned int idx=0; idx < oh::CHANNELS_PER_OH; ++idx) {
         chanRegData_tmp[idx]=chanRegData_orig[idx]+(0x1 << 14); //set channel mask to true
         chanRegData_tmp[idx]=chanRegData_tmp[idx]-(0x1 << 15); //disable calpulse
     }
@@ -985,7 +985,7 @@ void checkSbitRateWithCalPulseLocal(localArgs *la, uint32_t *outDataCTP7Rate, ui
     uint32_t addrTtcStart = getAddress(la, "GEM_AMC.TTC.GENERATOR.CYCLIC_START");
 
     //Get Trigger addresses
-    uint32_t ohTrigRateAddr[oh::VFATS_PER_OH + 2]; //idx 0->23 VFAT counters; idx 24 rate measured by OH FPGA; idx 25 rate measured by CTP7
+    uint32_t ohTrigRateAddr[oh::VFATS_PER_OH + 2]; //idx 0->oh::VFATS_PER_OH VFAT counters; idx oh::VFATS_PER_OH+1 - rate measured by OH FPGA; last idx - rate measured by CTP7
     for (unsigned int vfat=0; vfat<oh::VFATS_PER_OH; ++vfat) {
         ohTrigRateAddr[vfat] = getAddress(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.VFAT%i_SBITS",ohN,vfat));
     } //End Loop over all VFATs

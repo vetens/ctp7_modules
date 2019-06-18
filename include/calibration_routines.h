@@ -54,7 +54,7 @@ struct vfat3DACAndSize{
     }
 };
 
-/*! \fn std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, unsigned int ch, localArgs *la)
+/*! \fn std::unordered_map<uint32_t, uint32_t> setSingleChanMask(unsigned int ohN, int vfatN, unsigned int ch, localArgs *la)
  *  \brief Unmask the channel of interest and masks all the other
  *  \param ohN Optical link number
  *  \param vfatN VFAT position
@@ -62,7 +62,7 @@ struct vfat3DACAndSize{
  *  \param la Local arguments structure
  *  \return Original channel mask in a form of an unordered map <chanMaskAddr, mask>
  */
-std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, unsigned int ch, localArgs *la);
+std::unordered_map<uint32_t, uint32_t> setSingleChanMask(unsigned int ohN, int vfatN, unsigned int ch, localArgs *la);
 
 /*! \fn void applyChanMask(std::unordered_map<uint32_t, uint32_t> map_chanOrigMask, localArgs *la)
  *  \brief Applies channel mask
