@@ -45,12 +45,12 @@ unsigned int fw_version_check(const char* caller_name, localArgs *la)
 
 uint32_t getOHVFATMaskLocal(localArgs * la, uint32_t ohN)
 {
-    uint32_t mask = 0x0;
+    uint32_t mask = 0xffffff; //Start with all vfats masked for max VFAT/GEB amount
     for (unsigned int vfatN=0; vfatN<oh::VFATS_PER_OH; ++vfatN) { //Loop over all vfats
         uint32_t syncErrCnt = readReg(la, stdsprintf("GEM_AMC.OH_LINKS.OH%i.VFAT%i.SYNC_ERR_CNT",ohN,vfatN));
 
-        if (syncErrCnt > 0x0) { //Case: nonzero sync errors, mask this vfat
-            mask = mask + (0x1 << vfatN);
+        if (syncErrCnt == 0x0) { //Case: zero sync errors, unmask this vfat
+            mask = mask - (0x1 << vfatN);
         } //End Case: nonzero sync errors, mask this vfat
     } //End loop over all vfats
 
