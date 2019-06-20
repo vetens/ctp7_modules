@@ -25,10 +25,11 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response)
     const uint8_t phaseMin = request->get_word("phaseMin");
     const uint8_t phaseMax = request->get_word("phaseMax");
     const uint8_t phaseStep = request->get_word("phaseStep");
+    const uint32_t nVerificationReads = request->get_key_exists("nVerificationReads")?request->get_word("nVerificationReads"):10;
 
     // Perform the scan
     LOGGER->log_message(LogManager::INFO, stdsprintf("Calling Local Method for OH #%u.", ohN));
-    if (scanGBTPhasesLocal(&la, ohN, nScans, phaseMin, phaseMax, phaseStep)) {
+    if (scanGBTPhasesLocal(&la, ohN, nScans, phaseMin, phaseMax, phaseStep, nVerificationReads)) {
         LOGGER->log_message(LogManager::INFO, stdsprintf("GBT Scan for OH #%u Failed.", ohN));
         rtxn.abort();
     }
@@ -36,7 +37,7 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response)
     rtxn.abort();
 } //Enc scanGBTPhase
 
-bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, const uint8_t phaseMin, const uint8_t phaseMax, const uint8_t phaseStep)
+bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t nResets, const uint8_t phaseMin, const uint8_t phaseMax, const uint8_t phaseStep, const uint32_t nVerificationReads)
 {
     LOGGER->log_message(LogManager::INFO, stdsprintf("Scanning the phases for OH #%u.", ohN));
 
@@ -67,7 +68,7 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
         // Wait for the phases to be set
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-        for (uint32_t repN = 0; repN < N; repN++) {
+        for (uint32_t repN = 0; repN < nResets; repN++) {
             // Try to synchronize the VFAT's
             writeReg(la, "GEM_AMC.GEM_SYSTEM.CTRL.LINK_RESET", 1);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -81,19 +82,19 @@ bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, con
                 }
 
                 // check CFG_RUN
-                vfatErrs = repeatedRegReadLocal(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN), true, 10);
+                vfatErrs = repeatedRegReadLocal(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.CFG_RUN", ohN, vfatN), true, nVerificationReads);
                 if (vfatErrs.sum != 0){
                     continue;
                 }
 
                 // check HW_ID_VER
-                vfatErrs = repeatedRegReadLocal(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID_VER", ohN, vfatN), true, 10);
+                vfatErrs = repeatedRegReadLocal(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID_VER", ohN, vfatN), true, nVerificationReads);
                 if (vfatErrs.sum != 0){
                     continue;
                 }
 
                 // check HW_ID
-                vfatErrs = repeatedRegReadLocal(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID", ohN, vfatN), true, 10);
+                vfatErrs = repeatedRegReadLocal(la, stdsprintf("GEM_AMC.OH.OH%hu.GEB.VFAT%hu.HW_ID", ohN, vfatN), true, nVerificationReads);
                 if (vfatErrs.sum != 0){
                     continue;
                 }
