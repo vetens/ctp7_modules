@@ -42,11 +42,7 @@ bool confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, 
     uint32_t notmask = ~mask & 0xFFFFFF;
 
     char regBuf[200];
-    if (ch >= 128 && toggleOn == true) { //Case: Bad Config, asked for OR of all channels
-        la->response->set_string("error","confCalPulseLocal(): I was told to calpulse all channels which doesn't make sense");
-        return false;
-    } //End Case: Bad Config, asked for OR of all channels
-    else if (ch == 128 && toggleOn == false) { //Case: Turn cal pusle off for all channels
+    if (ch == 128 && toggleOn == false) { //Case: Turn cal pusle off for all channels
         for (int vfatN = 0; vfatN < 24; vfatN++) { //Loop over all VFATs
             if ((notmask >> vfatN) & 0x1) { //End VFAT is not masked
                 for (int chan=0; chan < 128; ++chan) { //Loop Over all Channels
@@ -57,6 +53,10 @@ bool confCalPulseLocal(localArgs *la, uint32_t ohN, uint32_t mask, uint32_t ch, 
             } //End VFAT is not masked
         } //End Loop over all VFATs
     } //End Case: Turn cal pulse off for all channels
+    else if (ch >= 128) { //Case: Bad Config, asked for OR of all channels
+        la->response->set_string("error","confCalPulseLocal(): I was told to calpulse (on/off) channels > 128.");
+        return false;
+    } //End Case: Bad Config, asked for OR of all channels
     else{ //Case: Pulse a specific channel
         for (int vfatN = 0; vfatN < 24; vfatN++) { //Loop over all VFATs
             if ((notmask >> vfatN) & 0x1) { //End VFAT is not masked
@@ -1342,6 +1342,23 @@ void genChannelScan(const RPCMsg *request, RPCMsg *response)
     rtxn.abort();
 }
 
+void confCalPulse(const RPCMsg *request, RPCMsg *response)
+{
+    GETLOCALARGS(response);
+
+    uint32_t ohN = request->get_word("ohN");
+    uint32_t mask = request->get_word("mask");
+    uint32_t ch = request->get_word("ch");
+    bool toggleOn = request->get_word("toggleOn");
+    bool currentPulse = request->get_word("currentPulse");
+    uint32_t calScaleFactor = request->get_word("calScaleFactor");
+
+    confCalPulseLocal(&la, ohN, mask, ch, toggleOn, currentPulse, calScaleFactor);
+    LOGGER->log_message(LogManager::DEBUG, stdsprintf("Finished configuring the calibration pulse."));
+
+    rtxn.abort();
+}
+
 extern "C" {
     const char *module_version_key = "calibration_routines v1.0.1";
     int module_activity_color = 4;
@@ -1360,5 +1377,6 @@ extern "C" {
         modmgr->register_method("calibration_routines", "sbitRateScan", sbitRateScan);
         modmgr->register_method("calibration_routines", "ttcGenConf", ttcGenConf);
         modmgr->register_method("calibration_routines", "ttcGenToggle", ttcGenToggle);
+        modmgr->register_method("calibration_routines", "confCalPulse", confCalPulse);
     }
 }
