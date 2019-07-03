@@ -20,6 +20,8 @@
  *  - `word phaseMin` : Lowest phase to scan (min = 0).
  *  - `word phaseMax` : Highest phase to scan (max = 15).
  *  - `word phaseStep` : Step to scan the phases.
+ *  - `word phaseStep` : Step to scan the phases.
+ *  - [optional]`word nVerificationReads` : Number of read for repeatedRegRead method. Defaults to 10.
  *
  *  The method returns the following RPC keys :
  *  - `word_array OHX.VFATY` : Array of word containing the results of the scans. See details of the `scanGBTPhase` function for a description of the words.
@@ -30,10 +32,12 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response);
 /*! \brief Local callable version of `scanGBTPhase`.
  *  \param[in, out] la Local arguments structure.
  *  \param[in] ohN OptoHybrid index number.
- *  \param[in] N The number of times the scan must performed.
+ *  \param[in] nResets The number of times the link reset and subsequent repeatedRegRead will be performed
  *  \param[in] phaseMin Lowest phase to scan (min = 0).
  *  \param[in] phaseMax Highest phase to scan (max = 15).
  *  \param[in] phaseStep Step to scan the phases.
+ *  \param[in] phaseStep Step to scan the phases.
+ *  \param[in] nVerificationReads The number of reads for repeatedRegRead method
  *  \return Returns `false` in case of success; `true` in case of error. The precise error is logged and written to the `error` RPC key.
  *
  *  \detail
@@ -45,7 +49,7 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response);
  *  Each word is the number of time the scan was "good" out of the total number of scan requested, N.
  *
  */
-bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N = 1, const uint8_t phaseMin = gbt::PHASE_MIN, const uint8_t phaseMax = gbt::PHASE_MAX, const uint8_t phaseStep = 1);
+bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t nResets = 1, const uint8_t phaseMin = gbt::PHASE_MIN, const uint8_t phaseMax = gbt::PHASE_MAX, const uint8_t phaseStep = 1, const uint32_t nVerificationReads = 10);
 
 /*! \brief Write the GBT configuration of one OptoHybrid.
  *  \param[in] request RPC response message.
