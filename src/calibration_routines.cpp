@@ -7,6 +7,7 @@
 #include "optohybrid.h"
 #include <thread>
 #include "vfat3.h"
+#include "hw_constants.h"
 
 std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, unsigned int ch, localArgs *la)
 {
