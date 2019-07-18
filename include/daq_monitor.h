@@ -175,4 +175,11 @@ void getmonVFATLinkLocal(localArgs * la, int NOH=12, bool doReset=false);
  */
 void getmonVFATLink(const RPCMsg *request, RPCMsg *response);
 
+/*! \fn void getmonCTP7dump(const RPCMsg *request, RPCMsg *response);
+ *  \brief creates a dump of the required registers, specified by a file expected in <blah>/registers.txt
+ *  \param request RPC request message
+ *  \param response RPC response message
+ */
+void getmonCTP7dump(const RPCMsg *request, RPCMsg *response);
+
 #endif

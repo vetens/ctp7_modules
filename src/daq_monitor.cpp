@@ -5,6 +5,7 @@
  */
 
 #include "amc.h"
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include "daq_monitor.h"
@@ -810,6 +811,65 @@ void getmonVFATLink(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 } //End getmonVFATLink()
 
+void getmonCTP7dump(const RPCMsg *request, RPCMsg *response)
+{
+  GETLOCALARGS(response);
+
+  std::string fname = "/mnt/persistent/gemdaq/mon_registers.txt";
+  if (request->get_key_exists("fname")) {
+    fname = request->get_string("fname");
+  }
+  std::stringstream msg;
+  msg << "Using registers" << fname;
+  LOGGER->log_message(LogManager::INFO, msg.str());
+  std::ifstream ifs(fname);
+  if (!ifs) {
+    std::stringstream errmsg;
+    errmsg << "Error opening file: " << fname;
+    LOGGER->log_message(LogManager::ERROR, errmsg.str());
+    response->set_string("error", errmsg.str());
+    return;
+  }
+
+  std::vector<std::pair<std::string, std::string> > regNames;
+  std::string line;
+  msg.str("");
+  msg.clear();
+  while (std::getline(ifs, line)) {
+    // format0x658030f8 r    GEM_AMC.OH_LINKS.OH11.VFAT23.DAQ_CRC_ERROR_CNT          0x00000000
+    std::replace(line.begin(), line.end(), '\t', ' ');
+    std::stringstream ss(line);
+    std::string token;
+    size_t count = 0;
+    std::vector<std::string> tmp;
+    while (std::getline(ss, token, ' ')) {
+      if (token.empty())
+        continue;
+
+      if (count == 0 || count == 2) {
+        tmp.push_back(token);
+        msg.str("");
+        msg.clear();
+        msg << "Pushing back " << token << " as value " << count << std::endl;
+        LOGGER->log_message(LogManager::DEBUG, msg.str());
+      }
+      ++count;
+    }
+    regNames.push_back(std::make_pair(tmp.at(0), tmp.at(1)));
+  }
+
+  std::vector<std::string> keynames;
+  std::vector<uint32_t>    keyvalues;
+  for (auto const& regName : regNames) {
+    keynames.push_back(regName.second);
+    // keyvalues.push_back(regName.second, readReg(&la, regName.second));
+    response->set_word(regName.second, readReg(&la, regName.second));
+  }
+  response->set_string_array("keynames",keynames);
+  // response->set_word_array("keyvalues", keyvalues);
+  rtxn.abort();
+}
+
 extern "C" {
     const char *module_version_key = "daq_monitor v1.0.1";
     int module_activity_color = 4;
@@ -831,5 +891,6 @@ extern "C" {
         modmgr->register_method("daq_monitor", "getmonOHSysmon", getmonOHSysmon);
         modmgr->register_method("daq_monitor", "getmonSCA", getmonSCA);
         modmgr->register_method("daq_monitor", "getmonVFATLink", getmonVFATLink);
+        modmgr->register_method("daq_monitor", "getmonCTP7dump", getmonCTP7dump);
     }
 }

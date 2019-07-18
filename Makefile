@@ -155,19 +155,32 @@ _all: build
 	@echo Executing _all stage
 
 ### local (PC) test functions, need standard gcc toolchain, dirs, and flags
-.PHONY: test
+.PHONY: testarm testx86_64
 # test: test/tester.cpp
-TestExecs := $(patsubst $(PackageTestSourceDir)/%.cxx, $(PackageExecDir)/%, $(TestSources))
-$(TestExecs):
+TestExecsARM := $(patsubst $(PackageTestSourceDir)/%.cxx, $(PackageExecDir)/arm/%, $(TestSources))
+TestExecsX86_64 := $(patsubst $(PackageTestSourceDir)/%.cxx, $(PackageExecDir)/x86_64/%, $(TestSources))
 
-$(PackageExecDir)/%: $(PackageTestSourceDir)/%.cxx
+$(TestExecsX86_64):
+
+$(TestExecsARM):
+
+$(PackageExecDir)/x86_64/%: $(PackageTestSourceDir)/%.cxx
 	$(MakeDir) $(@D)
 	g++ -O0 -g3 -fno-inline -std=c++11 -c $(INC) -MT $@ -MMD -MP -MF $(@D)/$(*F).Td -o $@ $<
 	mv $(@D)/$(*F).Td $(@D)/$(*F).d
 	touch $@
 	g++ -O0 -g3 -fno-inline -std=c++11 -o $@ $< $(INC) $(LDFLAGS) -L/opt/wiscrpcsvc/lib -lwiscrpcsvc
 
-test: $(TestExecs)
+$(PackageExecDir)/arm/%: $(PackageTestSourceDir)/%.cxx
+	$(MakeDir) $(@D)
+	$(CXX) $(CFLAGS) -O0 -g3 -fno-inline -std=c++14 -c $(INC) -MT $@ -MMD -MP -MF $(@D)/$(*F).Td -o $@ $<
+	mv $(@D)/$(*F).Td $(@D)/$(*F).d
+	touch $@
+	$(CXX) $(CFLAGS) -O0 -g3 -fno-inline -fPIC -std=c++14 -o $@ $< $(INC) $(LDFLAGS) $(Libraries) $(BASE_LINKS) -lmemsvc -l:memhub.so
+
+testx86_64: $(TestExecsX86_64)
+
+testarm: $(TestExecsARM)
 
 clean: cleanrpm
 	@echo Cleaning up all generated files
