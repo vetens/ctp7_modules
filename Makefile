@@ -22,6 +22,7 @@ INSTALL_PREFIX=/mnt/persistent/ctp7_modules
 include $(BUILD_HOME)/$(Package)/config/mfZynq.mk
 include $(BUILD_HOME)/$(Package)/config/mfCommonDefs.mk
 include $(BUILD_HOME)/$(Package)/config/mfRPMRules.mk
+include $(BUILD_HOME)/$(Package)/config/mfSphinx.mk
 
 PackageBase = $(BUILD_HOME)/$(Package)
 ProjectBase = $(BUILD_HOME)/$(Project)
@@ -179,5 +180,15 @@ clean: cleanrpm
 
 cleandoc:
 	@echo "TO DO"
+
+.PHONY: doc
+
+doc: 
+	@echo "Compiling Doxygen!"
+	doxygen doc/$(Package).doxy
+	@echo "Compiled!"
+	@echo "Compiling Sphinx!"
+	make html
+	@echo "Sphinx Compiled"
 
 -include $(Dependencies)
