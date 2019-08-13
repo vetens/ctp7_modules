@@ -128,6 +128,13 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response)
   rtxn.abort();
 }
 
+uint32_t bitCheck(uint32_t word, int bit)
+{
+  if (bit > 31)
+    throw std::invalid_argument("Invalid request to shift 32-bit word by more than 31 bits");
+  return (word >> bit) & 0x1;
+}
+
 uint32_t getNumNonzeroBits(uint32_t value)
 {
   // https://stackoverflow.com/questions/4244274/how-do-i-count-the-number-of-zero-bits-in-an-integer
