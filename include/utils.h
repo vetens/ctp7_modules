@@ -7,21 +7,23 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "moduleapi.h"
 //#include <libmemsvc.h>
+#include "moduleapi.h"
 #include "memhub.h"
+
 #include "lmdb_cpp_wrapper.h"
 #include "xhal/utils/XHALXMLParser.h"
 
-#include <unistd.h>
-#include <iostream>
-#include <string>
-#include <vector>
-#include <sstream>
-#include <fstream>
-#include <vector>
-#include <iterator>
 #include <cstdio>
+#include <fstream>
+#include <iostream>
+#include <iterator>
+#include <log4cplus/logger.h>
+#include <log4cplus/loggingmacros.h>
+#include <sstream>
+#include <string>
+#include <unistd.h>
+#include <vector>
 #include <thread>
 #include <chrono>
 

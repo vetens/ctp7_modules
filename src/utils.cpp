@@ -2,8 +2,6 @@
 
 #include <log4cplus/configurator.h>
 #include <log4cplus/hierarchy.h>
-#include <log4cplus/logger.h>
-#include <log4cplus/loggingmacros.h>
 
 #include <cstdlib>
 #include <fstream>
@@ -558,16 +556,19 @@ void writeBlock(const uint32_t& regAddr, const uint32_t* values, const size_t& s
 }
 
 extern "C" {
-  const char *module_version_key = "utils v1.0.1";
-  int module_activity_color = 4;
-  void module_init(ModuleManager *modmgr)
-  {
-    if (memhub_open(&memsvc) != 0) {
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
-      LOGGER->log_message(LogManager::ERROR, "Unable to load module");
-      return; // Do not register our functions, we depend on memsvc.
+    const char *module_version_key = "utils v1.0.1";
+    int module_activity_color = 4;
+    void module_init(ModuleManager *modmgr) {
+        initLogging();
+
+        if (memhub_open(&memsvc) != 0) {
+            auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("main"));
+            LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Unable to connect to memory service: ") << memsvc_get_last_error(memsvc));
+            LOG4CPLUS_ERROR(logger, "Unable to load module");
+            return; // Do not register our functions, we depend on memsvc.
+        }
+
+        modmgr->register_method("utils", "update_address_table", update_address_table);
+        modmgr->register_method("utils", "readRegFromDB",        readRegFromDB);
     }
-    modmgr->register_method("utils", "update_address_table", update_address_table);
-    modmgr->register_method("utils", "readRegFromDB",        readRegFromDB);
-  }
 }

@@ -1,12 +1,15 @@
-#include <algorithm>
-#include "amc.h"
 #include "calibration_routines.h"
+
+#include "amc.h"
+#include "optohybrid.h"
+#include "utils.h"
+#include "vfat3.h"
+
+#include <algorithm>
 #include <chrono>
 #include <math.h>
 #include <pthread.h>
-#include "optohybrid.h"
 #include <thread>
-#include "vfat3.h"
 #include "hw_constants.h"
 
 std::unordered_map<uint32_t, uint32_t> setSingleChanMask(unsigned int ohN, unsigned int vfatN, unsigned int ch, localArgs *la)
@@ -663,7 +666,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
 
             //Prep the SBIT counters
             std::unordered_map<uint32_t,uint32_t> map_origSBITPersist;
-            std::unordered_map<uint32_t,uint32_t> map_origSBITTimeMax;            
+            std::unordered_map<uint32_t,uint32_t> map_origSBITTimeMax;
             for (unsigned int ohN = 0; ohN < amc::OH_PER_AMC; ++ohN) {
                 if ((ohMask >> ohN) & 0x1) {
                     map_origSBITPersist[ohN] = readReg(la,  stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN));
@@ -719,7 +722,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             for (unsigned int ohN = 0; ohN < amc::OH_PER_AMC; ++ohN) {
                 if ((ohMask >> ohN) & 0x1) {
                     writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), map_origSBITPersist[ohN]);
-                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), map_origSBITTimeMax[ohN]);                    
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), map_origSBITTimeMax[ohN]);
                 }
             }
 
@@ -757,7 +760,7 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
-    uint32_t waitTime = request->get_word("waitTime");    
+    uint32_t waitTime = request->get_word("waitTime");
     std::string scanReg = request->get_string("scanReg");
 
     uint32_t outDataTrigRatePerVFAT[amc::OH_PER_AMC*oh::VFATS_PER_OH*(dacMax-dacMin+1)/dacStep];
@@ -1376,11 +1379,15 @@ extern "C" {
     const char *module_version_key = "calibration_routines v1.0.1";
     int module_activity_color = 4;
     void module_init(ModuleManager *modmgr) {
+        initLogging();
+
         if (memhub_open(&memsvc) != 0) {
-            LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
-            LOGGER->log_message(LogManager::ERROR, "Unable to load module");
+            auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("main"));
+            LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Unable to connect to memory service: ") << memsvc_get_last_error(memsvc));
+            LOG4CPLUS_ERROR(logger, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
         }
+
         modmgr->register_method("calibration_routines", "checkSbitMappingWithCalPulse", checkSbitMappingWithCalPulse);
         modmgr->register_method("calibration_routines", "checkSbitRateWithCalPulse", checkSbitRateWithCalPulse);
         modmgr->register_method("calibration_routines", "dacScan", dacScan);

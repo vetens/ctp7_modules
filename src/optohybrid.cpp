@@ -1,6 +1,8 @@
-#include "amc.h"
 #include "optohybrid.h"
 #include "hw_constants.h"
+
+#include "amc.h"
+#include "utils.h"
 
 void broadcastWriteLocal(localArgs * la, uint32_t ohN, std::string regName, uint32_t value, uint32_t mask) {
   uint32_t fw_maj = readReg(la, "GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
@@ -595,11 +597,15 @@ extern "C" {
     const char *module_version_key = "optohybrid v1.0.1";
     int module_activity_color = 4;
     void module_init(ModuleManager *modmgr) {
+        initLogging();
+
         if (memhub_open(&memsvc) != 0) {
-            LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
-            LOGGER->log_message(LogManager::ERROR, "Unable to load module");
+            auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("main"));
+            LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Unable to connect to memory service: ") << memsvc_get_last_error(memsvc));
+            LOG4CPLUS_ERROR(logger, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
         }
+
         modmgr->register_method("optohybrid", "broadcastRead", broadcastRead);
         modmgr->register_method("optohybrid", "broadcastWrite", broadcastWrite);
         modmgr->register_method("optohybrid", "configureScanModule", configureScanModule);
