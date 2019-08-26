@@ -74,8 +74,8 @@ TargetObjects:= $(patsubst %.d,%.o,$(Dependencies))
 
 TargetLibraries:= memhub memory optical utils extras amc daq_monitor vfat3 optohybrid calibration_routines gbt
 
-# Everything links against these three
-BASE_LINKS = -lxhal -llmdb -lwisci2c
+# Everything links against these libraries
+BASE_LINKS = -lxhal -llmdb -lwisci2c -llog4cplus
 
 ## Generic shared object creation rule, need to accomodate cases where we have lib.o lib/sub.o
 pc:=%
