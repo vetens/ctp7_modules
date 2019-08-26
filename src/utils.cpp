@@ -1,5 +1,13 @@
 #include "utils.h"
 
+#include <log4cplus/configurator.h>
+#include <log4cplus/hierarchy.h>
+#include <log4cplus/logger.h>
+#include <log4cplus/loggingmacros.h>
+
+#include <cstdlib>
+#include <fstream>
+
 memsvc_handle_t memsvc;
 
 struct localArgs getLocalArgs(RPCMsg *response)
@@ -33,6 +41,36 @@ std::string serialize(xhal::utils::Node n)
        << "|" << n.mode
        << "|" << std::hex << n.size << std::dec;
   return node.str();
+}
+
+void initLogging()
+{
+    log4cplus::initialize();
+
+    // Loading the same configuration twice seems to create issues
+    // Prefer to start from scratch
+    log4cplus::Logger::getDefaultHierarchy().resetConfiguration();
+
+    // Try to get the configuration from the envrionment
+    const char * const configurationFilename = std::getenv(LOGGING_CONFIGURATION_ENV);
+
+    std::ifstream configurationFile{};
+    if (configurationFilename)
+        configurationFile.open(configurationFilename);
+
+    if (configurationFile.is_open()) {
+        log4cplus::PropertyConfigurator configurator{configurationFile};
+        configurator.configure();
+    } else {
+        // Fallback to the default embedded configuration
+        std::istringstream defaultConfiguration{LOGGING_DEFAULT_CONFIGURATION};
+        log4cplus::PropertyConfigurator configurator{defaultConfiguration};
+        configurator.configure();
+
+        // FIXME: Cannot use a one-liner, because move constructors are disabled in the compiled library
+        auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
+        LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("Impossible to read the configuration file; using the default embedded configuration."));
+    }
 }
 
 void update_address_table(const RPCMsg *request, RPCMsg *response)
