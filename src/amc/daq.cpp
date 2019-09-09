@@ -36,7 +36,7 @@ void resetDAQLinkLocal(localArgs* la, uint32_t const& davTO, uint32_t const& tts
   LOGGER->log_message(LogManager::DEBUG, "resetDAQLinkLocal called");
   writeReg(la, "GEM_AMC.DAQ.CONTROL.RESET", 0x1);
   writeReg(la, "GEM_AMC.DAQ.CONTROL.RESET", 0x0);
-  disableDAQLinkLocal(la);
+  // disableDAQLinkLocal(la);
   writeReg(la, "GEM_AMC.DAQ.CONTROL.DAV_TIMEOUT", davTO);
   setDAQLinkInputTimeoutLocal(la);
   // setDAQLinkInputTimeoutLocal(la,davTO);
