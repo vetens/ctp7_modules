@@ -4,9 +4,9 @@
  */
 
 #include "gbt.h"
+
 #include "hw_constants.h"
 #include "hw_constants_checks.h"
-
 #include "moduleapi.h"
 #include "memhub.h"
 #include "utils.h"
@@ -211,11 +211,15 @@ extern "C" {
     const char *module_version_key = "gbt v1.0.1";
     int module_activity_color = 4;
     void module_init(ModuleManager *modmgr) {
+        initLogging();
+
         if (memhub_open(&memsvc) != 0) {
-            LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
-            LOGGER->log_message(LogManager::ERROR, "Unable to load module");
+            auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("main"));
+            LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Unable to connect to memory service: ") << memsvc_get_last_error(memsvc));
+            LOG4CPLUS_ERROR(logger, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
         }
+
         modmgr->register_method("gbt", "writeGBTConfig", writeGBTConfig);
         modmgr->register_method("gbt", "writeGBTPhase", writeGBTPhase);
         modmgr->register_method("gbt", "scanGBTPhases", scanGBTPhases);

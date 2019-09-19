@@ -1,5 +1,11 @@
 #include "utils.h"
 
+#include <log4cplus/configurator.h>
+#include <log4cplus/hierarchy.h>
+
+#include <cstdlib>
+#include <fstream>
+
 memsvc_handle_t memsvc;
 
 struct localArgs getLocalArgs(RPCMsg *response)
@@ -33,6 +39,36 @@ std::string serialize(xhal::utils::Node n)
        << "|" << n.mode
        << "|" << std::hex << n.size << std::dec;
   return node.str();
+}
+
+void initLogging()
+{
+    log4cplus::initialize();
+
+    // Loading the same configuration twice seems to create issues
+    // Prefer to start from scratch
+    log4cplus::Logger::getDefaultHierarchy().resetConfiguration();
+
+    // Try to get the configuration from the envrionment
+    const char * const configurationFilename = std::getenv(LOGGING_CONFIGURATION_ENV);
+
+    std::ifstream configurationFile{};
+    if (configurationFilename)
+        configurationFile.open(configurationFilename);
+
+    if (configurationFile.is_open()) {
+        log4cplus::PropertyConfigurator configurator{configurationFile};
+        configurator.configure();
+    } else {
+        // Fallback to the default embedded configuration
+        std::istringstream defaultConfiguration{LOGGING_DEFAULT_CONFIGURATION};
+        log4cplus::PropertyConfigurator configurator{defaultConfiguration};
+        configurator.configure();
+
+        // FIXME: Cannot use a one-liner, because move constructors are disabled in the compiled library
+        auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
+        LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("Impossible to read the configuration file; using the default embedded configuration."));
+    }
 }
 
 void update_address_table(const RPCMsg *request, RPCMsg *response)
@@ -488,16 +524,19 @@ void writeBlock(const uint32_t& regAddr, const uint32_t* values, const size_t& s
 }
 
 extern "C" {
-  const char *module_version_key = "utils v1.0.1";
-  int module_activity_color = 4;
-  void module_init(ModuleManager *modmgr)
-  {
-    if (memhub_open(&memsvc) != 0) {
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
-      LOGGER->log_message(LogManager::ERROR, "Unable to load module");
-      return; // Do not register our functions, we depend on memsvc.
+    const char *module_version_key = "utils v1.0.1";
+    int module_activity_color = 4;
+    void module_init(ModuleManager *modmgr) {
+        initLogging();
+
+        if (memhub_open(&memsvc) != 0) {
+            auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("main"));
+            LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Unable to connect to memory service: ") << memsvc_get_last_error(memsvc));
+            LOG4CPLUS_ERROR(logger, "Unable to load module");
+            return; // Do not register our functions, we depend on memsvc.
+        }
+
+        modmgr->register_method("utils", "update_address_table", update_address_table);
+        modmgr->register_method("utils", "readRegFromDB",        readRegFromDB);
     }
-    modmgr->register_method("utils", "update_address_table", update_address_table);
-    modmgr->register_method("utils", "readRegFromDB",        readRegFromDB);
-  }
 }

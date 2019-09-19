@@ -1,12 +1,15 @@
-#include <algorithm>
-#include "amc.h"
 #include "calibration_routines.h"
+
+#include "amc.h"
+#include "optohybrid.h"
+#include "utils.h"
+#include "vfat3.h"
+
+#include <algorithm>
 #include <chrono>
 #include <math.h>
 #include <pthread.h>
-#include "optohybrid.h"
 #include <thread>
-#include "vfat3.h"
 
 std::unordered_map<uint32_t, uint32_t> setSingleChanMask(int ohN, int vfatN, unsigned int ch, localArgs *la)
 {
@@ -1336,11 +1339,15 @@ extern "C" {
     const char *module_version_key = "calibration_routines v1.0.1";
     int module_activity_color = 4;
     void module_init(ModuleManager *modmgr) {
+        initLogging();
+
         if (memhub_open(&memsvc) != 0) {
-            LOGGER->log_message(LogManager::ERROR, stdsprintf("Unable to connect to memory service: %s", memsvc_get_last_error(memsvc)));
-            LOGGER->log_message(LogManager::ERROR, "Unable to load module");
+            auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("main"));
+            LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Unable to connect to memory service: ") << memsvc_get_last_error(memsvc));
+            LOG4CPLUS_ERROR(logger, "Unable to load module");
             return; // Do not register our functions, we depend on memsvc.
         }
+
         modmgr->register_method("calibration_routines", "checkSbitMappingWithCalPulse", checkSbitMappingWithCalPulse);
         modmgr->register_method("calibration_routines", "checkSbitRateWithCalPulse", checkSbitRateWithCalPulse);
         modmgr->register_method("calibration_routines", "dacScan", dacScan);

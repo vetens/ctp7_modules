@@ -7,21 +7,23 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "moduleapi.h"
 //#include <libmemsvc.h>
+#include "moduleapi.h"
 #include "memhub.h"
+
 #include "lmdb_cpp_wrapper.h"
 #include "xhal/utils/XHALXMLParser.h"
 
-#include <unistd.h>
-#include <iostream>
-#include <string>
-#include <vector>
-#include <sstream>
-#include <fstream>
-#include <vector>
-#include <iterator>
 #include <cstdio>
+#include <fstream>
+#include <iostream>
+#include <iterator>
+#include <log4cplus/logger.h>
+#include <log4cplus/loggingmacros.h>
+#include <sstream>
+#include <string>
+#include <unistd.h>
+#include <vector>
 
 extern memsvc_handle_t memsvc; /// \var global memory service handle required for registers read/write operations
 
@@ -33,6 +35,23 @@ typedef struct localArgs {
     lmdb::dbi & dbi;  /*!< LMDB individual database handle */
     RPCMsg *response; /*!< RPC response message */
 } LocalArgs;
+
+/*!
+ * \brief Environment variable name storing the \c log4cplus configuration filename
+ */
+constexpr auto LOGGING_CONFIGURATION_ENV = "RPCSVC_LOGGING_CONF";
+
+/*!
+ * \brief Default \c log4cplus configuration used when the configuration file cannot be read
+ */
+constexpr auto LOGGING_DEFAULT_CONFIGURATION = R"----(
+log4cplus.rootLogger=INFO,syslog
+log4cplus.appender.syslog=log4cplus::SysLogAppender
+log4cplus.appender.syslog.ident=rpcsvc
+log4cplus.appender.syslog.facility=user
+log4cplus.appender.syslog.layout=log4cplus::PatternLayout
+log4cplus.appender.syslog.layout.ConversionPattern= %h[%i] - %M - %m
+)----";
 
 /*!
  * \brief returns a set up LocalArgs structure
@@ -79,6 +98,14 @@ std::string serialize(xhal::utils::Node n);
     LOGGER->log_message(LogManager::ERROR, message);    \
     response->set_string("error", message);             \
     return error_code; }
+
+/*!
+ * \brief This function initializes the `log4cplus` logging system
+ *
+ * It first tries to read the \c LOGGING_CONFIGURATION_FILENAME.
+ * If the file is not found, it defaults to the embedded configuration LOGGING_DEFAULT_CONFIGURATION.
+ */
+void initLogging();
 
 /*! \fn uint32_t getNumNonzeroBits(uint32_t value)
  *  \brief returns the number of nonzero bits in an integer
