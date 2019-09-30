@@ -607,7 +607,7 @@ void sbitRateScanLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outData
     return;
 } //End sbitRateScanLocal(...)
 
-void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t ohMask=0xFFF)
+void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t *outDataTrigRatePerVFAT, uint32_t *outDataTrigRateOverall, uint32_t ch, uint32_t dacMin, uint32_t dacMax, uint32_t dacStep, std::string scanReg, uint32_t ohMask=0xFFF, uint32_t waitTime=1)
 {
     char regBuf[200];
     // Check that OH mask does not exceeds 0xFFF
@@ -663,10 +663,13 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
 
             //Prep the SBIT counters
             std::unordered_map<uint32_t,uint32_t> map_origSBITPersist;
+            std::unordered_map<uint32_t,uint32_t> map_origSBITTimeMax;            
             for (unsigned int ohN = 0; ohN < amc::OH_PER_AMC; ++ohN) {
                 if ((ohMask >> ohN) & 0x1) {
                     map_origSBITPersist[ohN] = readReg(la,  stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN));
-                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x1); //Only reset counters after a counter reset
+                    map_origSBITTimeMax[ohN] = readReg(la,  stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN));
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), 0x0); //reset all counters after SBIT_CNT_TIME_MAX
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), uint32_t(0x02638e98*waitTime) ); //count for a number of BX's specified by waitTime
                 }
             }
 
@@ -693,8 +696,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
                     } // End checking whether the OH is masked
                 } // End loop over optohybrids
 
-                //Wait just over 1 second
-                std::this_thread::sleep_for(std::chrono::milliseconds(1005));
+                std::this_thread::sleep_for(std::chrono::seconds(waitTime));
 
                 //Read the counters
                 for (unsigned int ohN = 0; ohN < amc::OH_PER_AMC; ++ohN) {
@@ -717,6 +719,7 @@ void sbitRateScanParallelLocal(localArgs *la, uint32_t *outDataDacVal, uint32_t 
             for (unsigned int ohN = 0; ohN < amc::OH_PER_AMC; ++ohN) {
                 if ((ohMask >> ohN) & 0x1) {
                     writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_PERSIST",ohN), map_origSBITPersist[ohN]);
+                    writeReg(la, stdsprintf("GEM_AMC.OH.OH%i.FPGA.TRIG.CNT.SBIT_CNT_TIME_MAX",ohN), map_origSBITTimeMax[ohN]);                    
                 }
             }
 
@@ -754,12 +757,13 @@ void sbitRateScan(const RPCMsg *request, RPCMsg *response)
     uint32_t dacMin = request->get_word("dacMin");
     uint32_t dacMax = request->get_word("dacMax");
     uint32_t dacStep = request->get_word("dacStep");
+    uint32_t waitTime = request->get_word("waitTime");    
     std::string scanReg = request->get_string("scanReg");
 
     uint32_t outDataTrigRatePerVFAT[amc::OH_PER_AMC*oh::VFATS_PER_OH*(dacMax-dacMin+1)/dacStep];
     uint32_t outDataDacValPerOH[amc::OH_PER_AMC*(dacMax-dacMin+1)/dacStep];
     uint32_t outDataTrigRatePerOH[amc::OH_PER_AMC*(dacMax-dacMin+1)/dacStep];
-    sbitRateScanParallelLocal(&la, outDataDacValPerOH, outDataTrigRatePerVFAT, outDataTrigRatePerOH, ch, dacMin, dacMax, dacStep, scanReg, ohMask);
+    sbitRateScanParallelLocal(&la, outDataDacValPerOH, outDataTrigRatePerVFAT, outDataTrigRatePerOH, ch, dacMin, dacMax, dacStep, scanReg, ohMask, waitTime);
 
     response->set_word_array("outDataVFATRate", outDataTrigRatePerVFAT, amc::OH_PER_AMC*oh::VFATS_PER_OH*(dacMax-dacMin+1)/dacStep);
     response->set_word_array("outDataDacValue", outDataDacValPerOH, amc::OH_PER_AMC*(dacMax-dacMin+1)/dacStep);
