@@ -14,6 +14,13 @@ class BLASTERSettings {
       VFAT       = 0x4, ///< VFAT RAM
       ALL        = 0x7, ///< All RAMs
     } BLASTERType;
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & EBLASTERType;
+    }
   };
 };
 

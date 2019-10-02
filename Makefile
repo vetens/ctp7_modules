@@ -1,4 +1,5 @@
-ifndef PETA_STAGE
+ifeq ($(or $(XHAL_ROOT),$(PETA_STAGE)),)
+#ifndef PETA_STAGE
 $(error "Error: PETA_STAGE environment variable not set.")
 endif
 
@@ -19,14 +20,26 @@ CTP7_MODULES_VER_PATCH:=$(shell ./config/tag2rel.sh | awk '{split($$0,a," "); pr
 
 INSTALL_PREFIX=/mnt/persistent/ctp7_modules
 
-include $(BUILD_HOME)/$(Package)/config/mfZynq.mk
 include $(BUILD_HOME)/$(Package)/config/mfCommonDefs.mk
+include $(BUILD_HOME)/$(Package)/config/mfZynq.mk
 include $(BUILD_HOME)/$(Package)/config/mfRPMRules.mk
 
-PackageBase = $(BUILD_HOME)/$(Package)
+ifeq ($(and $(XHAL_ROOT),$(BUILD_HOME)),)
+$(error "Unable to compile due to unset variables")
+else
+$(info XHAL_ROOT $(XHAL_ROOT))
+$(info BUILD_HOME $(BUILD_HOME))
+endif
+
+# ifndef XHAL_ROOT
+# $(error "Unable to compile due to unset variables")
+# endif
+
 ProjectBase = $(BUILD_HOME)/$(Project)
+PackageBase = $(ProjectBase)
 IncludeDirs = $(PackageBase)/include
-IncludeDirs+= /opt/xhal/include
+IncludeDirs+= $(XHAL_ROOT)/include/common
+IncludeDirs+= $(XHAL_ROOT)/include/server
 # IncludeDirs+= /opt/cactus/include
 IncludeDirs+= /opt/wiscrpcsvc/include
 IncludeDirs+= /opt/reedmuller/include
@@ -42,30 +55,26 @@ CFLAGS+= -std=c++1y -O3 -pthread -fPIC
 LDFLAGS+= -Wl,--as-needed
 
 LibraryDirs = $(PackageBase)/lib
-LibraryDirs+= /opt/xhal/lib/arm
+LibraryDirs+= $(XHAL_ROOT)/lib/arm
 LibraryDirs+= /opt/wiscrpcsvc/lib
 LibraryDirs+= /opt/reedmuller/lib/arm
 Libraries=$(LibraryDirs:%=-L%)
 
-.PHONY: clean rpc prerpm
+.PHONY: rpc
 
 default: build
-	@echo "Running default target"
 	$(MakeDir) $(PackageDir)
 
-_rpmprep: preprpm
-	@echo "Running _rpmprep target"
-
-preprpm: default
-	@echo "Running preprpm target"
+rpmprep: default
+	$(MakeDir) $(PackageDir)
 	@cp -rf lib $(PackageDir)
 
-PackageSourceDir=$(ProjectBase)/src
-PackageTestSourceDir=$(ProjectBase)/test
-PackageIncludeDir=$(ProjectBase)/include
-PackageLibraryDir=$(ProjectBase)/lib
-PackageExecDir=$(ProjectBase)/bin
-PackageObjectDir=$(PackageSourceDir)/linux/$(Arch)
+# PackageSourceDir    :=$(PackageBase)/src
+# PackageTestSourceDir:=$(PackageBase)/test
+# PackageIncludeDir   :=$(PackageBase)/include
+# PackageLibraryDir   :=$(PackageBase)/lib
+# PackageExecDir      :=$(PackageBase)/bin
+# PackageObjectDir    :=$(PackageSourceDir)/linux/$(Arch)
 # PackageObjectDir=$(PackageSourceDir)/linux
 Sources      := $(wildcard $(PackageSourceDir)/*.cpp) $(wildcard $(PackageSourceDir)/*/*.cpp)
 TestSources  := $(wildcard $(PackageTestSourceDir)/*.cxx) $(wildcard $(PackageTestSourceDir)/*.cpp)
@@ -75,9 +84,9 @@ TargetObjects:= $(patsubst %.d,%.o,$(Dependencies))
 TargetLibraries:= memhub memory optical utils extras amc daq_monitor vfat3 optohybrid calibration_routines gbt
 
 # Everything links against these libraries
-BASE_LINKS = -lxhal -llmdb -lwisci2c -llog4cplus
+BASE_LINKS = -lxhal-base -lxhal-server -llmdb -lwisci2c -llog4cplus
 
-## Generic shared object creation rule, need to accomodate cases where we have lib.o lib/sub.o
+# Generic shared object creation rule, need to accomodate cases where we have lib.o lib/sub.o
 pc:=%
 .SECONDEXPANSION:
 $(PackageLibraryDir)/%.so: $$(filter $(PackageObjectDir)/$$*$$(pc).o, $(TargetObjects))
@@ -93,17 +102,17 @@ $(PackageObjectDir)/%.o: $(PackageSourceDir)/%.cpp
 # this was to prevent an older object than dependency file (for some versions of gcc)
 	touch $@
 
-## dummy rule for dependencies
+# dummy rule for dependencies
 $(PackageObjectDir)/%.d:
 
-## mark dependencies and objects as not auto-removed
+# mark dependencies and objects as not auto-removed
 .PRECIOUS: $(PackageObjectDir)/%.d
 .PRECIOUS: $(PackageObjectDir)/%.o
 
-## Force rule for all target library names
+# Force rule for all target library names
 $(TargetLibraries):
 
-## Define the target library dependencies
+# Define the target library dependencies
 memhub:
 	$(eval export EXTRA_LINKS=-lmemsvc)
 	$(MAKE) $(PackageLibraryDir)/memhub.so EXTRA_LINKS="$(EXTRA_LINKS)"
@@ -169,12 +178,15 @@ $(PackageExecDir)/%: $(PackageTestSourceDir)/%.cxx
 
 test: $(TestExecs)
 
-clean: cleanrpm
-	@echo Cleaning up all generated files
-	-rm -rf $(PackageDir)
+.PHONY: cleanall
+cleanall: clean cleanrpm
 	-rm -rf $(Dependencies)
-	-rm -rf $(TargetObjects)
+	-rm -rf $(PackageDir)
 	-rm -rf $(PackageObjectDir)
+
+clean:
+	@echo Cleaning up all generated files
+	-rm -rf $(TargetObjects)
 	-rm -rf $(PackageLibraryDir)
 
 cleandoc:

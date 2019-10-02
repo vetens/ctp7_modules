@@ -4,33 +4,52 @@
 #include <log4cplus/hierarchy.h>
 
 #include <cstdlib>
-#include <fstream>
+
+#include "xhal/rpc/register.h"
 
 memsvc_handle_t memsvc;
 
-struct localArgs getLocalArgs(RPCMsg *response)
+// lmdb::env env = lmdb::env::create();
+// env.set_mapsize(utils::LMDB_SIZE);
+// std::string gem_path       = std::getenv("GEM_PATH");
+// std::string lmdb_data_file = gem_path+"/address_table.mdb";
+// env.open(lmdb_data_file.c_str(), 0, 0664);
+// static utils::LocalArgs utils::la = std::make_unique({.rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY),
+//       .dbi  = lmdb::dbi::open(rtxn, nullptr)});
+
+
+utils::LMDBSingleton::LMDBSingleton() //:
+  // rtxn(lmdb::env::create().open("/dev/null",0,0664), nullptr, MDB_RDONLY),
+  // dbi(rtxn, nullptr)
 {
-  auto env = lmdb::env::create();
-  env.set_mapsize(LMDB_SIZE);
-  std::string gem_path       = std::getenv("GEM_PATH");
-  std::string lmdb_data_file = gem_path+"/address_table.mdb";
-  env.open(lmdb_data_file.c_str(), 0, 0664);
-  auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-  auto dbi  = lmdb::dbi::open(rtxn, nullptr);
-  struct localArgs la = {.rtxn     = rtxn,
-                         .dbi      = dbi,
-                         .response = response};
-  return la;
+    auto env = lmdb::env::create();
+    env.set_mapsize(utils::LMDB_SIZE);
+    std::string gem_path       = std::getenv("GEM_PATH");
+    std::string lmdb_data_file = gem_path+"/address_table.mdb";
+    env.open(lmdb_data_file.c_str(), 0, 0664);
+    auto trtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+    auto tdbi  = lmdb::dbi::open(trtxn, nullptr);
 }
 
-std::vector<std::string> split(const std::string &s, char delim)
+utils::LMDBSingleton::~LMDBSingleton()
+{
+    // rtxn.abort();
+}
+
+utils::LMDBSingleton& utils::LMDBSingleton::GetInstance()
+{
+    static utils::LMDBSingleton instance;
+    return instance;
+}
+
+std::vector<std::string> utils::split(const std::string &s, char delim)
 {
   std::vector<std::string> elems;
   split(s, delim, std::back_inserter(elems));
   return elems;
 }
 
-std::string serialize(xhal::utils::Node n)
+std::string utils::serialize(xhal::utils::Node n)
 {
   std::stringstream node;
   node << std::hex << n.real_address << std::dec
@@ -71,31 +90,29 @@ void initLogging()
     }
 }
 
-void update_address_table(const RPCMsg *request, RPCMsg *response)
+void utils::update_address_table::operator()(const std::string &at_xml) const
 {
-  LOGGER->log_message(LogManager::INFO, "START UPDATE ADDRESS TABLE");
-  std::string at_xml = request->get_string("at_xml");
+  LOG4CPLUS_INFO(logger, "START UPDATE ADDRESS TABLE");
   std::string gem_path = std::getenv("GEM_PATH");
   std::string lmdb_data_file = gem_path+"/address_table.mdb/data.mdb";
   std::string lmdb_lock_file = gem_path+"/address_table.mdb/lock.mdb";
   std::string lmdb_area_file = gem_path+"/address_table.mdb";
-  xhal::utils::XHALXMLParser * m_parser = new xhal::utils::XHALXMLParser(at_xml.c_str());
+  auto m_parser = std::make_unique<xhal::utils::XHALXMLParser>(at_xml.c_str());
   try {
     m_parser->setLogLevel(0);
     m_parser->parseXML();
   } catch (...) {
-    response->set_string("error", "XML parser failed");
-    LOGGER->log_message(LogManager::INFO, "XML parser failed");
+    LOG4CPLUS_ERROR(logger, "XML parser failed");
     return;
   }
-  LOGGER->log_message(LogManager::INFO, "XML PARSING DONE");
+  LOG4CPLUS_INFO(logger, "XML PARSING DONE ");
   std::unordered_map<std::string,xhal::utils::Node> m_parsed_at;
   m_parsed_at = m_parser->getAllNodes();
   m_parsed_at.erase("top");
   xhal::utils::Node t_node;
 
   // Remove old DB
-  LOGGER->log_message(LogManager::INFO, "REMOVE OLD DB");
+  LOG4CPLUS_INFO(logger, "REMOVE OLD DB");
   std::remove(lmdb_data_file.c_str());
   std::remove(lmdb_lock_file.c_str());
 
@@ -103,14 +120,14 @@ void update_address_table(const RPCMsg *request, RPCMsg *response)
   env.set_mapsize(LMDB_SIZE);
   env.open(lmdb_area_file.c_str(), 0, 0664);
 
-  LOGGER->log_message(LogManager::INFO, "LMDB ENV OPEN");
+  LOG4CPLUS_INFO(logger, "LMDB ENV OPEN");
 
   lmdb::val key;
   lmdb::val value;
   auto wtxn = lmdb::txn::begin(env);
-  auto dbi  = lmdb::dbi::open(wtxn, nullptr);
+  auto wdbi  = lmdb::dbi::open(wtxn, nullptr);
 
-  LOGGER->log_message(LogManager::INFO, "START ITERATING OVER MAP");
+  LOG4CPLUS_INFO(logger, "START ITERATING OVER MAP");
 
   std::string t_key;
   std::string t_value;
@@ -120,27 +137,30 @@ void update_address_table(const RPCMsg *request, RPCMsg *response)
     t_value = serialize(t_node);
     key.assign(t_key);
     value.assign(t_value);
-    dbi.put(wtxn, key, value);
+    wdbi.put(wtxn, key, value);
   }
   wtxn.commit();
-  LOGGER->log_message(LogManager::INFO, "COMMIT DB");
+  LOG4CPLUS_INFO(logger, "COMMIT DB");
   wtxn.abort();
 }
 
-void readRegFromDB(const RPCMsg *request, RPCMsg *response)
+utils::RegInfo utils::readRegFromDB::operator()(const std::string &regName) const
 {
-  std::string regName = request->get_string("reg_name");
+  GETLOCALARGS();
 
-  GETLOCALARGS(response);
-
-  LOGGER->log_message(LogManager::INFO, "LMDB ENV OPEN");
+  LOG4CPLUS_INFO(logger, "LMDB ENV OPEN");
   lmdb::val key;
   lmdb::val value;
 
   key.assign(regName.c_str());
   bool found = dbi.get(rtxn,key,value);
   if (found) {
-    LOGGER->log_message(LogManager::INFO, stdsprintf("Key: %s is found", regName.c_str()));
+    std::stringstream msg;
+    msg << "Key: " << regName << " was found";
+    // std::string msg = "Key: ";
+    // msg += regName;
+    // msg += " was found";
+    LOG4CPLUS_INFO(logger, msg.str());
     std::string t_value = std::string(value.data());
     t_value = t_value.substr(0,value.size());
     std::vector<std::string> tmp = split(t_value,'|');
@@ -149,22 +169,36 @@ void readRegFromDB(const RPCMsg *request, RPCMsg *response)
     uint32_t rsize = stoull(tmp[4], nullptr, 16);
     std::string rperm = tmp[1];
     std::string rmode = tmp[3];
-    LOGGER->log_message(LogManager::DEBUG, stdsprintf("node %s properties: 0x%x  0x%x  0x%x  %s  %s",
-                                                      regName.c_str(), raddr, rmask, rsize, rmode.c_str(), rperm.c_str()));
 
-    response->set_string("permissions", rperm);
-    response->set_string("mode",        rmode);
-    response->set_word("address",       raddr);
-    response->set_word("mask",          rmask);
-    response->set_word("size",          rsize);
+    utils::RegInfo regInfo = {
+      .permissions = rperm,
+      .mode        = rmode,
+      .address     = raddr,
+      .mask        = rmask,
+      .size        = rsize
+    };
+
+    msg.clear();
+    msg.str(std::string());
+    msg << " node " << regName << " properties: " << regInfo;
+        // << "0x" << std::hex << std::setw(8) << std::setfill('0') << raddr << std::dec << "  "
+        // << "0x" << std::hex << std::setw(8) << std::setfill('0') << mask  << std::dec << "  "
+        // << "0x" << std::hex << std::setw(8) << std::setfill('0') << size  << std::dec << "  "
+        // << rmode << "  " << rperm;
+    LOG4CPLUS_DEBUG(logger, msg.str());
+
+    rtxn.abort();
+    return regInfo;
   } else {
-    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    response->set_string("error", "Register not found");
+    std::stringstream errmsg;
+    errmsg << "Key: " << regName << " was NOT found!";
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    rtxn.abort(); // FIXME duplicated! fixed with a `LocalArgs object that is destroyed when going out of scope
+    throw std::runtime_error(errmsg.str());
   }
-  rtxn.abort();
 }
 
-uint32_t getNumNonzeroBits(uint32_t value)
+uint32_t utils::getNumNonzeroBits(uint32_t value)
 {
   // https://stackoverflow.com/questions/4244274/how-do-i-count-the-number-of-zero-bits-in-an-integer
   uint32_t numNonzeroBits = 0;
@@ -177,12 +211,13 @@ uint32_t getNumNonzeroBits(uint32_t value)
   return numNonzeroBits;
 }
 
-uint32_t getMask(localArgs * la, const std::string & regName)
+uint32_t utils::getMask(const std::string & regName)
 {
+  GETLOCALARGS();
   lmdb::val key, db_res;
   bool found=false;
   key.assign(regName.c_str());
-  found = la->dbi.get(la->rtxn,key,db_res);
+  found = la.dbi.get(la.rtxn,key,db_res);
   uint32_t rmask = 0x0;
   if (found) {
     std::string t_db_res = std::string(db_res.data());
@@ -190,53 +225,61 @@ uint32_t getMask(localArgs * la, const std::string & regName)
     std::vector<std::string> tmp = split(t_db_res,'|');
     rmask = stoull(tmp[2], nullptr, 16);
   } else {
-    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    la->response->set_string("error", "Register not found");
+    std::stringstream errmsg;
+    errmsg << "Key: " << regName << " was NOT found";
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    throw std::runtime_error(errmsg.str());
   }
   return rmask;
 }
 
-void writeRawAddress(uint32_t address, uint32_t value, RPCMsg *response)
+void utils::writeRawAddress(uint32_t address, uint32_t value)
 {
   uint32_t data[] = {value};
   if (memhub_write(memsvc, address, 1, data) != 0) {
-    response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
-    LOGGER->log_message(LogManager::INFO, stdsprintf("write memsvc error: %s", memsvc_get_last_error(memsvc)));
+    std::stringstream errmsg;
+    errmsg << "memsvc error: " << memsvc_get_last_error(memsvc);
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    throw std::runtime_error(errmsg.str());
   }
 }
 
-uint32_t readRawAddress(uint32_t address, RPCMsg* response)
+uint32_t utils::readRawAddress(uint32_t address)
 {
   uint32_t data[1];
   if (memhub_read(memsvc, address, 1, data) != 0) {
-    response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
-    LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
-    return 0xdeaddead;
+    std::stringstream errmsg;
+    errmsg << "memsvc error: " << memsvc_get_last_error(memsvc);
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    throw std::runtime_error(errmsg.str());
+    // return 0xdeaddead;
   }
   return data[0];
 }
 
-uint32_t getAddress(localArgs * la, const std::string & regName)
+uint32_t utils::getAddress(const std::string & regName)
 {
+  GETLOCALARGS();
   lmdb::val key, db_res;
-  bool found;
   key.assign(regName.c_str());
-  found = la->dbi.get(la->rtxn,key,db_res);
-  uint32_t raddr;
+  bool found = la.dbi.get(la.rtxn,key,db_res);
+  uint32_t raddr = 0x0;
   if (found){
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
     raddr = stoull(tmp[0], nullptr, 16);
   } else {
-    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    la->response->set_string("error", "Register not found");
-    return 0xdeaddead;
+    std::stringstream errmsg;
+    errmsg << "Key: " << regName << " was NOT found";
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    throw std::runtime_error(errmsg.str());
+    // return 0xdeaddead;
   }
   return raddr;
 }
 
-void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response)
+ void utils::writeAddress(lmdb::val & db_res, uint32_t value)
 {
   std::string t_db_res = std::string(db_res.data());
   t_db_res = t_db_res.substr(0,db_res.size());
@@ -245,12 +288,14 @@ void writeAddress(lmdb::val & db_res, uint32_t value, RPCMsg *response)
   uint32_t raddr = stoull(tmp[0], nullptr, 16);
   data[0] = value;
   if (memhub_write(memsvc, raddr, 1, data) != 0) {
-    response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
-    LOGGER->log_message(LogManager::INFO, stdsprintf("write memsvc error: %s", memsvc_get_last_error(memsvc)));
+    std::stringstream errmsg;
+    errmsg << "memsvc error: " << memsvc_get_last_error(memsvc);
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    throw std::runtime_error(errmsg.str());
   }
 }
 
-uint32_t readAddress(lmdb::val & db_res, RPCMsg *response)
+uint32_t utils::readAddress(lmdb::val & db_res)
 {
   std::string t_db_res = std::string(db_res.data());
   t_db_res = t_db_res.substr(0,db_res.size());
@@ -262,11 +307,18 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response)
     if (memhub_read(memsvc, raddr, 1, data) != 0) {
       if (n_current_tries < 9) {
         n_current_tries++;
-        LOGGER->log_message(LogManager::ERROR, stdsprintf("Reading reg %08X failed %i times.", raddr, n_current_tries));
+        std::stringstream errmsg;
+        errmsg << "Reading reg "
+               << "0x" << std::hex << std::setw(8) << std::setfill('0') << raddr << std::dec
+               << " failed " << n_current_tries << " times.";
+        LOG4CPLUS_WARN(logger, errmsg.str());
       } else {
-        response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
-        LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s failed 10 times", memsvc_get_last_error(memsvc)));
-        return 0xdeaddead;
+        std::stringstream errmsg;
+        errmsg << "memsvc error: " << memsvc_get_last_error(memsvc)
+               << " failed 10 times";
+        LOG4CPLUS_ERROR(logger, errmsg.str());
+        throw std::runtime_error(errmsg.str());
+        // return 0xdeaddead;
       }
     } else {
       break;
@@ -275,34 +327,40 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response)
   return data[0];
 }
 
-void writeRawReg(localArgs * la, const std::string & regName, uint32_t value)
+void utils::writeRawReg(const std::string & regName, uint32_t value)
 {
+  GETLOCALARGS();
   lmdb::val key, db_res;
   key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
+  bool found = la.dbi.get(la.rtxn,key,db_res);
   if (found) {
-    writeAddress(db_res, value, la->response);
+    utils::writeAddress(db_res, value);
   } else {
-    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    la->response->set_string("error", "Register not found");
+    std::stringstream errmsg;
+    errmsg << "Key: " << regName << " was NOT found";
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    throw std::runtime_error(errmsg.str());
   }
 }
 
-uint32_t readRawReg(localArgs * la, const std::string & regName)
+uint32_t utils::readRawReg(const std::string & regName)
 {
+  GETLOCALARGS();
   lmdb::val key, db_res;
   key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
+  bool found = la.dbi.get(la.rtxn,key,db_res);
   if (found) {
-    return readAddress(db_res, la->response);
+    return utils::readAddress(db_res);
   } else {
-    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    la->response->set_string("error", "Register not found");
-    return 0xdeaddead;
+    std::stringstream errmsg;
+    errmsg << "Key: " << regName << " was NOT found";
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    throw std::runtime_error(errmsg.str());
+    // return 0xdeaddead;
   }
 }
 
-uint32_t applyMask(uint32_t data, uint32_t mask)
+uint32_t utils::applyMask(uint32_t data, uint32_t mask)
 {
   uint32_t result = data & mask;
   for (int i = 0; i < 32; i++) {
@@ -316,46 +374,55 @@ uint32_t applyMask(uint32_t data, uint32_t mask)
   return result;
 }
 
-uint32_t readReg(localArgs * la, const std::string & regName)
+uint32_t utils::readReg(const std::string & regName)
 {
+  GETLOCALARGS();
   lmdb::val key, db_res;
   key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
+  bool found = la.dbi.get(la.rtxn,key,db_res);
   if (found) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
     std::size_t found = tmp[1].find_first_of("r");
     if (found==std::string::npos) {
-      // response->set_string("error", std::string("No read permissions"));
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("No read permissions for %s: %s", regName.c_str(), tmp[1].c_str()));
-      return 0xdeaddead;
+      std::stringstream errmsg;
+      errmsg << "No read permissions for "
+             << regName << ": " << tmp[1].c_str();
+      LOG4CPLUS_ERROR(logger, errmsg.str());
+      throw std::runtime_error(errmsg.str());
+      // return 0xdeaddead;
     }
     uint32_t data[1];
     uint32_t raddr = stoull(tmp[0], nullptr, 16);
     uint32_t rmask = stoull(tmp[2], nullptr, 16);
     if (memhub_read(memsvc, raddr, 1, data) != 0) {
-      // response->set_string("error", std::string("memsvc error: ")+memsvc_get_last_error(memsvc));
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("read memsvc error: %s", memsvc_get_last_error(memsvc)));
-      return 0xdeaddead;
+      std::stringstream errmsg;
+      errmsg << "read memsvc error " << memsvc_get_last_error(memsvc);
+      LOG4CPLUS_ERROR(logger, errmsg.str());
+      throw std::runtime_error(errmsg.str());
+      // return 0xdeaddead;
     }
     if (rmask!=0xFFFFFFFF) {
-      return applyMask(data[0],rmask);
+      return utils::applyMask(data[0],rmask);
     } else {
       return data[0];
     }
   } else {
-    // response->set_string("error", "Register not found");
-    LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
-    return 0xdeaddead;
+    std::stringstream errmsg;
+    errmsg << "Key: " << regName << " was NOT found";
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    throw std::runtime_error(errmsg.str());
+    // return 0xdeaddead;
   }
 }
 
-uint32_t readBlock(localArgs* la, const std::string& regName, uint32_t* result, const uint32_t& size, const uint32_t& offset)
+uint32_t utils::readBlock(const std::string& regName, uint32_t* result, const uint32_t& size, const uint32_t& offset)
 {
+  GETLOCALARGS();
   lmdb::val key, db_res;
   key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
+  bool found = la.dbi.get(la.rtxn,key,db_res);
   if (found) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
@@ -365,23 +432,21 @@ uint32_t readBlock(localArgs* la, const std::string& regName, uint32_t* result, 
     uint32_t rsize = stoull(tmp[4], nullptr, 16);
     std::string rperm = tmp[1];
     std::string rmode = tmp[3];
-    LOGGER->log_message(LogManager::DEBUG, stdsprintf("node %s properties: 0x%x  0x%x  0x%x  %s  %s",
+    LOG4CPLUS_DEBUG(logger, stdsprintf("node %s properties: 0x%x  0x%x  0x%x  %s  %s",
                                                       regName.c_str(), raddr, rmask, rsize, rmode.c_str(), rperm.c_str()));
 
     if (rmask != 0xFFFFFFFF) {
       // deny block read on masked register, but what if mask is None?
       std::stringstream errmsg;
       errmsg << "Block read attempted on masked register";
-      la->response->set_string("error", errmsg.str());
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("block read error: %s", errmsg.str().c_str()));
-      // throw std::range_error(errmsg.str());
+      LOG4CPLUS_ERROR(logger, errmsg.str().c_str());
+      throw std::range_error(errmsg.str());
     } else if (rmode.rfind("single") != std::string::npos && size > 1) {
       // only allow block read of size 1 on single registers?
       std::stringstream errmsg;
       errmsg << "Block read attempted on single register with size greater than 1";
-      la->response->set_string("error", errmsg.str());
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("block read error: %s", errmsg.str().c_str()));
-      // throw std::range_error(errmsg.str());
+      LOG4CPLUS_ERROR(logger, errmsg.str());
+      throw std::range_error(errmsg.str());
     } else if ((offset+size) > rsize) {
       // don't allow the read to go beyond the range
       std::stringstream errmsg;
@@ -390,21 +455,18 @@ uint32_t readBlock(localArgs* la, const std::string& regName, uint32_t* result, 
              << ", offset: 0x" << std::hex << offset
              << ", size: 0x"   << std::hex << size
              << ", rsize: 0x"  << std::hex << rsize;
-      la->response->set_string("error", errmsg.str());
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("block read error: %s", errmsg.str().c_str()));
-      // throw std::range_error(errmsg.str());
+      LOG4CPLUS_ERROR(logger, errmsg.str());
+      throw std::range_error(errmsg.str());
     } else {
       if (memhub_read(memsvc, raddr+offset, size, result) != 0) {
         std::stringstream errmsg;
         errmsg << "Read memsvc error: " << memsvc_get_last_error(memsvc);
-        la->response->set_string("error", errmsg.str());
-        LOGGER->log_message(LogManager::ERROR, stdsprintf("readBlock: %s", errmsg.str().c_str()));
-        // throw std::runtime_error(errmsg.str());
+        LOG4CPLUS_ERROR(logger, errmsg.str());
+        throw std::runtime_error(errmsg.str());
       } else {
         std::stringstream msg;
         msg << "Block read succeeded.";
-        la->response->set_string("debug", msg.str());
-        LOGGER->log_message(LogManager::DEBUG, stdsprintf("readBlock: %s", msg.str().c_str()));
+        LOG4CPLUS_DEBUG(logger, msg.str());
       }
     }
     return size;
@@ -412,32 +474,32 @@ uint32_t readBlock(localArgs* la, const std::string& regName, uint32_t* result, 
   return 0;
 }
 
-uint32_t readBlock(const uint32_t& regAddr, uint32_t* result, const uint32_t& size, const uint32_t& offset)
+uint32_t utils::readBlock(const uint32_t& regAddr, uint32_t* result, const uint32_t& size, const uint32_t& offset)
 {
   // Might not make sense, as it would be impossible to do any validation at this level
   return 0;
 }
 
-void writeReg(localArgs * la, const std::string & regName, uint32_t value)
+void utils::writeReg(const std::string & regName, uint32_t value)
 {
+  GETLOCALARGS();
   lmdb::val key, db_res;
   key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
+  bool found = la.dbi.get(la.rtxn,key,db_res);
   if (found) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
     uint32_t rmask = stoull(tmp[2], nullptr, 16);
     if (rmask==0xFFFFFFFF) {
-      writeAddress(db_res, value, la->response);
+      utils::writeAddress(db_res, value);
     } else {
-      uint32_t current_value = readAddress(db_res, la->response);
+      uint32_t current_value = readAddress(db_res);
       if (current_value == 0xdeaddead) {
         std::stringstream errmsg;
         errmsg << "Writing masked register failed due to problem reading: " << regName;
-        la->response->set_string("error", errmsg.str());
-        LOGGER->log_message(LogManager::ERROR, errmsg.str().c_str());
-        return;
+        LOG4CPLUS_ERROR(logger, errmsg.str().c_str());
+        throw std::runtime_error(errmsg.str());
       }
       int shift_amount = 0;
       uint32_t mask_copy = rmask;
@@ -451,21 +513,22 @@ void writeReg(localArgs * la, const std::string & regName, uint32_t value)
       }
       uint32_t val_to_write = value << shift_amount;
       val_to_write = (val_to_write & mask_copy) | (current_value & ~mask_copy);
-      writeAddress(db_res, val_to_write, la->response);
+      utils::writeAddress(db_res, val_to_write);
     }
   } else {
     std::stringstream errmsg;
-    errmsg << "Register " << regName << " key not found";
-    la->response->set_string("error", errmsg.str());
-    LOGGER->log_message(LogManager::ERROR, errmsg.str().c_str());
+    errmsg << "Key " << regName << " was NOT found";
+    LOG4CPLUS_ERROR(logger, errmsg.str());
+    throw std::runtime_error(errmsg.str());
   }
 }
 
-void writeBlock(localArgs* la, const std::string& regName, const uint32_t* values, const uint32_t& size, const uint32_t& offset)
+void utils::writeBlock(const std::string& regName, const uint32_t* values, const uint32_t& size, const uint32_t& offset)
 {
+  GETLOCALARGS();
   lmdb::val key, db_res;
   key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
+  bool found = la.dbi.get(la.rtxn,key,db_res);
   if (found) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
@@ -475,21 +538,21 @@ void writeBlock(localArgs* la, const std::string& regName, const uint32_t* value
     uint32_t rsize = stoull(tmp[4], nullptr, 16);
     std::string rmode = tmp[3];
     std::string rperm = tmp[1];
-    LOGGER->log_message(LogManager::DEBUG, stdsprintf("node %s properties: 0x%x  0x%x  0x%x  %s  %s",
+    LOG4CPLUS_DEBUG(logger, stdsprintf("node %s properties: 0x%x  0x%x  0x%x  %s  %s",
                                                       regName.c_str(), raddr, rmask, rsize, rmode.c_str(), rperm.c_str()));
 
     if (rmask != 0xFFFFFFFF) {
       // deny block write on masked register
       std::stringstream errmsg;
       errmsg << "Block write attempted on masked register";
-      la->response->set_string("error", errmsg.str());
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("block write error: %s", errmsg.str().c_str()));
+      LOG4CPLUS_ERROR(logger, errmsg.str());
+      throw std::runtime_error(errmsg.str());
     } else if (rmode.rfind("single") != std::string::npos && size > 1) {
       // only allow block write of size 1 on single registers
       std::stringstream errmsg;
       errmsg << "Block write attempted on single register with size greater than 1";
-      la->response->set_string("error", errmsg.str());
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("block write error: %s", errmsg.str().c_str()));
+      LOG4CPLUS_ERROR(logger, errmsg.str());
+      throw std::runtime_error(errmsg.str());
     } else if ((offset+size) > rsize) {
       // don't allow the write to go beyond the block range
       std::stringstream errmsg;
@@ -498,25 +561,24 @@ void writeBlock(localArgs* la, const std::string& regName, const uint32_t* value
              << ", offset: 0x" << std::hex << offset
              << ", size: 0x"   << std::hex << size
              << ", rsize: 0x"  << std::hex << rsize;
-      la->response->set_string("error", errmsg.str());
-      LOGGER->log_message(LogManager::ERROR, stdsprintf("block write error: %s", errmsg.str().c_str()));
+      LOG4CPLUS_ERROR(logger, errmsg.str());
+      throw std::runtime_error(errmsg.str());
     } else {
       if (memhub_write(memsvc, raddr+offset, size, values) != 0) {
         std::stringstream errmsg;
         errmsg << "Write memsvc error: " << memsvc_get_last_error(memsvc);
-        la->response->set_string("error", errmsg.str());
-        LOGGER->log_message(LogManager::ERROR, stdsprintf("writeBlock: %s", errmsg.str().c_str()));
+        LOG4CPLUS_ERROR(logger, errmsg.str());
+        throw std::runtime_error(errmsg.str());
       } else {
         std::stringstream msg;
         msg << "Block write succeeded.";
-        la->response->set_string("debug", msg.str());
-        LOGGER->log_message(LogManager::DEBUG, stdsprintf("writeBlock: %s", msg.str().c_str()));
+        LOG4CPLUS_DEBUG(logger, msg.str());
       }
     }
   }
 }
 
-void writeBlock(const uint32_t& regAddr, const uint32_t* values, const size_t& size, const uint32_t& offset)
+void utils::writeBlock(const uint32_t& regAddr, const uint32_t* values, const size_t& size, const uint32_t& offset)
 {
   // This function doesn't make sense with an offset, why would we specify an offset when accessing by register address?
   // Maybe just to do validation checks on the size?
@@ -526,17 +588,19 @@ void writeBlock(const uint32_t& regAddr, const uint32_t* values, const size_t& s
 extern "C" {
     const char *module_version_key = "utils v1.0.1";
     int module_activity_color = 4;
-    void module_init(ModuleManager *modmgr) {
+
+    void module_init(ModuleManager *modmgr)
+    {
         initLogging();
 
         if (memhub_open(&memsvc) != 0) {
             auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("main"));
             LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Unable to connect to memory service: ") << memsvc_get_last_error(memsvc));
             LOG4CPLUS_ERROR(logger, "Unable to load module");
-            return; // Do not register our functions, we depend on memsvc.
+            return;
         }
 
-        modmgr->register_method("utils", "update_address_table", update_address_table);
-        modmgr->register_method("utils", "readRegFromDB",        readRegFromDB);
+        xhal::rpc::registerMethod<utils::update_address_table>(modmgr);
+        xhal::rpc::registerMethod<utils::readRegFromDB>(modmgr);
     }
 }
