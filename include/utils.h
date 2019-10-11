@@ -143,6 +143,15 @@ uint32_t bitCheck(uint32_t word, int bit);
  */
 uint32_t getNumNonzeroBits(uint32_t value);
 
+
+/*! \fn bool regExists(LocalArgs * la, const std::string & regName)
+ *  \brief Returns whether or not a named register can be found in the LMDB
+ *  \param la Local arguments structure
+ *  \param regName Register name
+ *  \param db_res pointer to a lmdb::val result that the calling function requires
+ */
+bool regExists(LocalArgs * la, const std::string & regName, lmdb::val * db_res=nullptr);
+
 /*! \fn uint32_t getMask(LocalArgs * la, const std::string & regName)
  *  \brief Returns the mask for a given register
  *  \param la Local arguments structure
