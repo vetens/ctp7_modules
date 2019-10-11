@@ -212,7 +212,7 @@ class SCASettings {
     enum EADCChannel { //ADCChannel settings
       // ADC 12-bit range
       // * Voltage 0-1V (1V/0xfff) LSB, offset 0V
-      // * Temperature -30-80C (110C/0xfff) LSB, offset -30Cbusiness/SitePages/Fermilab%20Official%20Travel.aspx
+      // * Temperature -30-80C (110C/0xfff) LSB, offset -30C
       AVCCN_V1P0     = 27, ///< FPGA MGT 1.0V
       AVTTN_V1P2     = 30, ///< FPGA MGT 1.2V
       INT_V1P0       = 17, ///< 1.0V FPGA core voltage
@@ -234,7 +234,7 @@ class SCASettings {
       // SCA ADC temperature sensors
       VTTX_CSC_PT100 = 0x00, ///< Transceiver block next to the CSC VTTX
       VTTX_GEM_PT100 = 0x04, ///< Transceiver block next to the GEM VTTX
-      GBT0_PT100      = 0x07, ///< SCA temperature sensor
+      GBT0_PT100     = 0x07, ///< SCA temperature sensor
       V6_FPGA_PT100  = 0x08, ///< Virtex6 temperature sensor
 
       // SCA ADC signal strength sensors
