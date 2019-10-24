@@ -27,9 +27,9 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response)
     const uint8_t phaseStep = request->get_word("phaseStep");
 
     // Perform the scan
-    LOGGER->log_message(LogManager::INFO, stdsprintf("Calling Local Method for OH #%u.", ohN));
+    LOG4CPLUS_INFO(logger, stdsprintf("Calling Local Method for OH #%u.", ohN));
     if (scanGBTPhasesLocal(&la, ohN, nScans, phaseMin, phaseMax, phaseStep)) {
-        LOGGER->log_message(LogManager::INFO, stdsprintf("GBT Scan for OH #%u Failed.", ohN));
+        LOG4CPLUS_INFO(logger, stdsprintf("GBT Scan for OH #%u Failed.", ohN));
         rtxn.abort();
     }
 
@@ -38,7 +38,7 @@ void scanGBTPhases(const RPCMsg *request, RPCMsg *response)
 
 bool scanGBTPhasesLocal(localArgs *la, const uint32_t ohN, const uint32_t N, const uint8_t phaseMin, const uint8_t phaseMax, const uint8_t phaseStep)
 {
-    LOGGER->log_message(LogManager::INFO, stdsprintf("Scanning the phases for OH #%u.", ohN));
+    LOG4CPLUS_INFO(logger, stdsprintf("Scanning the phases for OH #%u.", ohN));
 
     // ohN check
     const uint32_t ohMax = readReg(la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
@@ -117,7 +117,7 @@ void writeGBTConfig(const RPCMsg *request, RPCMsg *response)
 
 bool writeGBTConfigLocal(localArgs *la, const uint32_t ohN, const uint32_t gbtN, const gbt::config_t &config)
 {
-    LOGGER->log_message(LogManager::INFO, stdsprintf("Writing the configuration of OH #%u - GBTX #%u.", ohN, gbtN));
+    LOG4CPLUS_INFO(logger, stdsprintf("Writing the configuration of OH #%u - GBTX #%u.", ohN, gbtN));
 
     // ohN check
     const uint32_t ohMax = readReg(la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
@@ -154,7 +154,7 @@ void writeGBTPhase(const RPCMsg *request, RPCMsg *response)
 
 bool writeGBTPhaseLocal(localArgs *la, const uint32_t ohN, const uint32_t vfatN, const uint8_t phase)
 {
-    LOGGER->log_message(LogManager::INFO, stdsprintf("Writing the VFAT #%u phase of OH #%u.", vfatN, ohN));
+    LOG4CPLUS_INFO(logger, stdsprintf("Writing the VFAT #%u phase of OH #%u.", vfatN, ohN));
 
     // ohN check
     const uint32_t ohMax = readReg(la, "GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
