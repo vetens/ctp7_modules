@@ -6,13 +6,12 @@
  */
 
 #include "amc.h"
-// #include "amc/ttc.h"
-// #include "amc/daq.h"
-// #include "amc/blaster_ram.h"
+#include "amc/ttc.h"
+#include "amc/daq.h"
+#include "amc/sca.h"
+#include "amc/blaster_ram.h"
 
-#include "xhal/rpc/register.h"
-
-#include "utils.h"
+#include "xhal/common/rpc/register.h"
 
 #include <chrono>
 #include <string>
@@ -22,9 +21,14 @@
 
 using namespace utils;
 
+namespace amc {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
+}
+
 unsigned int amc::fw_version_check(const char* caller_name)
 {
     uint32_t fw_maj = readReg("GEM_AMC.GEM_SYSTEM.RELEASE.MAJOR");
+    // FIXME NEED GLOBAL ACCESSOR // auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
 
     switch (fw_maj) {
     case 1:
@@ -63,6 +67,7 @@ std::vector<uint32_t> amc::getOHVFATMaskMultiLink::operator()(const uint32_t &oh
     // FIXME, better way to select OHs
     // use mask to get number of OHs, and in the loop issue a warning if more OHs than supported are
     GETLOCALARGS();
+    // FIXME NEED GLOBAL ACCESSOR // auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
 
     uint32_t supOH = readReg("GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
 
@@ -103,6 +108,7 @@ std::vector<uint32_t> amc::getOHVFATMaskMultiLink::operator()(const uint32_t &oh
 
 std::vector<uint32_t> amc::sbitReadOut::operator()(const uint32_t &ohN, const uint32_t &acquireTime) const
 {
+    // FIXME NEED GLOBAL ACCESSOR // auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
     const int nclusters = 8;
     writeReg("GEM_AMC.TRIGGER.SBIT_MONITOR.OH_SELECT", ohN);
     uint32_t addrSbitMonReset = getAddress("GEM_AMC.TRIGGER.SBIT_MONITOR.RESET");
@@ -182,49 +188,49 @@ extern "C" {
             return;
         }
 
-        xhal::rpc::registerMethod<amc::getOHVFATMask>(modmgr);
-        xhal::rpc::registerMethod<amc::getOHVFATMaskMultiLink>(modmgr);
-        xhal::rpc::registerMethod<amc::sbitReadOut>(modmgr);
+        xhal::common::rpc::registerMethod<amc::getOHVFATMask>(modmgr);
+        xhal::common::rpc::registerMethod<amc::getOHVFATMaskMultiLink>(modmgr);
+        xhal::common::rpc::registerMethod<amc::sbitReadOut>(modmgr);
 
-        // // DAQ module methods (from amc/daq)
-        // xhal::rpc::registerMethod<amc::daq::enableDAQLink>(modmgr);
-        // xhal::rpc::registerMethod<amc::daq::disableDAQLink>(modmgr);
-        // xhal::rpc::registerMethod<amc::daq::setZS>(modmgr);
-        // xhal::rpc::registerMethod<amc::daq::resetDAQLink>(modmgr);
-        // xhal::rpc::registerMethod<amc::daq::setDAQLinkInputTimeout>(modmgr);
-        // xhal::rpc::registerMethod<amc::daq::setDAQLinkRunType>(modmgr);
-        // xhal::rpc::registerMethod<amc::daq::setDAQLinkRunParameter>(modmgr);
-        // xhal::rpc::registerMethod<amc::daq::setDAQLinkRunParameters>(modmgr);
+        // DAQ module methods (from amc/daq)
+        xhal::common::rpc::registerMethod<amc::daq::enableDAQLink>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::disableDAQLink>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setZS>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::resetDAQLink>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setDAQLinkInputTimeout>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setDAQLinkRunType>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setDAQLinkRunParameter>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setDAQLinkRunParameters>(modmgr);
 
-        // xhal::rpc::registerMethod<amc::daq::configureDAQModule>(modmgr);
-        // xhal::rpc::registerMethod<amc::daq::enableDAQModule>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::configureDAQModule>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::enableDAQModule>(modmgr);
 
-        // // TTC module methods (from amc/ttc)
-        // xhal::rpc::registerMethod<amc::ttc::ttcModuleReset>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::ttcMMCMReset>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::ttcMMCMPhaseShift>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::checkPLLLock>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getMMCMPhaseMean>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getMMCMPhaseMedian>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getGTHPhaseMean>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getGTHPhaseMedian>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::ttcCounterReset>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getL1AEnable>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::setL1AEnable>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCConfig>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::setTTCConfig>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCStatus>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCErrorCount>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCCounter>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getL1AID>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getL1ARate>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCSpyBuffer>(modmgr);
+        // TTC module methods (from amc/ttc)
+        xhal::common::rpc::registerMethod<amc::ttc::ttcModuleReset>(modmgr);
+        xhal::common::rpc::registerMethod<amc::ttc::ttcMMCMReset>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::ttcMMCMPhaseShift>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::checkPLLLock>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getMMCMPhaseMean>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getMMCMPhaseMedian>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getGTHPhaseMean>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getGTHPhaseMedian>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::ttcCounterReset>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getL1AEnable>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::setL1AEnable>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCConfig>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::setTTCConfig>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCStatus>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCErrorCount>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCCounter>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getL1AID>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getL1ARate>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCSpyBuffer>(modmgr);
 
-        // // SCA module methods (from amc/sca)
-        // // xhal::rpc::registerMethod<amc::sca::scaHardResetEnable>(modmgr);
+        // SCA module methods (from amc/sca)
+        xhal::common::rpc::registerMethod<amc::sca::scaHardResetEnable>(modmgr);
 
-        // // BLASTER RAM module methods (from amc/blaster_ram)
-        // xhal::rpc::registerMethod<amc::blaster::writeConfRAM>(modmgr);
-        // xhal::rpc::registerMethod<amc::blaster::readConfRAM>(modmgr);
+        // BLASTER RAM module methods (from amc/blaster_ram)
+        xhal::common::rpc::registerMethod<amc::blaster::writeConfRAM>(modmgr);
+        xhal::common::rpc::registerMethod<amc::blaster::readConfRAM>(modmgr);
     }
 }
