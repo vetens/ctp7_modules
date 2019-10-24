@@ -5,7 +5,7 @@
 
 #include <cstdlib>
 
-#include "xhal/rpc/register.h"
+#include "xhal/common/rpc/register.h"
 
 memsvc_handle_t memsvc;
 
@@ -18,30 +18,6 @@ memsvc_handle_t memsvc;
 //       .dbi  = lmdb::dbi::open(rtxn, nullptr)});
 
 
-utils::LMDBSingleton::LMDBSingleton() //:
-  // rtxn(lmdb::env::create().open("/dev/null",0,0664), nullptr, MDB_RDONLY),
-  // dbi(rtxn, nullptr)
-{
-    auto env = lmdb::env::create();
-    env.set_mapsize(utils::LMDB_SIZE);
-    std::string gem_path       = std::getenv("GEM_PATH");
-    std::string lmdb_data_file = gem_path+"/address_table.mdb";
-    env.open(lmdb_data_file.c_str(), 0, 0664);
-    auto trtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-    auto tdbi  = lmdb::dbi::open(trtxn, nullptr);
-}
-
-utils::LMDBSingleton::~LMDBSingleton()
-{
-    // rtxn.abort();
-}
-
-utils::LMDBSingleton& utils::LMDBSingleton::GetInstance()
-{
-    static utils::LMDBSingleton instance;
-    return instance;
-}
-
 std::vector<std::string> utils::split(const std::string &s, char delim)
 {
   std::vector<std::string> elems;
@@ -49,7 +25,7 @@ std::vector<std::string> utils::split(const std::string &s, char delim)
   return elems;
 }
 
-std::string utils::serialize(xhal::utils::Node n)
+std::string utils::serialize(xhal::common::utils::Node n)
 {
   std::stringstream node;
   node << std::hex << n.real_address << std::dec
@@ -92,12 +68,13 @@ void initLogging()
 
 void utils::update_address_table::operator()(const std::string &at_xml) const
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   LOG4CPLUS_INFO(logger, "START UPDATE ADDRESS TABLE");
   std::string gem_path = std::getenv("GEM_PATH");
   std::string lmdb_data_file = gem_path+"/address_table.mdb/data.mdb";
   std::string lmdb_lock_file = gem_path+"/address_table.mdb/lock.mdb";
   std::string lmdb_area_file = gem_path+"/address_table.mdb";
-  auto m_parser = std::make_unique<xhal::utils::XHALXMLParser>(at_xml.c_str());
+  auto m_parser = std::make_unique<xhal::common::utils::XHALXMLParser>(at_xml.c_str());
   try {
     m_parser->setLogLevel(0);
     m_parser->parseXML();
@@ -106,10 +83,10 @@ void utils::update_address_table::operator()(const std::string &at_xml) const
     return;
   }
   LOG4CPLUS_INFO(logger, "XML PARSING DONE ");
-  std::unordered_map<std::string,xhal::utils::Node> m_parsed_at;
+  std::unordered_map<std::string,xhal::common::utils::Node> m_parsed_at;
   m_parsed_at = m_parser->getAllNodes();
   m_parsed_at.erase("top");
-  xhal::utils::Node t_node;
+  xhal::common::utils::Node t_node;
 
   // Remove old DB
   LOG4CPLUS_INFO(logger, "REMOVE OLD DB");
@@ -148,6 +125,7 @@ utils::RegInfo utils::readRegFromDB::operator()(const std::string &regName) cons
 {
   GETLOCALARGS();
 
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   LOG4CPLUS_INFO(logger, "LMDB ENV OPEN");
   lmdb::val key;
   lmdb::val value;
@@ -222,6 +200,8 @@ bool utils::regExists(const std::string & regName, lmdb::val * db_res)
 {
   GETLOCALARGS();
 
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
+
   lmdb::val key;
   key.assign(regName.c_str());
   if (db_res != nullptr) {
@@ -252,6 +232,7 @@ uint32_t utils::getMask(const std::string & regName)
 
 void utils::writeRawAddress(uint32_t address, uint32_t value)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   uint32_t data[] = {value};
   if (memhub_write(memsvc, address, 1, data) != 0) {
     std::stringstream errmsg;
@@ -263,6 +244,7 @@ void utils::writeRawAddress(uint32_t address, uint32_t value)
 
 uint32_t utils::readRawAddress(uint32_t address)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   uint32_t data[1];
   if (memhub_read(memsvc, address, 1, data) != 0) {
     std::stringstream errmsg;
@@ -276,6 +258,7 @@ uint32_t utils::readRawAddress(uint32_t address)
 
 uint32_t utils::getAddress(const std::string & regName)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   uint32_t raddr;
   lmdb::val db_res;
   if (regExists(regName, &db_res)) {
@@ -295,6 +278,7 @@ uint32_t utils::getAddress(const std::string & regName)
 
  void utils::writeAddress(lmdb::val & db_res, uint32_t value)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   std::string t_db_res = std::string(db_res.data());
   t_db_res = t_db_res.substr(0,db_res.size());
   std::vector<std::string> tmp = split(t_db_res,'|');
@@ -311,6 +295,7 @@ uint32_t utils::getAddress(const std::string & regName)
 
 uint32_t utils::readAddress(lmdb::val & db_res)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   std::string t_db_res = std::string(db_res.data());
   t_db_res = t_db_res.substr(0,db_res.size());
   std::vector<std::string> tmp = split(t_db_res,'|');
@@ -343,6 +328,7 @@ uint32_t utils::readAddress(lmdb::val & db_res)
 
 void utils::writeRawReg(const std::string & regName, uint32_t value)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   lmdb::val db_res;
   if (regExists(regName, &db_res)) {
     utils::writeAddress(db_res, value);
@@ -356,6 +342,7 @@ void utils::writeRawReg(const std::string & regName, uint32_t value)
 
 uint32_t utils::readRawReg(const std::string & regName)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   lmdb::val db_res;
   if (regExists(regName, &db_res)) {
     return utils::readAddress(db_res);
@@ -384,6 +371,7 @@ uint32_t utils::applyMask(uint32_t data, uint32_t mask)
 
 uint32_t utils::readReg(const std::string & regName)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   lmdb::val db_res;
   if (regExists(regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
@@ -424,6 +412,7 @@ uint32_t utils::readReg(const std::string & regName)
 
 uint32_t utils::readBlock(const std::string& regName, uint32_t* result, const uint32_t& size, const uint32_t& offset)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   lmdb::val db_res;
   if (regExists(regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
@@ -515,6 +504,7 @@ slowCtrlErrCntVFAT utils::repeatedRegReadLocal(const std::string & regName, bool
 
 void writeReg(localArgs * la, const std::string & regName, uint32_t value)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   lmdb::val db_res;
   if (regExists(regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
@@ -555,6 +545,7 @@ void writeReg(localArgs * la, const std::string & regName, uint32_t value)
 
 void utils::writeBlock(const std::string& regName, const uint32_t* values, const uint32_t& size, const uint32_t& offset)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   lmdb::val db_res;
   if (regExists(regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
@@ -627,7 +618,7 @@ extern "C" {
             return;
         }
 
-        xhal::rpc::registerMethod<utils::update_address_table>(modmgr);
-        xhal::rpc::registerMethod<utils::readRegFromDB>(modmgr);
+        xhal::common::rpc::registerMethod<utils::update_address_table>(modmgr);
+        xhal::common::rpc::registerMethod<utils::readRegFromDB>(modmgr);
     }
 }

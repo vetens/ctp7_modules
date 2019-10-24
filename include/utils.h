@@ -7,13 +7,14 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-//#include <libmemsvc.h>
+// #include <libmemsvc.h>
 #include "moduleapi.h"
 #include "memhub.h"
 
 #include "lmdb_cpp_wrapper.h"
-#include "xhal/utils/XHALXMLParser.h"
-#include "xhal/rpc/common.h"
+
+#include "xhal/common/utils/XHALXMLParser.h"
+#include "xhal/common/rpc/common.h"
 
 #include <log4cplus/logger.h>
 #include <log4cplus/loggingmacros.h>
@@ -52,6 +53,62 @@ log4cplus.appender.syslog.layout=log4cplus::PatternLayout
 log4cplus.appender.syslog.layout.ConversionPattern= %h[%i] - %M - %m
 )----";
 
+namespace xhal {
+  namespace common {
+    namespace rpc {
+      template<typename Message>
+      inline void serialize(Message &msg, int &value) {
+        msg & value;
+      }
+          
+      template<typename Message>
+      inline void serialize(Message &msg, bool &value) {
+        msg & value;
+      }
+          
+      template<typename Message>
+      inline void serialize(Message &msg, uint8_t &value) {
+        msg & value;
+      }
+          
+      template<typename Message>
+      inline void serialize(Message &msg, uint16_t &value) {
+        msg & value;
+      }
+
+      template<typename Message>
+      inline void serialize(Message &msg, unsigned char &value) {
+        msg & value;
+      }
+          
+      template<typename Message>
+      inline void serialize(Message &msg, unsigned int &value) {
+        msg & value;
+      }          
+
+      template<typename Message>
+      inline void serialize(Message &msg, double &value) {
+        msg & *(reinterpret_cast<uint32_t*>(&value));
+      }
+          
+      template<typename Message>
+      inline void serialize(Message &msg, float &value) {
+        msg & *(reinterpret_cast<uint32_t*>(&value));
+      }
+
+      template<typename Message>
+      inline double deserialize(Message &msg, double &value) {
+        msg & *(reinterpret_cast<uint32_t*>(&value));
+      }
+          
+      template<typename Message>
+      inline float deserialize(Message &msg, float &value) {
+        msg & *(reinterpret_cast<uint32_t*>(&value));
+      }
+    }
+  }
+}
+
 namespace utils {
 
     /*!
@@ -82,16 +139,16 @@ namespace utils {
         template<class Message> void serialize(Message & msg) {
             msg & permissions & mode & address & mask & size;
         }
+
+        friend std::ostream& operator<<(std::ostream &o, RegInfo const& r) {
+            o << "0x" << std::hex << std::setw(8) << std::setfill('0') << r.address << std::dec << "  "
+              << "0x" << std::hex << std::setw(8) << std::setfill('0') << r.mask    << std::dec << "  "
+              << "0x" << std::hex << std::setw(8) << std::setfill('0') << r.size    << std::dec << "  "
+              << r.mode << "  " << r.permissions;
+            return o;
+        }
     };
-
-    std::ostream& operator<<(std::ostream &o, const RegInfo &r) {
-        o  << "0x" << std::hex << std::setw(8) << std::setfill('0') << r.address << std::dec << "  "
-           << "0x" << std::hex << std::setw(8) << std::setfill('0') << r.mask  << std::dec << "  "
-           << "0x" << std::hex << std::setw(8) << std::setfill('0') << r.size  << std::dec << "  "
-           << r.mode << "  " << r.permissions;
-        return o;
-    }
-
+    
     static constexpr uint32_t LMDB_SIZE = 1UL * 1024UL * 1024UL * 50UL; ///< Maximum size of the LMDB object, currently 50 MiB
 
     // FIXME: to be removed when the LMDB singleton is properly implemented
@@ -180,10 +237,10 @@ namespace utils {
     std::vector<std::string> split(const std::string &s, char delim);
 
     /*!
-     *  \brief Serialize an \c xhal::utils::Node
-     *  \param n The \c xhal::utils::Node object to serialize
+     *  \brief Serialize an \c xhal::common::utils::Node
+     *  \param n The \c xhal::common::utils::Node object to serialize
      */
-    std::string serialize(xhal::utils::Node n);
+    std::string serialize(xhal::common::utils::Node n);
 
     /*!
      * \brief This function initializes the `log4cplus` logging system
@@ -367,7 +424,7 @@ namespace utils {
      *
      *  \param at_xml is the name of the XML address table to use to populate the LMDB
      */
-    struct update_address_table : public xhal::rpc::Method
+    struct update_address_table : public xhal::common::rpc::Method
     {
         void operator()(const std::string &at_xml) const;
     };
@@ -378,7 +435,7 @@ namespace utils {
      *  \param regName Name of node to read from DB
      *  \returns RegInfo object with the properties of the found node
      */
-    struct readRegFromDB : public xhal::rpc::Method
+    struct readRegFromDB : public xhal::common::rpc::Method
     {
         RegInfo operator()(const std::string &regName) const;
     };
