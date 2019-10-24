@@ -24,7 +24,7 @@ namespace amc {
    *  \details Reads the SYNC_ERR_CNT counter for each VFAT on ohN.  If for a given VFAT the counter returns a non-zero value the given VFAT will be masked.
    *  \param ohN Optical link identifier
    */
-  struct getOHVFATMask : public xhal::rpc::Method
+  struct getOHVFATMask : public xhal::common::rpc::Method
   {
     uint32_t operator()(const uint32_t &ohN) const;
   };
@@ -36,7 +36,7 @@ namespace amc {
    *  \param numOH number of OHs enabled in the mask FIXME redundant
    *  \returns a vector of the VFAT mask for the unmasked OHs
    */
-  struct getOHVFATMaskMultiLink : public xhal::rpc::Method
+  struct getOHVFATMaskMultiLink : public xhal::common::rpc::Method
   {
     std::vector<uint32_t> operator()(const uint32_t &ohMask=0xfff, const uint32_t &numOH=0) const;
   };
@@ -63,12 +63,10 @@ namespace amc {
    *           For each readout the s-bit Monitor will be reset and then readout after 4095 clock cycles (~102.4 microseconds).
    *           The s-bit clusters will only be added to the output vector if at least one of them was valid.
    *           The s-bit clusters stored in the s-bit Monitor will not be over-written until a module reset is sent.
-   *           The readout will stop before acquireTime finishes if the size of the returned vector approaches the max
-   *           TCP/IP size (~65000 btyes) and sets maxNetworkSize to true.
    *  \details Each element of the output vector will be a 32 bit word with the following definition
-   *           bits [14:26] are the difference between the s-bit and the input L1A (if any) in clock cycles.
-   *           bits [11:13] are the cluster size,
-   *           bits [0,10] is address of the s-bit Cluster,
+   *           bits [26:14] are the difference between the s-bit and the input L1A (if any) in clock cycles.
+   *           bits [13:11] are the cluster size,
+   *           bits [10:0] is address of the s-bit Cluster,
    *           While the s-bit monitor stores the difference between the s-bit and input L1A as a 32 bit number (0xFFFFFFFF)
    *           any value higher than 0xFFF (12 bits) will be truncated to 0xFFF.
    *           This matches the time between readouts of 4095 clock cycles.
@@ -77,7 +75,7 @@ namespace amc {
    *  \param acquireTime acquisition time on the wall clock in seconds
    *  \param maxNetworkSize pointer to a boolean, set to true if the returned vector reaches a byte count of 65000 FIXME unnecessary?
    */
-  struct sbitReadOut : public xhal::rpc::Method
+  struct sbitReadOut : public xhal::common::rpc::Method
   {
     std::vector<uint32_t> operator()(const uint32_t &ohN, const uint32_t &acquireTime) const;
   };
@@ -103,4 +101,5 @@ namespace amc {
     std::map<std::string,uint32_t> operator()(const std::vector<std::string> &regList, const bool &breakOnFailure=false, const uint32_t &nReads=100) const;
   };
 }
+
 #endif
