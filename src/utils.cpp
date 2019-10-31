@@ -148,14 +148,23 @@ uint32_t getNumNonzeroBits(uint32_t value)
   return numNonzeroBits;
 }
 
+bool regExists(localArgs * la, const std::string & regName, lmdb::val * db_res)
+{
+  lmdb::val key;
+  key.assign(regName.c_str());
+  if (db_res != nullptr) {
+    return la->dbi.get(la->rtxn,key, *db_res);
+  } else {
+    lmdb::val db_res_loc;
+    return la->dbi.get(la->rtxn,key,db_res_loc);
+  }
+}
+
 uint32_t getMask(localArgs * la, const std::string & regName)
 {
-  lmdb::val key, db_res;
-  bool found=false;
-  key.assign(regName.c_str());
-  found = la->dbi.get(la->rtxn,key,db_res);
+  lmdb::val db_res;
   uint32_t rmask = 0x0;
-  if (found) {
+  if (regExists(la, regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
@@ -189,12 +198,9 @@ uint32_t readRawAddress(uint32_t address, RPCMsg* response)
 
 uint32_t getAddress(localArgs * la, const std::string & regName)
 {
-  lmdb::val key, db_res;
-  bool found;
-  key.assign(regName.c_str());
-  found = la->dbi.get(la->rtxn,key,db_res);
   uint32_t raddr;
-  if (found){
+  lmdb::val db_res;
+  if (regExists(la, regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
@@ -248,10 +254,8 @@ uint32_t readAddress(lmdb::val & db_res, RPCMsg *response)
 
 void writeRawReg(localArgs * la, const std::string & regName, uint32_t value)
 {
-  lmdb::val key, db_res;
-  key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
-  if (found) {
+  lmdb::val db_res;
+  if (regExists(la, regName, &db_res)) {
     writeAddress(db_res, value, la->response);
   } else {
     LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
@@ -261,10 +265,8 @@ void writeRawReg(localArgs * la, const std::string & regName, uint32_t value)
 
 uint32_t readRawReg(localArgs * la, const std::string & regName)
 {
-  lmdb::val key, db_res;
-  key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
-  if (found) {
+  lmdb::val db_res;
+  if (regExists(la, regName, &db_res)) {
     return readAddress(db_res, la->response);
   } else {
     LOGGER->log_message(LogManager::ERROR, stdsprintf("Key: %s is NOT found", regName.c_str()));
@@ -289,10 +291,8 @@ uint32_t applyMask(uint32_t data, uint32_t mask)
 
 uint32_t readReg(localArgs * la, const std::string & regName)
 {
-  lmdb::val key, db_res;
-  key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
-  if (found) {
+  lmdb::val db_res;
+  if (regExists(la, regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
@@ -324,10 +324,8 @@ uint32_t readReg(localArgs * la, const std::string & regName)
 
 uint32_t readBlock(localArgs* la, const std::string& regName, uint32_t* result, const uint32_t& size, const uint32_t& offset)
 {
-  lmdb::val key, db_res;
-  key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
-  if (found) {
+  lmdb::val db_res;
+  if (regExists(la, regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
@@ -422,10 +420,8 @@ slowCtrlErrCntVFAT repeatedRegReadLocal(localArgs * la, const std::string & regN
 
 void writeReg(localArgs * la, const std::string & regName, uint32_t value)
 {
-  lmdb::val key, db_res;
-  key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
-  if (found) {
+  lmdb::val db_res;
+  if (regExists(la, regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
@@ -465,10 +461,8 @@ void writeReg(localArgs * la, const std::string & regName, uint32_t value)
 
 void writeBlock(localArgs* la, const std::string& regName, const uint32_t* values, const uint32_t& size, const uint32_t& offset)
 {
-  lmdb::val key, db_res;
-  key.assign(regName.c_str());
-  bool found = la->dbi.get(la->rtxn,key,db_res);
-  if (found) {
+  lmdb::val db_res;
+  if (regExists(la, regName, &db_res)) {
     std::string t_db_res = std::string(db_res.data());
     t_db_res = t_db_res.substr(0,db_res.size());
     std::vector<std::string> tmp = split(t_db_res,'|');
