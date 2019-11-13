@@ -16,12 +16,20 @@ namespace gbt{
      *  \param[in] phase Phase value to check.
      *  \return Returns `false` in case of success; `true` in case of error. The precise error is logged and written to the `error` RPC key.
      */
-    inline bool checkPhase(uint8_t phase){
+    inline void checkPhase(uint8_t phase){
         if (phase < PHASE_MIN)
-            EMIT_RPC_ERROR(stdsprintf("The phase parameter supplied (%hhu) is smaller than the minimal phase (%hhu).", phase, PHASE_MIN), true)
+            std::stringstream errmsg;
+            errmsg.clear();
+            errmsg.str("");
+            errmsg << "The phase parameter supplied (" << phase << ") is smaller than the minimal phase (" << PHASE_MIN << ").";
+            throw std::range_error(errmsg)
         if (phase > PHASE_MAX)
-            EMIT_RPC_ERROR(stdsprintf("The phase parameter supplied (%hhu) is bigger than the maximal phase (%hhu).", phase, PHASE_MAX), true)
-        return false;
+            std::stringstream errmsg;
+            errmsg.clear();
+            errmsg.str("");
+            errmsg << "The phase parameter supplied (" << phase << ") is bigger than the maximal phase (" << PHASE_MAX << ").";
+            throw std::range_error(errmsg)
+        return;
     }
 }
 
