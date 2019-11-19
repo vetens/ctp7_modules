@@ -60,17 +60,17 @@ namespace xhal {
       inline void serialize(Message &msg, int &value) {
         msg & value;
       }
-          
+
       template<typename Message>
       inline void serialize(Message &msg, bool &value) {
         msg & value;
       }
-          
-      template<typename Message>
-      inline void serialize(Message &msg, uint8_t &value) {
-        msg & value;
-      }
-          
+
+      /* template<typename Message> */
+      /* inline void serialize(Message &msg, uint8_t &value) { */
+      /*   msg & value; */
+      /* } */
+
       template<typename Message>
       inline void serialize(Message &msg, uint16_t &value) {
         msg & value;
@@ -80,31 +80,31 @@ namespace xhal {
       inline void serialize(Message &msg, unsigned char &value) {
         msg & value;
       }
-          
+
       template<typename Message>
       inline void serialize(Message &msg, unsigned int &value) {
         msg & value;
-      }          
+      }
 
       template<typename Message>
       inline void serialize(Message &msg, double &value) {
         msg & *(reinterpret_cast<uint32_t*>(&value));
       }
-          
+
       template<typename Message>
       inline void serialize(Message &msg, float &value) {
         msg & *(reinterpret_cast<uint32_t*>(&value));
       }
 
-      template<typename Message>
-      inline double deserialize(Message &msg, double &value) {
-        msg & *(reinterpret_cast<uint32_t*>(&value));
-      }
-          
-      template<typename Message>
-      inline float deserialize(Message &msg, float &value) {
-        msg & *(reinterpret_cast<uint32_t*>(&value));
-      }
+      /* template<typename Message> */
+      /* inline void deserialize(Message &msg, double &value) { */
+      /*   msg & *(reinterpret_cast<uint32_t*>(&value)); */
+      /* } */
+
+      /* template<typename Message> */
+      /* inline void deserialize(Message &msg, float &value) { */
+      /*   msg & *(reinterpret_cast<uint32_t*>(&value)); */
+      /* } */
     }
   }
 }
@@ -148,7 +148,7 @@ namespace utils {
             return o;
         }
     };
-    
+
     static constexpr uint32_t LMDB_SIZE = 1UL * 1024UL * 1024UL * 50UL; ///< Maximum size of the LMDB object, currently 50 MiB
 
     // FIXME: to be removed when the LMDB singleton is properly implemented
@@ -362,6 +362,7 @@ namespace utils {
      *  \returns the number of uint32_t words in the result (or better to return a std::vector?
      */
     uint32_t readBlock(const std::string &regName, uint32_t *result, const uint32_t &size, const uint32_t &offset=0);
+    /* std::vector<uint32_t> readBlock(const std::string &regName, const uint32_t &size, const uint32_t &offset=0); */
 
     /*!
      *  \brief Reads a block of values from a contiguous address space.
@@ -373,6 +374,7 @@ namespace utils {
      *  \returns the number of uint32_t words in the result (or better to return a std::vector?
      */
     uint32_t readBlock(const uint32_t &regAddr,  uint32_t *result, const uint32_t &size, const uint32_t &offset=0);
+    /* std::vector<uint32_t> readBlock(const uint32_t &regAddr, const uint32_t &size, const uint32_t &offset=0); */
 
     /*!
      *  \brief Reads a register for nReads and then counts the number of slow control errors observed.
