@@ -17,20 +17,14 @@
 
 std::vector<std::vector<uint32_t>> scanGBTPhases::operator()(const uint32_t &ohN, const uint32_t &nResets, const uint8_t &phaseMin, const uint8_t &phaseMax, const uint8_t &phaseStep, const uint32_t &nVerificationReads) const
 {
-    std::stringstream logOHphase;
-    logOHphase.clear();
-    logOHphase.str("");
-    logOHphase << "Scanning the phases for OH #" << ohN << ".";
-    LOG4CPLUS_INFO(logger, logOHphase);
+    LOG4CPLUS_INFO(logger, "Scanning the phases for OH #" << ohN << ".");
 
     // ohN check
     const uint32_t ohMax = readReg("GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
     if (ohN >= ohMax)
         std::stringstream errmsg;
-        errmsg.clear();
-        errmsg.str("");
         errmsg << "The ohN parameter supplied (" << ohN << ") exceeds the number of OH's supported by the CTP7 (" << ohMax << ").";
-        throw std::range_error(errmsg);
+        throw std::range_error(errmsg.str());
 
     // phaseMin and phaseMax check
     checkPhase(phaseMin);
@@ -97,20 +91,15 @@ void writeGBTConfig::operator()(const uint32_t &ohN, const uint32_t &gbtN, const
 
     // ohN check
     const uint32_t ohMax = readReg("GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    std::stringstream errmsg;
     if (ohN >= ohMax)
-        std::stringstream errmsg;
-        errmsg.clear();
-        errmsg.str("");
         errmsg << "The ohN parameter supplied (" << ohN << ") exceeds the number of OH's supported by the CTP7 (" << ohMax << ").";
-        throw std::range_error(errmsg);
+        throw std::range_error(errmsg.str());
 
     // gbtN check
     if (gbtN >= GBTS_PER_OH)
-        std::stringstream errmsg;
-        errmsg.clear();
-        errmsg.str("");
         errmsg << "The gbtN parameter supplied (" << ohN << ") exceeds the number of GBT's per OH (" << GBTS_PER_OH << ").";
-        throw std::range_error(errmsg);
+        throw std::range_error(errmsg.str());
 
     // Write all the registers
     for (size_t address = 0; address < CONFIG_SIZE; address++) {
@@ -126,20 +115,15 @@ void writeGBTPhase::operator()(const uint32_t &ohN, const uint32_t &vfatN, const
     LOG4CPLUS_INFO(logger, logOH_vfatphase);
     // ohN check
     const uint32_t ohMax = readReg("GEM_AMC.GEM_SYSTEM.CONFIG.NUM_OF_OH");
+    std::stringstream errmsg;
     if (ohN >= ohMax)
-        std::stringstream errmsg;
-        errmsg.clear();
-        errmsg.str("");
         errmsg << "The ohN parameter supplied (" << ohN << ") exceeds the number of OH's supported by the CTP7 (" << ohMax << ").";
-        throw std::range_error(errmsg);
+        throw std::range_error(errmsg.str());
 
     // vfatN check
     if (vfatN >= oh::VFATS_PER_OH)
-        std::stringstream errmsg;
-        errmsg.clear();
-        errmsg.str("");
         errmsg << "The vfatN parameter supplied (" << vfatN << ") exceeds the number of VFAT's per OH (" << oh::VFATS_PER_OH << ").";
-        throw std::range_error(errmsg);
+        throw std::range_error(errmsg.str());
 
     // phase check
     checkPhase(phase);
@@ -159,20 +143,15 @@ void writeGBTPhase::operator()(const uint32_t &ohN, const uint32_t &vfatN, const
 void writeGBTReg(const uint32_t ohN, const uint32_t gbtN, const uint16_t address, const uint8_t value)
 {
     // Check that the GBT exists
+    std::stringstream errmsg;
     if (gbtN >= GBTS_PER_OH)
-        std::stringstream errmsg;
-        errmsg.clear();
-        errmsg.str("");
         errmsg << "The gbtN parameter supplied (" << gbtN << ") is larger than the number of GBT's per OH (" << GBTS_PER_OH << ").";
-        throw std::range_error(errmsg);
+        throw std::range_error(errmsg.str());
 
     // Check that the address is writable
     if (address >= CONFIG_SIZE)
-        std::stringstream errmsg;
-        errmsg.clear();
-        errmsg.str("");
         errmsg << "GBT has " << CONFIG_SIZE-1 << "writable addresses while the provided address is" << address << ".";
-        throw std::range_error(errmsg);
+        throw std::range_error(errmsg.str());
 
     // GBT registers are 8 bits long
     writeReg("GEM_AMC.SLOW_CONTROL.IC.READ_WRITE_LENGTH", 1);

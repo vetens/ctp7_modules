@@ -21,11 +21,11 @@
  *
  *  \detail
  *
- *  The scan seeks for valid RX phases for the VFAT's of one OptoHybrid. A phase is considered valid when `LINK_GOOD = 1`, `SYNC_ERR_CNT = 0` and `CFG_RUN != 0xdeaddead`. In order to improve the reliability of the scan, it is repeated `Nscans` times.
+ *  The scan seeks for valid RX phases for the VFAT's of one OptoHybrid. A phase is considered valid when `LINK_GOOD = 1`, `SYNC_ERR_CNT = 0` and `CFG_RUN != 0xdeaddead`. In order to improve the reliability of the scan, it is repeated `nScans` times.
  *
- *  The results are returned as a 2-dimensional array in ``std::vector<std::vector<uint32_t>>`` format, where there is one vector entry per OptoHybrid index, and each entry of the sub-vectors corresponds to the phase read at that VFAT index within the OptoHybrid.
+ *  The results are returned as a 2-dimensional array of GBT phases in ``std::vector<std::vector<uint32_t>>`` format, where the first index refers to the OptoHybrid index, and the second index corresponds to the VFAT index within the OptoHybrid.
  *  Each key is a word array of 16 elements for the 16 possible phases ordered from phase 0 to phase 15.
- *  Each word is the number of time the scan was "good" out of the total number of scan requested, Nscans.
+ *  Each word is the number of time the scan was "good" out of the total number of scan requested, nScans.
  *
  *  An error message of 
  *  ```
@@ -39,7 +39,7 @@ struct scanGBTPhases : public xhal::common::rpc::Method
     std::vector<std::vector<uint32_t>> operator()(const uint32_t &ohN, const uint32_t &nResets = 1, const uint8_t &phaseMin = gbt::PHASE_MIN, const uint8_t &phaseMax = gbt::PHASE_MAX, const uint8_t &phaseStep = 1, const uint32_t &nVerificationReads = 10) const;
 };
 
-/*! \brief Scan the GBT phases of one OptoHybrid.
+/*! \brief Write the GBT configuration of one OptoHybrid.
  *  \param[in] ohN OptoHybrid index number.
  *  \param[in] gbtN Index of the GBT to write. There 3 GBT's per OptoHybrid in the GE1/1 chambers.
  *  \param[in] config Configuration blob of the GBT. This is a 366 elements long array whose each element is the value of one register sorted from address 0 to address 365.

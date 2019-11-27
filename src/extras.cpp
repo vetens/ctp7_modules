@@ -23,7 +23,7 @@ std::vector<uint32_t> mblockread(uint32_t const& addr, uint32_t const& count)
   std::vector<uint32_t> data(count, 0);
 
   if (memhub_read(memsvc, addr, count, data.data()) != 0) {
-    std;;stringstream errmsg;
+    std::stringstream errmsg;
     errmsg << "blockread memsvc error: " << memsvc_get_last_error(memsvc);
     LOG4CPLUS_ERROR(logger, errmsg.str());
     raise std::runtime_error(errmsg.str); 
@@ -47,7 +47,7 @@ std::vector<uint32_t> mfiforead(uint32_t const& addr, uint32_t const& count)
 
   for (auto const& val : data) {
     if (memhub_read(memsvc, addr, 1, &val) != 0) {
-      std;;stringstream errmsg;
+      std::stringstream errmsg;
       errmsg << "fiforead memsvc error: " << memsvc_get_last_error(memsvc);
       LOG4CPLUS_ERROR(logger, errmsg.str());
       raise std::runtime_error(errmsg.str); 
@@ -71,7 +71,7 @@ std::vector<uint32_t> mlistread(std::vector<uint32_t> const& reglist)
 
   for (size_t i = 0; i < reglist.size(); ++i) {
     if (memhub_read(memsvc, addr.at(i), 1, &data.at(i)) != 0) {
-      std;;stringstream errmsg;
+      std::stringstream errmsg;
       errmsg << "listread memsvc error: " << memsvc_get_last_error(memsvc);
       LOG4CPLUS_ERROR(logger, errmsg.str());
       raise std::runtime_error(errmsg.str); 
@@ -92,7 +92,7 @@ void mblockwrite(uint32_t const& addr, std::vector<uint32_t> const& data)
   auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("main"));
 
   if (memhub_write(memsvc, addr, count, data.data()) != 0) {
-    std;;stringstream errmsg;
+    std::stringstream errmsg;
     errmsg << "blockwrite memsvc error: " << memsvc_get_last_error(memsvc);
     LOG4CPLUS_ERROR(logger, errmsg.str());
     raise std::runtime_error(errmsg.str); 
@@ -112,7 +112,7 @@ void mfifowrite(uint32_t const& addr, std::vector<uint32_t> const& data)
 {
   for (auto const& writeval : data) {
     if (memhub_write(memsvc, addr, 1, &writeval) != 0) {
-      std;;stringstream errmsg;
+      std::stringstream errmsg;
       errmsg << "fifowrite memsvc error: " << memsvc_get_last_error(memsvc);
       LOG4CPLUS_ERROR(logger, errmsg.str());
       raise std::runtime_error(errmsg.str); 

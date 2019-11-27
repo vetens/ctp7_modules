@@ -1,3 +1,4 @@
+#include "xhal/common/rpc/register.h"
 #include "moduleapi.h"
 #include <libmemsvc.h>
 #include "memhub.h"
