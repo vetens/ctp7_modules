@@ -175,14 +175,12 @@ std::vector<uint32_t> amc::sbitReadOut::operator()(const uint32_t &ohN, const ui
     return storedSbits;
 }
 
-std::map<std::string, uint32_t> amc::repeatedRegRead::operator()(const std::vector<std::string> &regList, const bool &breakOnFailure, const uint32_t &nReads) const;
+std::map<std::string, uint32_t> amc::repeatedRegRead::operator()(const std::vector<std::string> &regList, const bool &breakOnFailure, const uint32_t &nReads) const
 {
-    GETLOCALARGS(response);
-
     slowCtrlErrCntVFAT vfatErrs;
     for (auto const & regIter : regList) {
       LOG4CPLUS_INFO(logger, "Attempting to repeatedly read register " << regIter << " for " << nReads << " times");
-      vfatErrs = vfatErrs + utils::repeatedRegReadLocal{}(regIter, breakOnFailure, nReads);
+      vfatErrs = vfatErrs + utils::repeatedRegRead(regIter, breakOnFailure, nReads);
     }
 
     std::map<std::string, uint32_t> vfatErrors;
@@ -210,55 +208,55 @@ extern "C" {
             return;
         }
 
-        xhal::rpc::registerMethod<amc::getOHVFATMask>(modmgr);
-        xhal::rpc::registerMethod<amc::getOHVFATMaskMultiLink>(modmgr);
-        xhal::rpc::registerMethod<amc::sbitReadOut>(modmgr);
-        xhal::rpc::registerMethod<amc::repeatedRegRead>(modmgr);
+        xhal::common::rpc::registerMethod<amc::getOHVFATMask>(modmgr);
+        xhal::common::rpc::registerMethod<amc::getOHVFATMaskMultiLink>(modmgr);
+        xhal::common::rpc::registerMethod<amc::sbitReadOut>(modmgr);
+        xhal::common::rpc::registerMethod<amc::repeatedRegRead>(modmgr);
 
         // DAQ module methods (from amc/daq)
-        xhal::rpc::registerMethod<amc::daq::enableDAQLink>(modmgr);
-        xhal::rpc::registerMethod<amc::daq::disableDAQLink>(modmgr);
-        xhal::rpc::registerMethod<amc::daq::setZS>(modmgr);
-        xhal::rpc::registerMethod<amc::daq::resetDAQLink>(modmgr);
-        xhal::rpc::registerMethod<amc::daq::setDAQLinkInputTimeout>(modmgr);
-        xhal::rpc::registerMethod<amc::daq::setDAQLinkRunType>(modmgr);
-        xhal::rpc::registerMethod<amc::daq::setDAQLinkRunParameter>(modmgr);
-        xhal::rpc::registerMethod<amc::daq::setDAQLinkRunParameters>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::enableDAQLink>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::disableDAQLink>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setZS>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::resetDAQLink>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setDAQLinkInputTimeout>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setDAQLinkRunType>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setDAQLinkRunParameter>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::setDAQLinkRunParameters>(modmgr);
 
-        xhal::rpc::registerMethod<amc::daq::configureDAQModule>(modmgr);
-        xhal::rpc::registerMethod<amc::daq::enableDAQModule>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::configureDAQModule>(modmgr);
+        xhal::common::rpc::registerMethod<amc::daq::enableDAQModule>(modmgr);
 
         // TTC module methods (from amc/ttc)
-        xhal::rpc::registerMethod<amc::ttc::ttcModuleReset>(modmgr);
-        xhal::rpc::registerMethod<amc::ttc::ttcMMCMReset>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::ttcMMCMPhaseShift>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::checkPLLLock>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getMMCMPhaseMean>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getMMCMPhaseMedian>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getGTHPhaseMean>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getGTHPhaseMedian>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::ttcCounterReset>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getL1AEnable>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::setL1AEnable>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCConfig>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::setTTCConfig>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCStatus>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCErrorCount>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCCounter>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getL1AID>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getL1ARate>(modmgr);
-        // xhal::rpc::registerMethod<amc::ttc::getTTCSpyBuffer>(modmgr);
+        xhal::common::rpc::registerMethod<amc::ttc::ttcModuleReset>(modmgr);
+        xhal::common::rpc::registerMethod<amc::ttc::ttcMMCMReset>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::ttcMMCMPhaseShift>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::checkPLLLock>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getMMCMPhaseMean>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getMMCMPhaseMedian>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getGTHPhaseMean>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getGTHPhaseMedian>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::ttcCounterReset>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getL1AEnable>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::setL1AEnable>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCConfig>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::setTTCConfig>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCStatus>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCErrorCount>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCCounter>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getL1AID>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getL1ARate>(modmgr);
+        // xhal::common::rpc::registerMethod<amc::ttc::getTTCSpyBuffer>(modmgr);
 
         // SCA module methods (from amc/sca)
-        xhal::rpc::registerMethod<amc::sca::scaHardResetEnable>(modmgr);
-        xhal::rpc::registerMethod<amc::sca::readSCAADCSensor(modmgr);
-        xhal::rpc::registerMethod<amc::sca::readSCAADCTemperatureSensors(modmgr);
-        xhal::rpc::registerMethod<amc::sca::readSCAADCVoltageSensors(modmgr);
-        xhal::rpc::registerMethod<amc::sca::readSCAADCSignalStrengthSensors(modmgr);
-        xhal::rpc::registerMethod<amc::sca::readAllSCAADCSensors(modmgr);
+        xhal::common::rpc::registerMethod<amc::sca::scaHardResetEnable>(modmgr);
+        xhal::common::rpc::registerMethod<amc::sca::readSCAADCSensor>(modmgr);
+        xhal::common::rpc::registerMethod<amc::sca::readSCAADCTemperatureSensors>(modmgr);
+        xhal::common::rpc::registerMethod<amc::sca::readSCAADCVoltageSensors>(modmgr);
+        xhal::common::rpc::registerMethod<amc::sca::readSCAADCSignalStrengthSensors>(modmgr);
+        xhal::common::rpc::registerMethod<amc::sca::readAllSCAADCSensors>(modmgr);
 
         // BLASTER RAM module methods (from amc/blaster_ram)
-        xhal::rpc::registerMethod<amc::blaster::writeConfRAM>(modmgr);
-        xhal::rpc::registerMethod<amc::blaster::readConfRAM>(modmgr);
+        xhal::common::rpc::registerMethod<amc::blaster::writeConfRAM>(modmgr);
+        xhal::common::rpc::registerMethod<amc::blaster::readConfRAM>(modmgr);
     }
 }

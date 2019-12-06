@@ -96,7 +96,7 @@ namespace amc {
    *          "TRANSACTION_CNT"
    *         additionally there will be one final key "SUM" which is the sum of all counters (except TRANSACTION_CNT).
    */
-  struct repeatedRegRead : public xhal::rpc::Method
+  struct repeatedRegRead : public xhal::common::rpc::Method
   {
     std::map<std::string,uint32_t> operator()(const std::vector<std::string> &regList, const bool &breakOnFailure=false, const uint32_t &nReads=100) const;
   };

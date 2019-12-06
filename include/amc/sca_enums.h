@@ -44,6 +44,13 @@ class SCASettings {
       ADC   = 0x14, ///< Analog-to-digital converter
       DAC   = 0x15, ///< Digital-to-analog converter, disconnected in GEM OH
     } SCAChannel;
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & SCAChannel;
+    }
   };  // struct SCAChannel
 
   /**
@@ -64,6 +71,13 @@ class SCASettings {
       CTRL_R_SEU   = 0xF1, ///< Read from the SEU monitor (channel 0x13)
       CTRL_C_SEU   = 0xF0, ///< Reset the SEU monitor (channel 0x13)
     } CTRLCommand;
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & CTRLCommand;
+    }
   };
 
   /**
@@ -98,6 +112,13 @@ class SCASettings {
       I2C_RMW_OR   = 0xC6, ///< Start RMW transaction with OR
       I2C_RMW_XOR  = 0xCA, ///< Start RMW transaction with XOR
     } I2CCommand;
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & I2CCommand;
+    }
   };
 
   /**
@@ -125,6 +146,13 @@ class SCASettings {
       GPIO_W_EDGESEL   = 0x90, ///< Write GPIO clock edge select register, length 4, read length 2
       GPIO_R_EDGESEL   = 0x91, ///< Read GPIO clock edge select register, length 4, read length 2
     } GPIOCommand;
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & GPIOCommand;
+    }
   };
 
   /**
@@ -151,6 +179,13 @@ class SCASettings {
       ADC_V1_W_CURREN = 0x40, ///< [SCA V1 only] Write ADC register
       ADC_V1_R_CURREN = 0x41, ///< [SCA V1 only] Read ADC register
     } ADCCommand;
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & ADCCommand;
+    }
   };  // struct ADCCommand
 
   /**
@@ -168,6 +203,13 @@ class SCASettings {
       ChBusy      = 0x40, ///< Channel busy
       CmdInTreat  = 0x80, ///< Command in treatment
     } SCAErrorFlags;
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & SCAErrorFlags;
+    }
   };  // struct SCAErrorFlags
 
   /**
@@ -193,6 +235,13 @@ class SCASettings {
       I2C14 = 0x11, ///< I2C serial interface - master 14
       I2C15 = 0x12, ///< I2C serial interface - master 15
     } I2CChannel;
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & I2CChannel;
+    }
   };  // struct I2CChannel
 
   /**
@@ -202,6 +251,13 @@ class SCASettings {
   struct GPIOChannel {  //GPIOChannel settings
     enum EGPIOChannel { //GPIOChannel settings
     } GPIOChannel;
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & GPIOChannel;
+    }
   };  // struct GPIOChannel
 
   /**
@@ -262,7 +318,17 @@ class SCASettings {
       //ADC_CH29 = 0x1D, ///< ADC channel 29
     } ADCChannel;
 
-    //static constexpr bool useCurrentSource(EADCChannel sensor)
+
+    /*!
+     * \brief With its intrusive serializer
+     */
+    template<class Message> void serialize(Message & msg) {
+      msg & ADCChannel;
+    }
+
+    /*!
+     * \brief Returns true if the ADC sensor requires the current source to be enabled
+     */
     static bool useCurrentSource(EADCChannel sensor)
     {
         switch (sensor) {
@@ -302,5 +368,54 @@ typedef SCASettings::I2CChannel::EI2CChannel      SCAI2CChannelT;
 typedef SCASettings::GPIOChannel::EGPIOChannel    SCAGPIOChannelT;
 typedef SCASettings::ADCChannel::EADCChannel      SCAADCChannelT;
 
+namespace xhal {
+  namespace common {
+    namespace rpc {
+      template<typename Message>
+      inline void serialize(Message &msg, SCAResetTypeT &value) {
+        msg & value;
+      }
 
+      template<typename Message>
+      inline void serialize(Message &msg, SCAChannelT &value) {
+        msg & value;
+      }
+
+      template<typename Message>
+      inline void serialize(Message &msg, SCACTRLCommandT &value) {
+        msg & value;
+      }
+
+      template<typename Message>
+      inline void serialize(Message &msg, SCAI2CCommandT &value) {
+        msg & value;
+      }
+
+      template<typename Message>
+      inline void serialize(Message &msg, SCAGPIOCommandT &value) {
+        msg & value;
+      }
+
+      template<typename Message>
+      inline void serialize(Message &msg, SCAADCCommandT &value) {
+        msg & value;
+      }
+
+      template<typename Message>
+      inline void serialize(Message &msg, SCAI2CChannelT &value) {
+        msg & value;
+      }
+
+      template<typename Message>
+      inline void serialize(Message &msg, SCAGPIOChannelT &value) {
+        msg & value;
+      }
+
+      template<typename Message>
+      inline void serialize(Message &msg, SCAADCChannelT &value) {
+        msg & value;
+      }
+    }
+  }
+}
 #endif

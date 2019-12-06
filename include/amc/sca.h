@@ -120,7 +120,7 @@ namespace amc {
      */
     struct scaADCCommand : public xhal::common::rpc::Method
     {
-      std::vector<uint32_t> operator()(SCAADCChannelT const& ch, uint8_t const& len, uint32_t data, uint16_t const& ohMask=0xfff) const;
+      std::vector<uint32_t> operator()(SCAADCChannelT const& ch, uint16_t const& ohMask=0xfff) const;
     };
 
     /*** CTRL submodule ***/
@@ -226,7 +226,7 @@ namespace amc {
      */
     struct readSCAADCSensor : public xhal::common::rpc::Method
     {
-      std::vector<uint32_t> operator()(uint16_t const& ch, uint16_t const& ohMask=0xfff) const;
+      std::vector<uint32_t> operator()(SCAADCChannelT const& ch, uint16_t const& ohMask=0xfff) const;
     };
 
     /*!
