@@ -160,8 +160,6 @@ namespace utils {
     env.open(lmdb_data_file.c_str(), 0, 0664);                  \
     auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);     \
     auto dbi  = lmdb::dbi::open(rtxn, nullptr);                 \
-    utils::LocalArgs la = {.rtxn = rtxn,                        \
-                           .dbi  = dbi};
 
     struct slowCtrlErrCntVFAT {
       uint32_t crc;           ///< GEM_AMC.SLOW_CONTROL.VFAT3.CRC_ERROR_CNT
@@ -383,7 +381,7 @@ namespace utils {
      *  \param breakOnFailure stop attempting to read regName before nReads is reached if a failed read occurs
      *  \param nReads number of times to attempt to read regName
      */
-    slowCtrlErrCntVFAT repeatedRegReadLocal(const std::string & regName, bool breakOnFailure=true, uint32_t nReads=1000);
+    slowCtrlErrCntVFAT repeatedRegRead(const std::string & regName, bool breakOnFailure=true, uint32_t nReads=1000);
 
     /*!
      *  \brief Writes a value to a register. Register mask is applied

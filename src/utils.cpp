@@ -205,15 +205,17 @@ bool utils::regExists(const std::string & regName, lmdb::val * db_res)
   lmdb::val key;
   key.assign(regName.c_str());
   if (db_res != nullptr) {
-    return la->dbi.get(la->rtxn,key, *db_res);
+    return dbi.get(rtxn, key, *db_res);
   } else {
     lmdb::val db_res_loc;
-    return la->dbi.get(la->rtxn,key,db_res_loc);
+    return dbi.get(rtxn, key, db_res_loc);
   }
 }
 
 uint32_t utils::getMask(const std::string & regName)
 {
+  auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
+
   lmdb::val db_res;
   uint32_t rmask = 0x0;
   if (regExists(regName, &db_res)) {
@@ -471,7 +473,7 @@ uint32_t utils::readBlock(const uint32_t& regAddr, uint32_t* result, const uint3
   return 0;
 }
 
-slowCtrlErrCntVFAT utils::repeatedRegReadLocal(const std::string & regName, bool breakOnFailure, uint32_t nReads)
+utils::slowCtrlErrCntVFAT utils::repeatedRegRead(const std::string & regName, bool breakOnFailure, uint32_t nReads)
 {
     // Create the output error counter container
     slowCtrlErrCntVFAT vfatErrs;
@@ -502,7 +504,7 @@ slowCtrlErrCntVFAT utils::repeatedRegReadLocal(const std::string & regName, bool
     return vfatErrs;
 }
 
-void writeReg(localArgs * la, const std::string & regName, uint32_t value)
+void utils::writeReg(const std::string & regName, uint32_t value)
 {
   auto logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("logger"));
   lmdb::val db_res;
