@@ -81,7 +81,7 @@ TestSources  := $(wildcard $(PackageTestSourceDir)/*.cxx) $(wildcard $(PackageTe
 Dependencies := $(patsubst $(PackageSourceDir)/%.cpp, $(PackageObjectDir)/%.d, $(Sources))
 TargetObjects:= $(patsubst %.d,%.o,$(Dependencies))
 
-TargetLibraries:=memhub utils amc gbt
+TargetLibraries:=memhub utils amc
 #daq_monitor vfat3 optohybrid calibration_routines gbt
 ifeq ($(Arch),x86_64)
 else
